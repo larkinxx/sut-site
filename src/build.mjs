@@ -5,7 +5,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { ROOT, loadSite, loadCards, loadTopics, loadMaterials } from './lib/content.mjs';
+import { ROOT, loadSite, loadCards, loadMaterials } from './lib/content.mjs';
 import { AUDIENCES, AUDIENCE_TABS, esc, markTitle, dateRu, agoRu } from './lib/util.mjs';
 
 const withExamples = process.argv.includes('--examples');
@@ -18,7 +18,6 @@ const base = (site.basePath || '').replace(/\/$/, '');
 const url = (p) => base + p;
 
 const { cards, problems: cardProblems } = loadCards({ withExamples });
-const topicsData = loadTopics();
 const { materials, problems: matProblems } = loadMaterials();
 
 // Проблемы в содержимом не роняют сборку целиком, но не скрываются: печатаем и (в CI) падаем при --strict
@@ -47,7 +46,6 @@ for (const f of fs.readdirSync(path.join(ROOT, 'public'))) {
 // ---------- шаблон страницы ----------
 const NAV = [
   ['/', 'Новости', 'news'],
-  ['/temy/', 'Темы', 'topics'],
   ['/kalkulyatory/', 'Калькуляторы', 'calc'],
   ['/kak-my-rabotaem/', 'Как мы работаем', 'about']
 ];
@@ -260,32 +258,6 @@ ${subscribeBlock()}`;
   write(`n/${c.id}/index.html`, layout({ title: c.title, desc: c.gloss, path: `/n/${c.id}/`, current: 'news', body, ld }));
 }
 
-// Темы
-{
-  const { groups, topics } = topicsData;
-  const nav = groups.map((g) => `<a class="chip" href="#${g.id}" style="text-decoration:none">${esc(g.name)}</a>`).join('');
-  const sections = groups.map((g) => {
-    const items = topics.filter((t) => t.group === g.id).map((t) => {
-      const mats = materialsFor([t.id], { max: 1 });
-      return `<details class="item" id="t-${t.id}">
-  <summary><span class="av" aria-hidden="true">${esc(t.title.charAt(0))}</span>
-    <span class="tx"><span class="h">${esc(t.title)}</span><span class="gloss">${esc(t.desc)}</span></span></summary>
-  <div class="more-i">
-    <p class="tip"><b>С чего начать:</b> ${esc(t.start)}</p>
-    ${mats.length ? `<div class="mats">${mats.map(materialRow).join('')}</div>` : '<p class="nomat">Материалы по теме появятся после проверки авторов.</p>'}
-  </div>
-</details>`;
-    }).join('\n');
-    return `<section class="grp" id="${g.id}"><h2>${esc(g.head)}</h2><p>${esc(g.note)}</p><div class="list tl" style="margin-top:10px">${items}</div></section>`;
-  }).join('\n');
-  const body = `<h1 class="page">Темы</h1>
-<p class="lede">От работы над собой до своего дела: выберите, с чего начать.</p>
-<div class="filters">${nav}</div>
-${sections}
-<p class="note-sm" style="margin-top:20px">В каталог попадают только материалы без обещаний гарантированного дохода и с понятной программой и ценой. Метка «Партнёрская ссылка» значит, что сайт получает комиссию.</p>`;
-  write('temy/index.html', layout({ title: 'Темы', desc: 'От саморазвития до своего дела: с чего начать.', path: '/temy/', current: 'topics', body }));
-}
-
 // Калькуляторы
 write('kalkulyatory/index.html', layout({
   title: 'Калькуляторы', desc: 'Платёж по кредиту и доход по вкладу.', path: '/kalkulyatory/', current: 'calc',
@@ -331,7 +303,7 @@ write('404.html', layout({
 // robots и sitemap
 write('robots.txt', `User-agent: *\nAllow: /\n${site.siteUrl.includes('example') ? '' : `Sitemap: ${site.siteUrl}/sitemap.xml\n`}`);
 if (!site.siteUrl.includes('example')) {
-  const urls = ['/', '/arhiv/', '/temy/', '/kalkulyatory/', '/kak-my-rabotaem/', ...cards.map((c) => `/n/${c.id}/`)];
+  const urls = ['/', '/arhiv/', '/kalkulyatory/', '/kak-my-rabotaem/', ...cards.map((c) => `/n/${c.id}/`)];
   write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `<url><loc>${site.siteUrl}${u}</loc></url>`).join('\n')}\n</urlset>\n`);
 }
 
