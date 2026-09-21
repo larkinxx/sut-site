@@ -1,11 +1,14 @@
-# Публикация сайта на GitHub Pages: срабатывает при каждом изменении в репозитории
-# (например, когда вы отметили карточку проверенной) и вручную кнопкой «Run workflow».
+# Публикация сайта на GitHub Pages: срабатывает при каждом изменении в репозитории,
+# после каждого прогона автосбора новостей (иначе новые карточки не попали бы на сайт) и вручную кнопкой «Run workflow».
 name: Опубликовать сайт
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Собрать новости и черновики"]
+    types: [completed]
 
 permissions:
   contents: read
@@ -18,6 +21,7 @@ concurrency:
 
 jobs:
   build:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
