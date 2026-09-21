@@ -1,13 +1,13 @@
-# Автосбор новостей и черновики от ИИ. Каждые 3 часа (и по кнопке «Run workflow»):
-# 1) читает RSS-ленты из config/sources.json, 2) просит Claude подготовить черновики,
-# 3) сохраняет их в content/news/ со статусом draft. На сайт черновики НЕ попадают,
-# пока человек не проверит карточку и не поставит status = published.
+# Автосбор новостей и публикация без участия человека. Каждый час (и по кнопке «Run workflow»):
+# 1) читает RSS-ленты из config/sources.json, 2) просит ИИ подготовить карточки,
+# 3) обычные карточки, прошедшие автопроверки, сразу получают status = published; важные и сомнительные
+#    остаются черновиками (draft) и ждут человека, 4) сохраняет результат; затем сайт пересобирается сам (deploy.yml).
 # Шаг с ИИ пропускается, пока в Settings → Secrets не добавлен ANTHROPIC_API_KEY (Claude) или GEMINI_API_KEY (Google Gemini).
 name: Собрать новости и черновики
 
 on:
   schedule:
-    - cron: "15 */3 * * *"
+    - cron: "15 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -36,6 +36,7 @@ jobs:
           ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+          AUTO_PUBLISH: "true"
         run: npm run draft
       - name: Сохранить
         run: |
@@ -46,7 +47,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "Новых материалов нет"
           else
-            git commit -m "Новые черновики"
+            git commit -m "Новые новости"
             git pull --rebase origin main
             git push
           fi
