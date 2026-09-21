@@ -2,7 +2,9 @@
 // подготовить карточку в content/news/ со статусом "draft". Ничего не публикуется само:
 // на сайт карточка попадёт только после проверки человеком (см. README).
 //
-// Запуск:  ANTHROPIC_API_KEY=... npm run draft
+// Запуск:  ANTHROPIC_API_KEY=... npm run draft   (Claude)
+//          GEMINI_API_KEY=...    npm run draft   (Google Gemini)
+// Если заданы оба ключа, берётся Claude; принудительно: AI_PROVIDER=gemini или AI_PROVIDER=anthropic.
 // Без ключа, для проверки конвейера:  npm run draft:mock
 import fs from 'node:fs';
 import path from 'node:path';
@@ -11,15 +13,18 @@ import { validateCard } from '../src/lib/schema.mjs';
 
 const args = process.argv.slice(2);
 const MOCK = args.includes('--mock');
-const API_KEY = process.env.ANTHROPIC_API_KEY;
-const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5';
+const PROVIDER = process.env.AI_PROVIDER || (process.env.ANTHROPIC_API_KEY ? 'anthropic' : process.env.GEMINI_API_KEY ? 'gemini' : 'anthropic');
+const API_KEY = PROVIDER === 'gemini' ? process.env.GEMINI_API_KEY : process.env.ANTHROPIC_API_KEY;
+const MODEL = PROVIDER === 'gemini'
+  ? (process.env.GEMINI_MODEL || 'gemini-2.5-flash')
+  : (process.env.ANTHROPIC_MODEL || 'claude-sonnet-5');
 const RAW = path.join(ROOT, 'content/raw');
 const OUT = path.join(ROOT, 'content/news');
 fs.mkdirSync(OUT, { recursive: true });
 fs.mkdirSync(RAW, { recursive: true });
 
 if (!MOCK && !API_KEY) {
-  console.error('Не задан ANTHROPIC_API_KEY. Для проверки без ключа запустите: npm run draft:mock');
+  console.error(`Не задан ${PROVIDER === 'gemini' ? 'GEMINI_API_KEY' : 'ANTHROPIC_API_KEY'}. Для проверки без ключа запустите: npm run draft:mock`);
   process.exit(1);
 }
 
@@ -68,7 +73,26 @@ function userPrompt(raw) {
 ${(raw.text || '').slice(0, 6000)}`;
 }
 
+async function callGemini(messages) {
+  const base = process.env.GEMINI_API_URL || 'https://generativelanguage.googleapis.com';
+  const res = await fetch(`${base}/v1beta/models/${MODEL}:generateContent`, {
+    method: 'POST',
+    headers: { 'x-goog-api-key': API_KEY, 'content-type': 'application/json' },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: SYSTEM }] },
+      contents: messages.map((m) => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] })),
+      generationConfig: { responseMimeType: 'application/json', temperature: 0.3, maxOutputTokens: 4000 }
+    }),
+    signal: AbortSignal.timeout(90000)
+  });
+  if (!res.ok) throw new Error(`API ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  const data = await res.json();
+  const parts = data.candidates?.[0]?.content?.parts || [];
+  return parts.map((p) => p.text || '').join('');
+}
+
 async function callClaude(messages) {
+  if (PROVIDER === 'gemini') return callGemini(messages);
   const res = await fetch((process.env.ANTHROPIC_API_URL || 'https://api.anthropic.com') + '/v1/messages', {
     method: 'POST',
     headers: { 'x-api-key': API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
@@ -117,7 +141,7 @@ function toCard(raw, d) {
     confidence: d.confidence, confidenceNote: d.confidenceNote || '',
     topics: (d.topics || []).filter((t) => topicIds.includes(t)),
     review: { by: null, at: null },
-    ai: { model: MOCK ? 'mock' : MODEL, generatedAt: new Date().toISOString() }
+    ai: { model: MOCK ? 'mock' : `${PROVIDER}:${MODEL}`, generatedAt: new Date().toISOString() }
   };
 }
 
@@ -152,7 +176,7 @@ for (const f of files) {
 }
 pending.sort((a, b) => Date.parse(b.raw.publishedAt) - Date.parse(a.raw.publishedAt));
 const batch = pending.slice(0, cfg.maxNewItemsPerRun || 8);
-console.log(`Ждут черновика: ${pending.length}, берём: ${batch.length}${MOCK ? ' (тестовый режим)' : ` (модель ${MODEL})`}`);
+console.log(`Ждут черновика: ${pending.length}, берём: ${batch.length}${MOCK ? ' (тестовый режим)' : ` (${PROVIDER}, модель ${MODEL})`}`);
 
 let made = 0, skipped = 0, failed = 0;
 for (const { f, raw } of batch) {
