@@ -40,6 +40,8 @@ jobs:
       - name: Проверка содержимого
         run: npm run check
       - name: Сборка
+        env:
+          DADATA_TOKEN: ${{ secrets.DADATA_TOKEN }}
         run: node src/build.mjs --strict
       - uses: actions/upload-pages-artifact@v3
         with:
