@@ -264,6 +264,22 @@ write('kalkulyatory/index.html', layout({
   body: `<h1 class="page">Калькуляторы</h1><p class="lede">Подставьте свои цифры: расчёт происходит у вас в браузере, данные никуда не отправляются.</p>${calcMortgage('p')}${calcDeposit('p')}`
 }));
 
+// Проверка организации по ИНН (данные из открытых реестров через DaData, ключ берётся из DADATA_TOKEN при сборке)
+write('organizacii/index.html', layout({
+  title: 'Проверка организации', desc: 'Введите ИНН и получите данные из открытых реестров и памятку: о чём помнить при ведении дел.', path: '/organizacii/', current: 'org',
+  body: `<h1 class="page">Проверка организации по ИНН</h1><p class="lede">Введите ИНН организации или ИП: покажем данные из открытых реестров и памятку, о чём стоит помнить.</p>
+<section class="calc" id="org" data-token="${esc(process.env.DADATA_TOKEN || '')}">
+  <form id="org-form" novalidate>
+    <label class="f">ИНН (10 или 12 цифр)<input type="text" id="org-inn" inputmode="numeric" maxlength="12" autocomplete="off" placeholder="7707083893"></label>
+    <p><button class="btn" type="submit">Проверить</button></p>
+  </form>
+  <p class="note-sm" id="org-msg" aria-live="polite"></p>
+  <div id="org-out"></div>
+  <p class="note-sm">Данные берём из открытых реестров через сервис DaData: ваш ИНН отправляется туда для поиска, мы его не храним. Памятка составлена по общим правилам и не является налоговой или юридической консультацией. Сроки и суммы сверяйте на nalog.gov.ru.</p>
+</section>
+<script src="${url('/org.js')}?v=${hashOf('org.js')}" defer></script>`
+}));
+
 // Как мы работаем (публичные правила: доверие)
 write('kak-my-rabotaem/index.html', layout({
   title: 'Как мы работаем', desc: 'Откуда берутся новости, кто их проверяет и как мы отбираем курсы.', path: '/kak-my-rabotaem/', current: 'about',
@@ -303,7 +319,7 @@ write('404.html', layout({
 // robots и sitemap
 write('robots.txt', `User-agent: *\nAllow: /\n${site.siteUrl.includes('example') ? '' : `Sitemap: ${site.siteUrl}/sitemap.xml\n`}`);
 if (!site.siteUrl.includes('example')) {
-  const urls = ['/', '/arhiv/', '/kalkulyatory/', '/kak-my-rabotaem/', ...cards.map((c) => `/n/${c.id}/`)];
+  const urls = ['/', '/arhiv/', '/kalkulyatory/', '/organizacii/', '/kak-my-rabotaem/', ...cards.map((c) => `/n/${c.id}/`)];
   write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `<url><loc>${site.siteUrl}${u}</loc></url>`).join('\n')}\n</urlset>\n`);
 }
 
