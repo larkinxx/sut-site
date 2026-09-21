@@ -45,6 +45,16 @@
       if (t) t.textContent = ago(age);
     });
 
+    /* если за сутки ничего нет, показываем последние 5 новостей с пояснением */
+    if (items.length && !items.some(function (it) { return it.__fresh; })) {
+      items.slice().sort(function (a, b) { return Number(b.getAttribute('data-ts')) - Number(a.getAttribute('data-ts')); })
+        .slice(0, VISIBLE).forEach(function (it) { it.__fresh = true; });
+      var note = document.createElement('p');
+      note.className = 'empty';
+      note.textContent = 'За последние 24 часа новых материалов нет. Показываем последние опубликованные.';
+      feed.parentNode.insertBefore(note, feed);
+    }
+
     var render = function () {
       var list = items.filter(function (it) {
         if (!it.__fresh) return false;
