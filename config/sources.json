@@ -3,8 +3,8 @@
   "sources": [
     { "id": "cbr-press", "name": "Банк России", "kind": "Пресс-релиз", "url": "http://www.cbr.ru/rss/RssPress", "enabled": true },
     { "id": "cbr-news", "name": "Банк России", "kind": "Новости и выступления", "url": "http://www.cbr.ru/rss/eventrss", "enabled": true },
-    { "id": "rbc", "name": "РБК", "kind": "Новости", "url": "https://rssexport.rbc.ru/rbcnews/news/30/full.rss", "enabled": true, "official": false, "includeCategories": ["Экономика", "Финансы", "Бизнес"] },
-    { "id": "minfin", "name": "Минфин России", "kind": "Новости", "url": "", "enabled": false },
+    { "id": "rbc", "name": "РБК", "kind": "Новости", "url": "https://rssexport.rbc.ru/rbcnews/news/30/full.rss", "enabled": true, "official": false, "includeCategories": ["Экономика", "Финансы", "Бизнес", "Инвестиции", "Недвижимость"] },
+    { "id": "minfin", "name": "Минфин России", "kind": "Новости", "url": "https://minfin.gov.ru/rss_news?mod=news&lim=50", "enabled": true },
     { "id": "fns", "name": "ФНС России", "kind": "Новости", "url": "", "enabled": false },
     { "id": "rosstat", "name": "Росстат", "kind": "Новости", "url": "", "enabled": false }
   ],
