@@ -7,6 +7,6 @@
     { "id": "fns", "name": "ФНС России", "kind": "Новости", "url": "", "enabled": false },
     { "id": "rosstat", "name": "Росстат", "kind": "Новости", "url": "", "enabled": false }
   ],
-  "maxAgeHours": 240,
+  "maxAgeHours": 48,
   "maxNewItemsPerRun": 8
 }
