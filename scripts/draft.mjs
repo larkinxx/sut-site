@@ -16,7 +16,7 @@ const MOCK = args.includes('--mock');
 const PROVIDER = process.env.AI_PROVIDER || (process.env.ANTHROPIC_API_KEY ? 'anthropic' : process.env.GEMINI_API_KEY ? 'gemini' : 'anthropic');
 const API_KEY = PROVIDER === 'gemini' ? process.env.GEMINI_API_KEY : process.env.ANTHROPIC_API_KEY;
 const MODEL = PROVIDER === 'gemini'
-  ? (process.env.GEMINI_MODEL || 'gemini-2.5-flash')
+  ? (process.env.GEMINI_MODEL || 'gemini-3.8-flash')
   : (process.env.ANTHROPIC_MODEL || 'claude-sonnet-5');
 const RAW = path.join(ROOT, 'content/raw');
 const OUT = path.join(ROOT, 'content/news');
@@ -73,7 +73,7 @@ function userPrompt(raw) {
 ${(raw.text || '').slice(0, 6000)}`;
 }
 
-async function callGemini(messages) {
+async function callGeminiModel(MODEL, messages) {
   const base = process.env.GEMINI_API_URL || 'https://generativelanguage.googleapis.com';
   const res = await fetch(`${base}/v1beta/models/${MODEL}:generateContent`, {
     method: 'POST',
@@ -89,6 +89,20 @@ async function callGemini(messages) {
   const data = await res.json();
   const parts = data.candidates?.[0]?.content?.parts || [];
   return parts.map((p) => p.text || '').join('');
+}
+
+async function callGemini(messages) {
+  // Если модель перегружена (503), исчерпан лимит (429) или снята (404), пробуем следующую
+  const models = [...new Set([MODEL, 'gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.5-flash-lite'])];
+  let lastErr;
+  for (const m of models) {
+    try { return await callGeminiModel(m, messages); }
+    catch (e) {
+      lastErr = e;
+      if (!/^API (503|429|404)/.test(e.message)) throw e;
+    }
+  }
+  throw lastErr;
 }
 
 async function callClaude(messages) {
