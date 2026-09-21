@@ -2,6 +2,7 @@
 # 1) читает RSS-ленты из config/sources.json, 2) просит Claude подготовить черновики,
 # 3) сохраняет их в content/news/ со статусом draft. На сайт черновики НЕ попадают,
 # пока человек не проверит карточку и не поставит status = published.
+# Шаг с ИИ пропускается, пока в Settings → Secrets не добавлен ANTHROPIC_API_KEY.
 name: Собрать новости и черновики
 
 on:
@@ -19,6 +20,8 @@ concurrency:
 jobs:
   pipeline:
     runs-on: ubuntu-latest
+    env:
+      HAS_KEY: ${{ secrets.ANTHROPIC_API_KEY != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -27,6 +30,7 @@ jobs:
       - name: Сбор новостей
         run: npm run fetch
       - name: Черновики от ИИ
+        if: env.HAS_KEY == 'true'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL }}
