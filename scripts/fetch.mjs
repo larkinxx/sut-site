@@ -58,7 +58,14 @@ for (const src of sources) {
   }
   const items = parseFeed(xml);
   let n = 0;
+  // Ленты СМИ большие и разнородные: берём только нужные разделы (includeCategories в config/sources.json)
+  const cats = (src.includeCategories || []).map((c) => c.toLowerCase());
+  const offTopic = {};
   for (const it of items) {
+    if (cats.length && it.category && !cats.some((c) => it.category.toLowerCase().includes(c))) {
+      offTopic[it.category] = (offTopic[it.category] || 0) + 1;
+      continue;
+    }
     const ts = it.pubDate ? Date.parse(it.pubDate) : Date.now();
     if (Date.now() - ts > maxAge && !opt('--file')) continue;
     const id = `${src.id}-${hash(it.guid || it.link)}`;
@@ -67,13 +74,13 @@ for (const src of sources) {
     let text = it.text;
     if (text.length < 400 && !opt('--file')) text = (await articleText(it.link)) || text;
     fs.writeFileSync(file, JSON.stringify({
-      id, sourceId: src.id, sourceName: src.name, kind: src.kind || '',
+      id, sourceId: src.id, sourceName: src.name, kind: src.kind || '', official: src.official !== false, category: it.category || '',
       title: it.title, url: it.link, publishedAt: it.pubDate || new Date().toISOString(),
       text, fetchedAt: new Date().toISOString(), drafted: false
     }, null, 2) + '\n');
     n++; added++;
   }
-  console.log(`${src.id}: в ленте ${items.length}, новых ${n}`);
+  console.log(`${src.id}: в ленте ${items.length}, новых ${n}${Object.keys(offTopic).length ? `, другие разделы отсеяны: ${JSON.stringify(offTopic)}` : ''}`);
 }
 console.log(`Итого новых материалов: ${added}`);
 if (sources.length && failed.length === sources.length) {
