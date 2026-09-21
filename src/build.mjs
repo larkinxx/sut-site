@@ -47,6 +47,7 @@ for (const f of fs.readdirSync(path.join(ROOT, 'public'))) {
 const NAV = [
   ['/', 'Новости', 'news'],
   ['/kalkulyatory/', 'Калькуляторы', 'calc'],
+  ['/organizacii/', 'Организации', 'org'],
   ['/kak-my-rabotaem/', 'Как мы работаем', 'about']
 ];
 
