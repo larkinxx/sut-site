@@ -18,6 +18,7 @@ const API_KEY = PROVIDER === 'gemini' ? process.env.GEMINI_API_KEY : process.env
 const MODEL = PROVIDER === 'gemini'
   ? (process.env.GEMINI_MODEL || 'gemini-3.8-flash')
   : (process.env.ANTHROPIC_MODEL || 'claude-sonnet-5');
+const AUTO = process.env.AUTO_PUBLISH === 'true' && !MOCK; // публиковать без участия человека, если карточка прошла все автопроверки
 const RAW = path.join(ROOT, 'content/raw');
 const OUT = path.join(ROOT, 'content/news');
 fs.mkdirSync(OUT, { recursive: true });
@@ -159,6 +160,30 @@ function toCard(raw, d) {
   };
 }
 
+
+// ---------- автопубликация: строгие автоматические проверки ----------
+// Карточка публикуется сама, только если: не «важная» (платежи, сроки, штрафы), уверенность не низкая,
+// все числа из текста карточки есть в первоисточнике, нет запрещённых формулировок.
+const normNum = (t) => String(t).replace(/[\s\u00a0\u202f]/g, '').replace(/,/g, '.');
+function cardTexts(card) {
+  const out = [card.title, card.summary, card.gloss, card.tip];
+  for (const a of Object.values(card.audiences || {})) out.push(a.meaning, ...(a.steps || []));
+  return out.filter(Boolean).join(' ');
+}
+function autoVerdict(card, raw) {
+  if (card.critical) return 'важная новость: нужна проверка человеком';
+  if (card.confidence === 'low') return 'низкая уверенность ИИ';
+  if (!Object.keys(card.audiences || {}).length) return 'нет разбора для аудиторий';
+  const source = normNum((raw.title || '') + ' ' + (raw.text || ''));
+  const nums = (cardTexts(card).match(/\d+(?:[.,]\d+)?/g) || []).filter((n) => n.replace(/\D/g, '').length >= 2);
+  const missing = [...new Set(nums.map(normNum))].filter((n) => !source.includes(n));
+  if (missing.length) return `числа нет в первоисточнике: ${missing.slice(0, 4).join(', ')}`;
+  const published = { ...card, status: 'published', review: { by: 'auto', at: new Date().toISOString() } };
+  const errs = validateCard(published);
+  if (errs.length) return 'не прошла проверку: ' + errs[0];
+  return null;
+}
+
 async function draftOne(raw) {
   if (MOCK) return { d: mockDraft(raw), errors: [] };
   const messages = [{ role: 'user', content: userPrompt(raw) }];
@@ -183,16 +208,17 @@ async function draftOne(raw) {
 }
 
 const files = fs.readdirSync(RAW).filter((f) => f.endsWith('.json')).sort();
+const maxAgeMs = (cfg.maxAgeHours || 48) * 3600e3; // старше этого срока новости не берём: сайт про свежее
 const pending = [];
 for (const f of files) {
   const raw = JSON.parse(fs.readFileSync(path.join(RAW, f), 'utf8'));
-  if (!raw.drafted) pending.push({ f, raw });
+  if (!raw.drafted && Date.now() - Date.parse(raw.publishedAt) <= maxAgeMs) pending.push({ f, raw });
 }
 pending.sort((a, b) => Date.parse(b.raw.publishedAt) - Date.parse(a.raw.publishedAt));
 const batch = pending.slice(0, cfg.maxNewItemsPerRun || 8);
 console.log(`Ждут черновика: ${pending.length}, берём: ${batch.length}${MOCK ? ' (тестовый режим)' : ` (${PROVIDER}, модель ${MODEL})`}`);
 
-let made = 0, skipped = 0, failed = 0;
+let made = 0, skipped = 0, failed = 0, published = 0;
 for (const { f, raw } of batch) {
   const r = await draftOne(raw);
   const rawPath = path.join(RAW, f);
@@ -207,9 +233,19 @@ for (const { f, raw } of batch) {
     continue;
   }
   const card = toCard(raw, r.d);
+  let mark = 'черновик';
+  if (AUTO) {
+    const why = autoVerdict(card, raw);
+    if (!why) {
+      card.status = 'published';
+      card.review = { by: 'Автоматически (ИИ), без проверки редактором', at: new Date().toISOString(), auto: true };
+      mark = 'опубликовано автоматически';
+      published++;
+    } else mark = `черновик, ждёт человека (${why})`;
+  }
   fs.writeFileSync(path.join(OUT, `${card.id}.json`), JSON.stringify(card, null, 2) + '\n');
   raw.drafted = true;
   fs.writeFileSync(rawPath, JSON.stringify(raw, null, 2) + '\n');
-  made++; console.log(`  черновик: ${card.id}`);
+  made++; console.log(`  ${mark}: ${card.id}`);
 }
-console.log(`Готово: черновиков ${made}, пропущено ${skipped}, ошибок ${failed}`);
+console.log(`Готово: карточек ${made} (из них опубликовано автоматически ${published}), пропущено ${skipped}, ошибок ${failed}`);
