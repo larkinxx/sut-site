@@ -39,6 +39,7 @@ jobs:
         run: |
           git config user.name "sut-bot"
           git config user.email "sut-bot@users.noreply.github.com"
+          mkdir -p content/news content/raw
           git add content/news content/raw
           if git diff --cached --quiet; then
             echo "Новых материалов нет"
