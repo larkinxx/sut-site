@@ -1,0 +1,14 @@
+{
+  "name": "Суть",
+  "tagline": "Экономические новости и что с ними делать",
+  "siteUrl": "https://example.github.io/sut-site",
+  "basePath": "",
+  "lang": "ru",
+  "windowHours": 24,
+  "telegramUrl": "",
+  "subscribeFormAction": "",
+  "subscribeNote": "Раз в неделю: главные новости и что с ними делать.",
+  "contactEmail": "",
+  "editorialContact": "",
+  "disclaimer": "Материалы сайта носят информационный характер и не являются индивидуальной финансовой рекомендацией."
+}
