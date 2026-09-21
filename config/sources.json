@@ -1,0 +1,12 @@
+{
+  "_comment": "Источники новостей. Три ленты Банка России взяты с его страницы https://www.cbr.ru/development/rss/. Остальные ленты добавьте сами: найдите на сайте ведомства значок RSS, скопируйте адрес в поле url и поставьте enabled: true.",
+  "sources": [
+    { "id": "cbr-press", "name": "Банк России", "kind": "Пресс-релиз", "url": "http://www.cbr.ru/rss/RssPress", "enabled": true },
+    { "id": "cbr-news", "name": "Банк России", "kind": "Новости и выступления", "url": "http://www.cbr.ru/rss/eventrss", "enabled": true },
+    { "id": "minfin", "name": "Минфин России", "kind": "Новости", "url": "", "enabled": false },
+    { "id": "fns", "name": "ФНС России", "kind": "Новости", "url": "", "enabled": false },
+    { "id": "rosstat", "name": "Росстат", "kind": "Новости", "url": "", "enabled": false }
+  ],
+  "maxAgeHours": 48,
+  "maxNewItemsPerRun": 8
+}
