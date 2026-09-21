@@ -44,7 +44,9 @@ export function parseFeed(xml) {
       link,
       guid: tag(b, 'guid') || link,
       pubDate: Number.isNaN(d) ? null : new Date(d).toISOString(),
-      text: stripHtml(tag(b, 'description') || tag(b, 'content:encoded'))
+      category: stripHtml(tag(b, 'category')),
+      // у РБК полный текст лежит в rbc_news:full-text; для других лент берём описание
+      text: stripHtml(tag(b, 'rbc_news:full-text') || tag(b, 'description') || tag(b, 'content:encoded')).slice(0, 8000)
     });
   }
   if (!items.length) {
