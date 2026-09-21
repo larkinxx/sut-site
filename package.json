@@ -1,0 +1,18 @@
+{
+  "name": "sut-site",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Суть: новости экономики с понятными шагами. Статический сайт, сбор новостей и черновики карточек.",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "node src/build.mjs",
+    "preview": "node src/build.mjs --examples && node src/serve.mjs",
+    "fetch": "node scripts/fetch.mjs",
+    "draft": "node scripts/draft.mjs",
+    "draft:mock": "node scripts/draft.mjs --mock",
+    "review": "node scripts/review.mjs",
+    "check": "node scripts/check.mjs",
+    "pipeline": "node scripts/fetch.mjs && node scripts/draft.mjs"
+  }
+}
