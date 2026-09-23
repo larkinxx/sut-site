@@ -1,0 +1,15 @@
+{
+  "id": "rbc-f46ebf7d4701",
+  "sourceId": "rbc",
+  "sourceName": "РБК",
+  "kind": "Новости",
+  "official": false,
+  "category": "",
+  "title": "Диана",
+  "url": "https://www.rbc.ru/photoslider/6ab3ea589a7947a722a74d98",
+  "publishedAt": "2026-09-23T15:58:06.000Z",
+  "text": "Диана",
+  "fetchedAt": "2026-09-23T16:56:31.312Z",
+  "drafted": true,
+  "skipReason": "Новость не содержит экономической информации и практической пользы для граждан или бизнеса."
+}
