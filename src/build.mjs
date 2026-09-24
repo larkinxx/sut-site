@@ -90,7 +90,7 @@ ${withExamples ? '<div class="wrap" style="padding:8px 16px 0;font:500 13px var(
 ${body}
 </main>
 <footer class="wrap">
-  <p class="fine">${esc(site.disclaimer)} Как мы готовим новости и отбираем курсы: <a href="${url('/kak-my-rabotaem/')}">как мы работаем</a>.${site.contactEmail ? ` Нашли ошибку? Напишите: <a href="mailto:${esc(site.contactEmail)}">${esc(site.contactEmail)}</a>.` : ''}</p>
+  <p class="fine">${esc(site.disclaimer)} Как мы готовим новости: <a href="${url('/kak-my-rabotaem/')}">как мы работаем</a>.${site.contactEmail ? ` Нашли ошибку? Напишите: <a href="mailto:${esc(site.contactEmail)}">${esc(site.contactEmail)}</a>.` : ''}</p>
 </footer>
 <script src="${url('/app.js')}?v=${jsV}" defer></script>
 </body>
@@ -249,7 +249,7 @@ for (const c of cards) {
   <p class="conf"><b>Уровень уверенности: <span class="${conf[0]}">${conf[1]}.</span></b> ${esc(conf[2])}${c.confidenceNote ? ' ' + esc(c.confidenceNote) : ''}<br>${c.review.auto ? `Подготовлено ИИ и опубликовано автоматически ${esc(dateRu(c.review.at))}: редактор не читал, числа сверены с текстом первоисточника программой. Сверяйтесь с первоисточником.` : `Проверил: ${esc(c.review.by)}, ${esc(dateRu(c.review.at))}.`}</p>
 </article>
 ${learn.length ? `<section class="grp"><h2>Где подучиться</h2><div class="mats" style="margin-top:12px">${learn.map(materialRow).join('')}</div>
-<p class="note-sm">Материалы отбираются по <a href="${url('/kak-my-rabotaem/')}" style="color:var(--accent)">публичным критериям</a>. Метка «Партнёрская ссылка» значит, что сайт получает комиссию.</p></section>` : ''}
+<p class="note-sm">Метка «Партнёрская ссылка» значит, что сайт получает комиссию.</p></section>` : ''}
 ${subscribeBlock()}`;
   const ld = {
     '@context': 'https://schema.org', '@type': 'NewsArticle', headline: c.title,
@@ -284,7 +284,7 @@ write('organizacii/index.html', layout({
 
 // Как мы работаем (публичные правила: доверие)
 write('kak-my-rabotaem/index.html', layout({
-  title: 'Как мы работаем', desc: 'Откуда берутся новости, кто их проверяет и как мы отбираем курсы.', path: '/kak-my-rabotaem/', current: 'about',
+  title: 'Как мы работаем', desc: 'Откуда берутся новости и кто их проверяет.', path: '/kak-my-rabotaem/', current: 'about',
   body: `<h1 class="page">Как мы работаем</h1>
 <div class="prose">
 <h2>Откуда берутся новости</h2>
@@ -297,15 +297,6 @@ write('kak-my-rabotaem/index.html', layout({
 <li><b>Уровень уверенности</b>: насколько надёжен вывод. Если первоисточник неполный, мы пишем об этом прямо.</li>
 <li><b>Партнёрская ссылка</b>: сайт получает комиссию, если вы купите материал. Цена для вас не меняется. Редакционные советы от этого не зависят.</li>
 </ul>
-<h2>Как мы отбираем курсы и видео</h2>
-<p>Материал попадает на сайт, только если автор письменно согласился на размещение и выполнены условия:</p>
-<ul>
-<li>у автора есть подтверждаемый опыт в теме;</li>
-<li>нет обещаний гарантированного или быстрого дохода;</li>
-<li>понятны программа, цена и условия возврата;</li>
-<li>указана дата обновления: экономические курсы быстро устаревают.</li>
-</ul>
-<p>Мы убираем материал по обоснованной жалобе.</p>
 <h2>Чего мы не делаем</h2>
 <p>Мы не даём индивидуальных инвестиционных рекомендаций и не говорим «покупайте» или «продавайте». Наши материалы объясняют, что произошло и какие шаги можно рассмотреть. Решение остаётся за вами.</p>
 ${site.editorialContact || site.contactEmail ? `<h2>Нашли ошибку</h2><p>Напишите: <a href="mailto:${esc(site.editorialContact || site.contactEmail)}">${esc(site.editorialContact || site.contactEmail)}</a>. Мы исправим и отметим исправление.</p>` : ''}
