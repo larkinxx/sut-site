@@ -1,0 +1,14 @@
+{
+  "id": "tass-b421b2b83770",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "AFP: цена на дизельное топливо в Европе достигла исторического максимума",
+  "url": "https://tass.ru/ekonomika/28146283",
+  "publishedAt": "2026-09-24T09:03:55.000Z",
+  "text": "В среднем она составляет €2,23 за 1 л",
+  "fetchedAt": "2026-09-24T09:59:45.891Z",
+  "drafted": false
+}
