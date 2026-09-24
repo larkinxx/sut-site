@@ -1,0 +1,14 @@
+{
+  "id": "tass-cbd8655a8e65",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропорту Пензы ввели ограничения",
+  "url": "https://tass.ru/ekonomika/28149155",
+  "publishedAt": "2026-09-24T19:46:06.000Z",
+  "text": "Они необходимы для безопасности полетов",
+  "fetchedAt": "2026-09-24T22:23:16.809Z",
+  "drafted": false
+}
