@@ -1,12 +1,19 @@
 {
-  "_comment": "Источники новостей. Три ленты Банка России взяты с его страницы https://www.cbr.ru/development/rss/. Остальные ленты добавьте сами: найдите на сайте ведомства значок RSS, скопируйте адрес в поле url и поставьте enabled: true.",
+  "_comment": "Источники новостей. Ленты проверены 24.09.2026. У лент СМИ (official: false) includeCategories оставляет только нужные разделы; если у новости нет раздела, она проходит. Чтобы добавить ленту: найдите на сайте значок RSS, скопируйте адрес в url и поставьте enabled: true.",
   "sources": [
-    { "id": "cbr-press", "name": "Банк России", "kind": "Пресс-релиз", "url": "http://www.cbr.ru/rss/RssPress", "enabled": true },
-    { "id": "cbr-news", "name": "Банк России", "kind": "Новости и выступления", "url": "http://www.cbr.ru/rss/eventrss", "enabled": true },
-    { "id": "rbc", "name": "РБК", "kind": "Новости", "url": "https://rssexport.rbc.ru/rbcnews/news/30/full.rss", "enabled": true, "official": false, "includeCategories": ["Экономика", "Финансы", "Бизнес", "Инвестиции", "Недвижимость"] },
-    { "id": "minfin", "name": "Минфин России", "kind": "Новости", "url": "https://minfin.gov.ru/rss_news?mod=news&lim=50", "enabled": true },
-    { "id": "fns", "name": "ФНС России", "kind": "Новости", "url": "", "enabled": false },
-    { "id": "rosstat", "name": "Росстат", "kind": "Новости", "url": "", "enabled": false }
+    {"id": "cbr-press", "name": "Банк России", "kind": "Пресс-релиз", "url": "http://www.cbr.ru/rss/RssPress", "enabled": true},
+    {"id": "cbr-news", "name": "Банк России", "kind": "Новости и выступления", "url": "http://www.cbr.ru/rss/eventrss", "enabled": true},
+    {"id": "minfin", "name": "Минфин России", "kind": "Новости", "url": "https://minfin.gov.ru/rss_news?mod=news&lim=50", "enabled": true},
+    {"id": "fns", "name": "ФНС России", "kind": "Новости", "url": "https://www.nalog.gov.ru/rn77/rss/", "enabled": true},
+    {"id": "sfr", "name": "Социальный фонд России", "kind": "Новости", "url": "https://sfr.gov.ru/api/news/rss/~press_center", "enabled": true},
+    {"id": "rosstat", "name": "Росстат", "kind": "Новости", "url": "", "enabled": false, "_note": "rosstat.gov.ru не открылся при проверке 24.09.2026"},
+    {"id": "rbc", "name": "РБК", "kind": "Новости", "url": "https://rssexport.rbc.ru/rbcnews/news/30/full.rss", "enabled": true, "official": false, "includeCategories": ["Экономика", "Финансы", "Бизнес", "Инвестиции", "Недвижимость"]},
+    {"id": "interfax", "name": "Интерфакс", "kind": "Новости", "url": "https://www.interfax.ru/rss.asp", "enabled": true, "official": false, "includeCategories": ["Экономика", "Финансы"]},
+    {"id": "tass", "name": "ТАСС", "kind": "Новости", "url": "https://tass.ru/rss/v2.xml", "enabled": true, "official": false, "includeCategories": ["Экономика и бизнес", "Недвижимость"]},
+    {"id": "prime-finance", "name": "Прайм", "kind": "Финансы", "url": "https://1prime.ru/export/rss2/finance/index.xml", "enabled": true, "official": false},
+    {"id": "prime-regulation", "name": "Прайм", "kind": "Госрегулирование", "url": "https://1prime.ru/export/rss2/state_regulation/index.xml", "enabled": true, "official": false},
+    {"id": "kommersant-economics", "name": "Коммерсантъ", "kind": "Экономика", "url": "https://www.kommersant.ru/RSS/section-economics.xml", "enabled": true, "official": false},
+    {"id": "kommersant-finance", "name": "Коммерсантъ", "kind": "Финансы", "url": "https://www.kommersant.ru/RSS/section-finance.xml", "enabled": true, "official": false}
   ],
   "maxAgeHours": 48,
   "maxNewItemsPerRun": 8

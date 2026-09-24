@@ -216,7 +216,9 @@ for (const f of files) {
   const raw = JSON.parse(fs.readFileSync(path.join(RAW, f), 'utf8'));
   if (!raw.drafted && Date.now() - Date.parse(raw.publishedAt) <= maxAgeMs) pending.push({ f, raw });
 }
-pending.sort((a, b) => Date.parse(b.raw.publishedAt) - Date.parse(a.raw.publishedAt));
+// Сначала ведомства (их новостей мало, но они важнее всего читателю), затем СМИ; внутри — от свежих к старым.
+// Иначе многословные ленты СМИ каждый час занимали бы все места в пачке и новости ФНС или Соцфонда не доходили бы до черновика.
+pending.sort((a, b) => (a.raw.official === false) - (b.raw.official === false) || Date.parse(b.raw.publishedAt) - Date.parse(a.raw.publishedAt));
 const batch = pending.slice(0, cfg.maxNewItemsPerRun || 8);
 console.log(`Ждут черновика: ${pending.length}, берём: ${batch.length}${MOCK ? ' (тестовый режим)' : ` (${PROVIDER}, модель ${MODEL})`}`);
 
