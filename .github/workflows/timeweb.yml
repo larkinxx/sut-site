@@ -1,0 +1,60 @@
+# Пересборка сайта на Timeweb Cloud (приложение «Cute Hoopoe»).
+# Зачем: автосборка в самом Timeweb не срабатывает, поэтому GitHub сам просит Timeweb собрать последний коммит.
+# Срабатывает: при изменениях в main, после каждого сбора новостей (коммиты бота сами по себе workflow не запускают)
+# и вручную кнопкой «Run workflow».
+# Нужен секрет TIMEWEB_TOKEN (Settings → Secrets and variables → Actions): токен API из панели Timeweb.
+# Без секрета задача ничего не делает.
+name: Пересобрать сайт на Timeweb
+
+on:
+  push:
+    branches: [main]
+  workflow_run:
+    workflows: ["Собрать новости и черновики"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: timeweb-deploy
+  cancel-in-progress: true
+
+env:
+  APP_ID: "257891"
+
+jobs:
+  deploy:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Запустить сборку последнего коммита
+        env:
+          TIMEWEB_TOKEN: ${{ secrets.TIMEWEB_TOKEN }}
+        run: |
+          if [ -z "$TIMEWEB_TOKEN" ]; then
+            echo "::warning::Секрет TIMEWEB_TOKEN не задан — пропускаю."
+            exit 0
+          fi
+          # Берём самый свежий коммит main: бот мог добавить его уже после запуска этой задачи
+          SHA=$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/main | cut -f1)
+          echo "Коммит: $SHA"
+          # Если этот коммит уже был последним деплоем — пересобирать незачем
+          curl -sS "https://api.timeweb.cloud/api/v1/apps/${APP_ID}/deploys?limit=1" \
+            -H "Authorization: Bearer ${TIMEWEB_TOKEN}" -o last.json || true
+          if grep -q "$SHA" last.json 2>/dev/null; then
+            echo "Этот коммит уже собран, пропускаю."
+            exit 0
+          fi
+          CODE=$(curl -sS -o resp.json -w '%{http_code}' -X POST \
+            "https://api.timeweb.cloud/api/v1/apps/${APP_ID}/deploy" \
+            -H "Authorization: Bearer ${TIMEWEB_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"commit_sha\": \"${SHA}\"}")
+          echo "Ответ Timeweb: HTTP $CODE"
+          head -c 600 resp.json; echo
+          if [ "$CODE" -ge 300 ]; then
+            echo "::error::Timeweb не принял запрос на сборку (HTTP $CODE)."
+            exit 1
+          fi
