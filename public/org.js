@@ -210,7 +210,12 @@
       render(j.suggestion, j.advice);
       var box = document.getElementById('org-ai');
       if (!box) return;
-      box.appendChild(el('p', 'note-sm', 'ИИ готовит разбор, обычно 5–15 секунд…')).style.marginTop = '18px';
+      var pending = el('div', 'ai-pending');
+      var spin = el('span', 'spin');
+      spin.setAttribute('aria-hidden', 'true');
+      pending.appendChild(spin);
+      pending.appendChild(document.createTextNode('ИИ готовит разбор — обычно 5–15 секунд, иногда до минуты, если сервер «просыпался» после паузы. Страница не зависла, просто подождите.'));
+      box.appendChild(pending);
       postApi('/api/org/ai', inn).then(function (a) { renderAi(box, a); })
         .catch(function () { renderAi(box, { reason: 'ИИ сейчас не ответил. Попробуйте позже.' }); });
     }).catch(function () {
