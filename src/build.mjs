@@ -265,18 +265,19 @@ write('kalkulyatory/index.html', layout({
   body: `<h1 class="page">Калькуляторы</h1><p class="lede">Подставьте свои цифры: расчёт происходит у вас в браузере, данные никуда не отправляются.</p>${calcMortgage('p')}${calcDeposit('p')}`
 }));
 
-// Проверка организации по ИНН (данные из открытых реестров через DaData, ключ берётся из DADATA_TOKEN при сборке)
+// Проверка организации по ИНН. Если задан ORG_API_URL — страница ходит на наш сервер (server/index.mjs): ключи не попадают
+// в браузер, и есть ИИ-разбор. Иначе старый режим: ключ DADATA_TOKEN вшивается в страницу при сборке.
 write('organizacii/index.html', layout({
   title: 'Проверка организации', desc: 'Введите ИНН и получите данные из открытых реестров и памятку: о чём помнить при ведении дел.', path: '/organizacii/', current: 'org',
   body: `<h1 class="page">Проверка организации по ИНН</h1><p class="lede">Введите ИНН организации или ИП: покажем данные из открытых реестров и памятку, о чём стоит помнить.</p>
-<section class="calc" id="org" data-token="${esc(process.env.DADATA_TOKEN || '')}">
+<section class="calc" id="org" data-api="${esc(process.env.ORG_API_URL || '')}" data-token="${esc(process.env.ORG_API_URL ? '' : (process.env.DADATA_TOKEN || ''))}">
   <form id="org-form" novalidate>
     <label class="f">ИНН (10 или 12 цифр)<input type="text" id="org-inn" inputmode="numeric" maxlength="12" autocomplete="off" placeholder="7707083893"></label>
     <p><button class="btn" type="submit">Проверить</button></p>
   </form>
   <p class="note-sm" id="org-msg" aria-live="polite"></p>
   <div id="org-out"></div>
-  <p class="note-sm">Данные берём из открытых реестров через сервис DaData: ваш ИНН отправляется туда для поиска, мы его не храним. Памятка составлена по общим правилам и не является налоговой или юридической консультацией. Сроки и суммы сверяйте на nalog.gov.ru.</p>
+  <p class="note-sm">Данные берём из открытых реестров через сервис DaData: ИНН отправляется туда для поиска, мы его не храним.${process.env.ORG_API_URL ? ' Разбор готовит ИИ (Google Gemini): ему передаются только сведения об организации из реестра, без ФИО руководителя и адреса.' : ''} Памятка и разбор составлены по общим правилам и не являются налоговой или юридической консультацией. Сроки и суммы сверяйте на nalog.gov.ru.</p>
 </section>
 <script src="${url('/org.js')}?v=${hashOf('org.js')}" defer></script>`
 }));

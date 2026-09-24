@@ -1,5 +1,7 @@
 /* Суть: проверка организации по ИНН.
-   Данные берём из открытых реестров через DaData (метод «Найти по ИНН»), памятку строим по простым правилам, без ИИ. */
+   Данные берём из открытых реестров через DaData (метод «Найти по ИНН»), памятку строим по простым правилам.
+   Если у страницы задан data-api (наш сервер, см. server/index.mjs), запросы идут через него: ключи не видны в браузере,
+   а после данных реестра сервер присылает ИИ-разбор простым языком. Без data-api — старый режим, прямо в DaData. */
 (function () {
   'use strict';
 
@@ -96,6 +98,7 @@
   var root = document.getElementById('org');
   if (!root) return;
   var token = root.getAttribute('data-token') || '';
+  var api = (root.getAttribute('data-api') || '').replace(/\/$/, '');
   var form = document.getElementById('org-form');
   var input = document.getElementById('org-inn');
   var msg = document.getElementById('org-msg');
@@ -115,13 +118,13 @@
     parent.appendChild(r);
   };
 
-  if (!token) {
+  if (!token && !api) {
     form.hidden = true;
     msg.textContent = 'Проверка организаций ещё не подключена: нужен ключ сервиса. Загляните позже.';
     return;
   }
 
-  function render(s) {
+  function render(s, advice) {
     var d = s.data || {};
     out.textContent = '';
     var head = el('h2', null, (d.name && d.name.short_with_opf) || s.value);
@@ -139,8 +142,14 @@
     row(box, 'Работников', d.employee_count != null ? String(d.employee_count) : '');
     out.appendChild(box);
 
+    if (api) {
+      var aiBox = el('div');
+      aiBox.id = 'org-ai';
+      out.appendChild(aiBox);
+    }
+
     out.appendChild(el('h2', null, 'Памятка')).style.marginTop = '22px';
-    advise(d, Date.now()).forEach(function (a) {
+    (advice || advise(d, Date.now())).forEach(function (a) {
       var p = el('p', 'tip');
       var b = el('b', null, a.title + '. ');
       if (a.level === 'warn') p.style.borderLeftColor = 'var(--crit-line)';
@@ -148,6 +157,64 @@
       p.appendChild(document.createTextNode(a.text));
       p.style.margin = '10px 0';
       out.appendChild(p);
+    });
+  }
+
+  /* ---------- ИИ-разбор ---------- */
+  function renderAi(box, j) {
+    box.textContent = '';
+    var h = el('h2', null, 'Разбор ИИ');
+    h.style.marginTop = '22px';
+    box.appendChild(h);
+    var label = el('p', 'note-sm', 'Подготовлено ИИ по данным реестра. Это не проверка благонадёжности и не консультация: перепроверяйте по ссылкам в шагах.');
+    box.appendChild(label);
+    var a = j && j.ai;
+    if (!a) {
+      box.appendChild(el('p', 'note-sm', (j && (j.reason || j.error)) || 'Разбор сейчас недоступен.'));
+      return;
+    }
+    var sum = el('p', null, a.summary);
+    sum.style.margin = '10px 0';
+    box.appendChild(sum);
+    (a.signals || []).forEach(function (sg) {
+      var p = el('p', 'tip');
+      p.style.margin = '8px 0';
+      if (sg.level === 'warn') p.style.borderLeftColor = 'var(--crit-line)';
+      p.appendChild(el('b', null, (sg.level === 'warn' ? 'Обратите внимание. ' : sg.level === 'ok' ? 'В порядке. ' : 'К сведению. ')));
+      p.appendChild(document.createTextNode(sg.text));
+      box.appendChild(p);
+    });
+    if (a.next_steps && a.next_steps.length) {
+      box.appendChild(el('p', null, 'Что проверить дальше:')).style.margin = '14px 0 4px';
+      var ol = el('ol');
+      a.next_steps.forEach(function (t) { ol.appendChild(el('li', null, t)); });
+      box.appendChild(ol);
+    }
+    if (a.caveat) box.appendChild(el('p', 'note-sm', a.caveat));
+  }
+
+  function postApi(path, inn) {
+    return fetch(api + path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ inn: inn })
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (j) { j.status = r.status; return j; });
+    });
+  }
+
+  function viaApi(inn) {
+    postApi('/api/org', inn).then(function (j) {
+      if (j.status !== 200 || !j.suggestion) { msg.textContent = j.error || 'Не получилось получить данные. Попробуйте позже.'; return; }
+      msg.textContent = '';
+      render(j.suggestion, j.advice);
+      var box = document.getElementById('org-ai');
+      if (!box) return;
+      box.appendChild(el('p', 'note-sm', 'ИИ готовит разбор, обычно 5–15 секунд…')).style.marginTop = '18px';
+      postApi('/api/org/ai', inn).then(function (a) { renderAi(box, a); })
+        .catch(function () { renderAi(box, { reason: 'ИИ сейчас не ответил. Попробуйте позже.' }); });
+    }).catch(function () {
+      msg.textContent = 'Не получилось получить данные. Попробуйте позже.';
     });
   }
 
@@ -160,6 +227,7 @@
       return;
     }
     msg.textContent = 'Ищем в реестрах…';
+    if (api) { viaApi(inn); return; }
     fetch(API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: 'Token ' + token },
