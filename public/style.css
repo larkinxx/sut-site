@@ -101,6 +101,10 @@ input[type=number],input[type=text],input[type=email],select{font:inherit;font-f
 .result div{display:flex;justify-content:space-between;gap:12px;border-bottom:1px dashed var(--line);padding-bottom:6px}
 .result .gain strong{color:var(--pos)}
 .note-sm{font:400 13px/1.5 var(--font-ui);color:var(--muted);margin:12px 0 0}
+.ai-pending{display:flex;align-items:center;gap:10px;margin:18px 0 0;padding:12px 16px;border-radius:var(--r);background:#3A2E0A;border:1px solid #E0B93C;color:#F5D876;font:600 14px/1.5 var(--font-ui);animation:ai-pulse 1.6s ease-in-out infinite}
+.ai-pending .spin{width:14px;height:14px;border-radius:50%;border:2px solid rgba(245,216,118,.35);border-top-color:#F5D876;flex:none;animation:ai-spin .8s linear infinite}
+@keyframes ai-pulse{0%,100%{opacity:1}50%{opacity:.72}}
+@keyframes ai-spin{to{transform:rotate(360deg)}}
 
 /* темы */
 .grp{margin:36px 0 0}
