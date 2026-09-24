@@ -302,7 +302,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
 // Запуск как программы (а не импорт из тестов)
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const cfg = config();
-  http.createServer(createApp()).listen(cfg.port, () => {
+  http.createServer(createApp()).listen(cfg.port, '0.0.0.0', () => {
     console.log(`Суть API: порт ${cfg.port}, DaData ${cfg.dadataToken ? 'есть' : 'НЕТ'}, ИИ ${cfg.geminiKey ? cfg.geminiModel : 'выключен'}, сайты: ${cfg.origins.join(', ')}`);
   });
 }
