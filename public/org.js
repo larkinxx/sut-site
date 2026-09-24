@@ -124,6 +124,33 @@
     return;
   }
 
+  function freeSourcesBox(d) {
+    var wrap = el('div');
+    wrap.appendChild(el('h2', null, 'Больше данных бесплатно')).style.marginTop = '22px';
+    wrap.appendChild(el('p', 'note-sm', 'В открытых базах ФНС можно бесплатно посмотреть то, чего нет в этой карточке: учредителей, финансовые показатели, долги и лицензии. На этих сайтах найдите организацию по ИНН ' + (d.inn || '') + (d.ogrn ? ' или ОГРН ' + d.ogrn : '') + '.'));
+    var ul = el('ul');
+    ul.style.margin = '10px 0 0';
+    ul.style.paddingLeft = '20px';
+    var addLink = function (label, href, desc) {
+      var li = el('li');
+      li.style.margin = '6px 0';
+      var a = document.createElement('a');
+      a.href = href;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      a.textContent = label;
+      li.appendChild(a);
+      li.appendChild(document.createTextNode(' — ' + desc));
+      ul.appendChild(li);
+    };
+    addLink('ЕГРЮЛ/ЕГРИП на egrul.nalog.ru', 'https://egrul.nalog.ru/index.html', 'учредители, руководители, история изменений — официальная выписка');
+    addLink('Бухотчётность на bo.nalog.gov.ru', 'https://bo.nalog.gov.ru/', 'выручка, прибыль, баланс, если организация обязана их сдавать');
+    addLink('Прозрачный бизнес на pb.nalog.ru', 'https://pb.nalog.ru/', 'налоговый режим, риски, участие в других организациях');
+    addLink('Исполнительные производства на fssp.gov.ru', 'https://fssp.gov.ru/iss/ip', 'долги по решениям суда и приставам');
+    wrap.appendChild(ul);
+    return wrap;
+  }
+
   function render(s, advice) {
     var d = s.data || {};
     out.textContent = '';
@@ -141,6 +168,8 @@
     row(box, 'Адрес', d.address && d.address.value);
     row(box, 'Работников', d.employee_count != null ? String(d.employee_count) : '');
     out.appendChild(box);
+
+    out.appendChild(freeSourcesBox(d));
 
     if (api) {
       var aiBox = el('div');
