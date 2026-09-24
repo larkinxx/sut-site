@@ -1,0 +1,14 @@
+{
+  "id": "tass-6f2ff7a91c93",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "ЦБ повысил курс доллара на 25 сентября до 84,9 рубля",
+  "url": "https://tass.ru/ekonomika/28148351",
+  "publishedAt": "2026-09-24T15:00:01.000Z",
+  "text": "Показатель вырос на 50,88 копейки",
+  "fetchedAt": "2026-09-24T15:05:05.389Z",
+  "drafted": false
+}
