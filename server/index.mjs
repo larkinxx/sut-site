@@ -93,6 +93,9 @@ export function factsForAi(s, now = Date.now()) {
   const years = st.registration_date ? Math.floor((now - st.registration_date) / (365.25 * DAY) * 10) / 10 : null;
   return {
     name: d.name?.short_with_opf || s.value,
+    inn: d.inn || null,
+    ogrn: d.ogrn || null,
+    kpp: d.kpp || null,
     type: d.type === 'INDIVIDUAL' ? 'ИП' : 'юридическое лицо',
     opf: d.opf?.full || null,
     status: STATUS_RU[st.status] || st.status || null,
@@ -100,39 +103,56 @@ export function factsForAi(s, now = Date.now()) {
     age_years: years,
     liquidation_date: st.liquidation_date ? new Date(st.liquidation_date).toISOString().slice(0, 10) : null,
     okved: d.okved || null,
+    okved_type: d.okved_type || null,
+    okveds: Array.isArray(d.okveds) ? d.okveds.slice(0, 5).map((o) => ({ code: o.code, name: o.name, main: !!o.main })) : null,
     region: d.address?.data?.region_with_type || null,
     employee_count: d.employee_count ?? null,
+    employee_count_year: fin.year ?? null,
     invalid_flag: !!d.invalid,
     management_post: d.management?.post || null,
     manager_disqualified: d.management?.disqualified ?? null,
+    founders_count: Array.isArray(d.founders) ? d.founders.length : null,
     finance: {
       year: fin.year ?? null, tax_system: fin.tax_system ?? null,
       income: fin.income ?? null, expense: fin.expense ?? null, revenue: fin.revenue ?? null,
       debt: fin.debt ?? null, penalty: fin.penalty ?? null
     },
     capital: d.capital?.value ?? null,
-    branch_count: d.branch_count ?? null
+    capital_type: d.capital?.type || null,
+    branch_count: d.branch_count ?? null,
+    branch_type: d.branch_type || null
   };
 }
 
-export const SYSTEM = `Ты — помощник сайта «Суть». Тебе дают сведения об организации или ИП из открытых реестров (через DaData). Твоя задача — объяснить обычному человеку простым языком, что видно из этих данных и что стоит проверить дальше. Читатель — предприниматель, бухгалтер или человек, который собирается заключить договор с этой организацией.
+export const SYSTEM = `Ты — помощник сайта «Суть». Тебе дают сведения об организации или ИП из открытых реестров (через DaData). Твоя задача — дать читателю развёрнутый, содержательный разбор именно этой организации: не общие слова, а то, что конкретно следует из переданных полей. Читатель — предприниматель, бухгалтер или человек, который собирается заключить договор с этой организацией, и ему нужно понять детали, а не шаблон.
 
 ЖЁСТКИЕ ПРАВИЛА
 1. Опирайся только на переданные поля. Ничего не выдумывай: ни судов, ни долгов, ни новостей, ни репутации. Если поля нет или оно null — не делай по нему выводов; можешь сказать, что этих сведений в открытых данных нет.
 2. Не выноси вердиктов «надёжная/ненадёжная компания», «можно/нельзя доверять», не ставь оценок и баллов. Описывай наблюдения: что в данных и почему это стоит проверить.
 3. Не давай инвестиционных советов и не обещай доход. Не пиши «покупайте», «продавайте», «вкладывайте», «гарантированно», «без риска».
-4. Это не юридическая и не налоговая консультация. Шаги — конкретные проверки: выписка ЕГРЮЛ/ЕГРИП на egrul.nalog.ru, картотека арбитражных дел kad.arbitr.ru, реестр банкротств bankrot.fedresurs.ru, бухотчётность bo.nalog.gov.ru, реестр дисквалифицированных лиц на nalog.gov.ru, запрос документов у контрагента.
-5. Суммы и даты бери из данных как есть. Если данные о финансах за старый год — отметь это.
-6. Пиши коротко, без канцелярита. Отвечай только одним JSON-объектом без markdown.
+4. Это не юридическая и не налоговая консультация.
+5. Суммы, коды ОКВЭД, регион, дату регистрации, ИНН/ОГРН и другие числа бери из данных как есть и используй их в тексте (не пересказывай абстрактно, а называй конкретные значения: сумму долга, код и название вида деятельности, регион, возраст компании в годах). Если данные о финансах за старый год — отметь это явно и укажи год.
+6. Пиши подробно и по делу, без канцелярита и воды. Отвечай только одним JSON-объектом без markdown.
+
+КАК ВЫБИРАТЬ next_steps (это главное правило)
+Не выдавай один и тот же универсальный список проверок для любой организации. Каждый пункт next_steps должен вытекать из конкретных данных этой организации и, где уместно, включать её ИНН/ОГРН и точное название реестра или ресурса:
+— если есть долги/пени (fin.debt, fin.penalty) — предложи свериться в личном кабинете налогоплательщика и проверить исполнительные производства на fssp.gov.ru, указав сумму;
+— если статус не «действует», есть ликвидация или реорганизация — предложи посмотреть карточку именно по этому ОГРН на egrul.nalog.ru и уточнить причину;
+— если manager_disqualified — предложи проверить реестр дисквалифицированных лиц на nalog.gov.ru (ФИО руководителя есть в самой выписке ЕГРЮЛ/ЕГРИП, а не в этих данных);
+— если компания моложе 1 года — предложи проверить, подтверждён ли налоговый режим и уточнить сроки первой отчётности исходя из tax_system;
+— если oквэды выглядят разнородными или основной ОКВЭД не похож на то, чем по названию занимается организация, — отметь это как повод уточнить фактическую деятельность у самой организации;
+— если сумма выручки/капитала большая для заявленного числа сотрудников (или наоборот) — можно отметить это как наблюдение, требующее уточнения, без выводов о причинах;
+— если ощутимых поводов для тревоги в данных нет — вместо общих фраз предложи 2–3 точечные проверки, отталкиваясь от суммы капитала, отрасли (okved.name) или региона (например, отраслевые лицензии/членство в СРО, если ОКВЭД на это указывает).
+Общие проверки (ЕГРЮЛ/ЕГРИП egrul.nalog.ru, картотека арбитражных дел kad.arbitr.ru, реестр банкротств bankrot.fedresurs.ru, бухотчётность bo.nalog.gov.ru, запрос документов у контрагента) используй точечно и только когда они действительно к месту, а не как обязательный набор.
 
 ФОРМАТ ОТВЕТА
 {
-  "summary": "до 400 знаков: кто это и что главное видно из данных, 2–3 предложения",
-  "signals": [ { "level": "warn" | "ok" | "info", "text": "до 220 знаков: одно наблюдение из данных и почему оно важно" } ],
-  "next_steps": [ "до 220 знаков: одна конкретная проверка" ],
-  "caveat": "до 200 знаков: чего в открытых данных нет или что могло устареть"
+  "summary": "до 700 знаков: кто это, чем занимается (по okved.name), сколько лет на рынке, и что главное видно из данных — 3–5 предложений с конкретными цифрами",
+  "signals": [ { "level": "warn" | "ok" | "info", "text": "до 320 знаков: одно наблюдение с конкретными числами/фактами из данных и почему оно важно" } ],
+  "next_steps": [ "до 320 знаков: одна точечная проверка, привязанная к конкретным данным этой организации (см. правило выше)" ],
+  "caveat": "до 260 знаков: чего в открытых данных нет или что могло устареть"
 }
-signals — от 2 до 5 пунктов, warn только для реальных тревожных признаков в данных (статус не «действует», отметка о недостоверности, долги по налогам, дисквалификация руководителя, ликвидация). next_steps — от 2 до 4 пунктов.`;
+signals — от 3 до 6 пунктов, покрывающих разные аспекты (статус и регистрация, финансы, деятельность/ОКВЭД, руководство), warn только для реальных тревожных признаков в данных (статус не «действует», отметка о недостоверности, долги по налогам, дисквалификация руководителя, ликвидация). next_steps — от 2 до 5 пунктов, без повторов и без универсального шаблона.`;
 
 export function validateAi(a) {
   const e = [];
@@ -143,15 +163,15 @@ export function validateAi(a) {
     if (/(надёжн|надежн)\p{L}*\s+(компани|организаци|контрагент|партн)/iu.test(v)) e.push(name + ': вердикт о надёжности');
   };
   if (!a || typeof a !== 'object') return ['ответ не объект'];
-  txt(a.summary, 'summary', 400);
-  if (!Array.isArray(a.signals) || a.signals.length < 1 || a.signals.length > 5) e.push('signals: от 1 до 5');
+  txt(a.summary, 'summary', 700);
+  if (!Array.isArray(a.signals) || a.signals.length < 2 || a.signals.length > 6) e.push('signals: от 2 до 6');
   else a.signals.forEach((s, i) => {
     if (!['warn', 'ok', 'info'].includes(s?.level)) e.push(`signals[${i}].level`);
-    txt(s?.text, `signals[${i}].text`, 220);
+    txt(s?.text, `signals[${i}].text`, 320);
   });
-  if (!Array.isArray(a.next_steps) || a.next_steps.length < 1 || a.next_steps.length > 4) e.push('next_steps: от 1 до 4');
-  else a.next_steps.forEach((s, i) => txt(s, `next_steps[${i}]`, 220));
-  if (a.caveat != null && a.caveat !== '') txt(a.caveat, 'caveat', 200);
+  if (!Array.isArray(a.next_steps) || a.next_steps.length < 2 || a.next_steps.length > 5) e.push('next_steps: от 2 до 5');
+  else a.next_steps.forEach((s, i) => txt(s, `next_steps[${i}]`, 320));
+  if (a.caveat != null && a.caveat !== '') txt(a.caveat, 'caveat', 260);
   return e;
 }
 
@@ -171,7 +191,7 @@ async function callGemini(prompt, cfg, fetchImpl) {
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: SYSTEM }] },
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: 'application/json', temperature: 0.2, maxOutputTokens: 1500 }
+        generationConfig: { responseMimeType: 'application/json', temperature: 0.2, maxOutputTokens: 2500 }
       }),
       signal: AbortSignal.timeout(40000)
     });
