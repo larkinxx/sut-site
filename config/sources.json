@@ -16,5 +16,5 @@
     {"id": "kommersant-finance", "name": "Коммерсантъ", "kind": "Финансы", "url": "https://www.kommersant.ru/RSS/section-finance.xml", "enabled": true, "official": false}
   ],
   "maxAgeHours": 48,
-  "maxNewItemsPerRun": 8
+  "maxNewItemsPerRun": 20
 }
