@@ -1,6 +1,6 @@
 {
   "id": "2026-09-22-rbc-2f7632811220",
-  "status": "draft",
+  "status": "published",
   "publishedAt": "2026-09-22T09:20:21.000Z",
   "source": {
     "name": "РБК",
@@ -32,8 +32,8 @@
     "investing"
   ],
   "review": {
-    "by": null,
-    "at": null
+    "by": "Редакция «Сути»",
+    "at": "2026-09-24T03:39:53.289Z"
   },
   "ai": {
     "model": "gemini:gemini-3.6-flash",

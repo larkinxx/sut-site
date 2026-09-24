@@ -1,6 +1,6 @@
 {
   "id": "2026-09-22-minfin-221993ebf2d8",
-  "status": "draft",
+  "status": "published",
   "publishedAt": "2026-09-22T08:30:00.000Z",
   "source": {
     "name": "Минфин России",
@@ -24,8 +24,8 @@
     "sales"
   ],
   "review": {
-    "by": null,
-    "at": null
+    "by": "Редакция «Сути»",
+    "at": "2026-09-24T03:39:53.289Z"
   },
   "ai": {
     "model": "gemini:gemini-3.6-flash",

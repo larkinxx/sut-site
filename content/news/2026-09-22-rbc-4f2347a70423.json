@@ -1,6 +1,6 @@
 {
   "id": "2026-09-22-rbc-4f2347a70423",
-  "status": "draft",
+  "status": "published",
   "publishedAt": "2026-09-22T14:24:40.000Z",
   "source": {
     "name": "РБК",
@@ -32,8 +32,8 @@
     "credits"
   ],
   "review": {
-    "by": null,
-    "at": null
+    "by": "Редакция «Сути»",
+    "at": "2026-09-24T03:39:53.289Z"
   },
   "ai": {
     "model": "gemini:gemini-3.6-flash",

@@ -1,6 +1,6 @@
 {
   "id": "2026-09-21-minfin-9e9b885c4e2d",
-  "status": "draft",
+  "status": "published",
   "publishedAt": "2026-09-21T19:42:00.000Z",
   "source": {
     "name": "Минфин России",
@@ -24,8 +24,8 @@
     "fin-psychology"
   ],
   "review": {
-    "by": null,
-    "at": null
+    "by": "Редакция «Сути»",
+    "at": "2026-09-24T03:39:53.289Z"
   },
   "ai": {
     "model": "gemini:gemini-3.6-flash",
