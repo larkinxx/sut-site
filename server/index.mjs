@@ -193,7 +193,7 @@ async function callGemini(prompt, cfg, fetchImpl) {
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         generationConfig: { responseMimeType: 'application/json', temperature: 0.2, maxOutputTokens: 2500 }
       }),
-      signal: AbortSignal.timeout(40000)
+      signal: AbortSignal.timeout(55000)
     });
     if (res.ok) {
       const data = await res.json();
