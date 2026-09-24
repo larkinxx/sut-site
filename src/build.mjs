@@ -90,7 +90,7 @@ ${withExamples ? '<div class="wrap" style="padding:8px 16px 0;font:500 13px var(
 ${body}
 </main>
 <footer class="wrap">
-  <p class="fine">${esc(site.disclaimer)} Как мы готовим новости: <a href="${url('/kak-my-rabotaem/')}">как мы работаем</a>.${site.contactEmail ? ` Нашли ошибку? Напишите: <a href="mailto:${esc(site.contactEmail)}">${esc(site.contactEmail)}</a>.` : ''}</p>
+  <p class="fine">${esc(site.disclaimer)} Как мы готовим новости: <a href="${url('/kak-my-rabotaem/')}">как мы работаем</a>. <a href="${url('/o-proekte/')}">О проекте</a>.${site.contactEmail ? ` Нашли ошибку? Напишите: <a href="mailto:${esc(site.contactEmail)}">${esc(site.contactEmail)}</a>.` : ''}</p>
 </footer>
 <script src="${url('/app.js')}?v=${jsV}" defer></script>
 </body>
@@ -268,7 +268,7 @@ write('kalkulyatory/index.html', layout({
 // Проверка организации по ИНН. Если задан ORG_API_URL — страница ходит на наш сервер (server/index.mjs): ключи не попадают
 // в браузер, и есть ИИ-разбор. Иначе старый режим: ключ DADATA_TOKEN вшивается в страницу при сборке.
 write('organizacii/index.html', layout({
-  title: 'Проверка организации', desc: 'Введите ИНН и получите данные из открытых реестров и памятку: о чём помнить при ведении дел.', path: '/organizacii/', current: 'org',
+  title: 'Проверка организации по ИНН', desc: 'Проверка организации или ИП по ИНН: статус, реквизиты и руководитель из открытых реестров, памятка о налогах и сроках.', path: '/organizacii/', current: 'org',
   body: `<h1 class="page">Проверка организации по ИНН</h1><p class="lede">Введите ИНН организации или ИП: покажем данные из открытых реестров и памятку, о чём стоит помнить.</p>
 <section class="calc" id="org" data-api="${esc(process.env.ORG_API_URL || '')}" data-token="${esc(process.env.ORG_API_URL ? '' : (process.env.DADATA_TOKEN || ''))}">
   <form id="org-form" novalidate>
@@ -309,10 +309,30 @@ write('404.html', layout({
   body: `<h1 class="page">Страница не найдена</h1><p class="lede">Возможно, адрес изменился. <a href="${url('/')}" style="color:var(--accent)">Вернуться к новостям</a>.</p>`
 }));
 
+// О проекте: кто делает сайт и как связаться
+write('o-proekte/index.html', layout({
+  title: 'О проекте', desc: 'Что такое «Суть», для кого этот сайт и как связаться с редакцией.', path: '/o-proekte/', current: '',
+  body: `<h1 class="page">О проекте</h1>
+<div class="prose">
+<p>«Суть» — сайт об экономических новостях для обычных людей и малого бизнеса. Мы берём новости из официальных источников и деловых СМИ и объясняем простым языком: что случилось, кого это касается и что можно сделать в своих делах.</p>
+<h2>Что есть на сайте</h2>
+<ul>
+<li><b>Новости за сутки</b> с разбором для заёмщиков, вкладчиков, самозанятых и малого бизнеса. У каждой новости есть ссылка на первоисточник.</li>
+<li><b>Проверка организации по ИНН</b>: данные из открытых реестров и памятка о налогах и сроках.</li>
+<li><b>Калькуляторы</b> платежа по кредиту и дохода по вкладу. Расчёт идёт у вас в браузере.</li>
+</ul>
+<h2>Кто делает сайт</h2>
+<p>Сайт ведёт редакция «Сути». Новости готовит программа с помощью искусственного интеллекта по строгим правилам, важные новости перед публикацией проверяет редакция. Подробно об этом — на странице <a href="${url('/kak-my-rabotaem/')}">«Как мы работаем»</a>.</p>
+<h2>Чем мы не являемся</h2>
+<p>Мы не банк, не брокер и не финансовый консультант. Материалы сайта носят информационный характер и не являются индивидуальной финансовой, налоговой или юридической рекомендацией.</p>
+${site.editorialContact || site.contactEmail ? `<h2>Контакты</h2><p>Вопросы, ошибки в новостях и предложения: <a href="mailto:${esc(site.editorialContact || site.contactEmail)}">${esc(site.editorialContact || site.contactEmail)}</a>.</p>` : ''}
+</div>`
+}));
+
 // robots и sitemap
 write('robots.txt', `User-agent: *\nAllow: /\n${site.siteUrl.includes('example') ? '' : `Sitemap: ${site.siteUrl}/sitemap.xml\n`}`);
 if (!site.siteUrl.includes('example')) {
-  const urls = ['/', '/arhiv/', '/kalkulyatory/', '/organizacii/', '/kak-my-rabotaem/', ...cards.map((c) => `/n/${c.id}/`)];
+  const urls = ['/', '/arhiv/', '/kalkulyatory/', '/organizacii/', '/kak-my-rabotaem/', '/o-proekte/', ...cards.map((c) => `/n/${c.id}/`)];
   write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `<url><loc>${site.siteUrl}${u}</loc></url>`).join('\n')}\n</urlset>\n`);
 }
 
