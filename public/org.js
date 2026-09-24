@@ -147,6 +147,7 @@
     addLink('Бухотчётность на bo.nalog.gov.ru', 'https://bo.nalog.gov.ru/', 'выручка, прибыль, баланс, если организация обязана их сдавать');
     addLink('Прозрачный бизнес на pb.nalog.ru', 'https://pb.nalog.ru/', 'налоговый режим, риски, участие в других организациях');
     addLink('Исполнительные производства на fssp.gov.ru', 'https://fssp.gov.ru/iss/ip', 'долги по решениям суда и приставам');
+    addLink('Реестр залогов на reestr-zalogov.ru', 'https://www.reestr-zalogov.ru/search/index', 'заложено ли имущество компании — движимые залоги, бесплатно и без регистрации');
     wrap.appendChild(ul);
     return wrap;
   }
