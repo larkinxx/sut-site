@@ -14,6 +14,8 @@
 //   ALLOWED_ORIGINS   — адреса сайта через запятую (CORS), по умолчанию https://fin-check.shop,https://www.fin-check.shop
 //   AI_DAILY_LIMIT    — сколько ИИ-разборов в сутки максимум (защита бюджета), по умолчанию 300
 //   AI_PER_IP_HOUR    — сколько ИИ-разборов в час с одного адреса, по умолчанию 15
+//   AI_UPSTREAM_URL   — если задан, разбор делает другой наш сервер по этому адресу (например, https://sut-api.onrender.com):
+//                       Google не пускает к Gemini с российских адресов. Туда уходит только ИНН организации
 //   PORT              — порт, по умолчанию 3000
 // Аккаунты (включаются, только если задан ACCOUNTS_DB; по 152-ФЗ — только на сервере в России):
 //   ACCOUNTS_DB       — путь к файлу базы SQLite, например /var/lib/sut/sut.db
@@ -54,6 +56,7 @@ export function config(env = process.env) {
     origins: (env.ALLOWED_ORIGINS || 'https://fin-check.shop,https://www.fin-check.shop').split(',').map((s) => s.trim()).filter(Boolean),
     aiDailyLimit: Number(env.AI_DAILY_LIMIT || 300),
     aiPerIpHour: Number(env.AI_PER_IP_HOUR || 15),
+    aiUpstream: (env.AI_UPSTREAM_URL || '').replace(/\/$/, ''),
     port: Number(env.PORT || 3000)
   };
 }
@@ -346,12 +349,26 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
       }
 
       // /api/org/ai
-      if (!cfg.geminiKey) return send(res, 200, { ai: null, reason: 'Экспресс-разбор пока не подключён.' });
+      if (!cfg.geminiKey && !cfg.aiUpstream) return send(res, 200, { ai: null, reason: 'Экспресс-разбор пока не подключён.' });
       const cached = aiCache.get(inn);
       if (cached) return send(res, 200, { ai: cached, cached: true });
       const limited = allowAi(ipOf(req));
       if (limited) return send(res, 200, { ai: null, reason: limited });
-      const ai = await analyze(s, cfg, fetchImpl);
+      let ai;
+      if (cfg.aiUpstream) {
+        // Пересылаем на сервер за рубежом: кеш и лимиты остаются здесь, туда уходит только ИНН
+        const r = await fetchImpl(cfg.aiUpstream + '/api/org/ai', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Origin: cfg.origins[0], 'X-Forwarded-For': ipOf(req) },
+          body: JSON.stringify({ inn }),
+          signal: AbortSignal.timeout(90000)   // бесплатный Render засыпает: первый запрос после паузы до минуты
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!j.ai) return send(res, r.ok ? 200 : 502, { ai: null, reason: j.reason || j.error || 'Разбор сейчас недоступен. Попробуйте позже.' });
+        ai = j.ai;
+      } else {
+        ai = await analyze(s, cfg, fetchImpl);
+      }
       aiCache.set(inn, ai);
       return send(res, 200, { ai });
     } catch (e) {

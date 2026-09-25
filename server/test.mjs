@@ -137,6 +137,29 @@ try {
     s4.close();
   });
 
+  await t('разбор через AI_UPSTREAM_URL: уходит только ИНН, ответ кешируется', async () => {
+    const seen = [];
+    const upFetch = async (url, opts) => {
+      if (String(url).startsWith('https://up.example/')) {
+        seen.push({ url: String(url), body: JSON.parse(opts.body), origin: opts.headers.Origin });
+        return new Response(JSON.stringify({ ai: GOOD_AI }), { status: 200 });
+      }
+      return fakeFetch(url, opts);
+    };
+    const srv = http.createServer(createApp({ env: { DADATA_TOKEN: 't', AI_UPSTREAM_URL: 'https://up.example/' }, fetchImpl: upFetch }));
+    await new Promise((r) => srv.listen(0, r));
+    const b = 'http://127.0.0.1:' + srv.address().port;
+    const go = () => fetch(b + '/api/org/ai', { method: 'POST', headers: { 'content-type': 'application/json', origin: 'https://fin-check.shop' }, body: JSON.stringify({ inn: '7707083893' }) }).then((r) => r.json());
+    try {
+      assert.equal((await go()).ai.summary, GOOD_AI.summary);
+      assert.equal((await go()).cached, true);
+      assert.equal(seen.length, 1, 'второй раз — из кеша');
+      assert.deepEqual(seen[0].body, { inn: '7707083893' });
+      assert.equal(seen[0].url, 'https://up.example/api/org/ai');
+      assert.equal(seen[0].origin, 'https://fin-check.shop');
+    } finally { srv.close(); }
+  });
+
   await t('в ИИ не уходят ФИО и адрес', () => {
     const f = factsForAi(PARTY);
     assert.equal(f.region, 'г Москва');
