@@ -1,0 +1,14 @@
+{
+  "id": "tass-f7db799187ef",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропорту Сочи сняли временные ограничения",
+  "url": "https://tass.ru/ekonomika/28150185",
+  "publishedAt": "2026-09-25T06:40:32.000Z",
+  "text": "Об этом сообщила Росавиация",
+  "fetchedAt": "2026-09-25T07:47:08.915Z",
+  "drafted": false
+}

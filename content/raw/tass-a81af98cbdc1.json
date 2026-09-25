@@ -1,0 +1,14 @@
+{
+  "id": "tass-a81af98cbdc1",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропорту Сочи на более чем 10 часов задерживаются 20 рейсов",
+  "url": "https://tass.ru/ekonomika/28150085",
+  "publishedAt": "2026-09-25T07:02:52.000Z",
+  "text": "Всего в аэропорту задерживаются 55 рейсов",
+  "fetchedAt": "2026-09-25T07:47:08.283Z",
+  "drafted": false
+}
