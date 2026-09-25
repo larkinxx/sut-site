@@ -22,6 +22,9 @@
 //                       Google не пускает к Gemini с российских адресов. Туда уходит только ИНН организации
 //   DATANEWTON_KEY    — ключ DataNewton: подробная карточка, суды, арбитраж, приставы (POST /api/org/more)
 //   DATANEWTON_DAILY  — сколько компаний в сутки проверять через DataNewton (по 4 единицы лимита), по умолчанию 150
+//   SITE_DIST         — где лежит собранный сайт (deploy/site-build.sh), по умолчанию /var/www/fin-check.shop:
+//                       из него берётся шаблон страниц компаний GET /organizacii/<ИНН>/ и карты сайта /sitemap-companies.xml
+//   SSR_DADATA_DAILY  — сколько раз в сутки страницы компаний могут спросить DaData (по умолчанию 2000)
 //   FNS_DB            — база открытых данных ФНС (scripts/fns-import.mjs), например /var/lib/sut/fns.db
 //   PORT              — порт, по умолчанию 3000
 // Аккаунты (включаются, только если задан ACCOUNTS_DB; по 152-ФЗ — только на сервере в России):
@@ -45,6 +48,7 @@ import { FORBIDDEN } from '../src/lib/schema.mjs';
 import { openDb, createAccounts, smtpMailer } from './accounts.mjs';
 import { dnData } from './datanewton.mjs';
 import { checkSite, siteNotes } from './site-check.mjs';
+import { createCompanyPages } from './company-page.mjs';
 import { fnsData } from './fns.mjs';
 import { DatabaseSync } from 'node:sqlite';
 
@@ -438,6 +442,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
     if (s === undefined) { s = await findParty(inn, cfg, fetchImpl); partyCache.set(inn, s); }
     return s;
   }
+  const companyPages = createCompanyPages({ env, fdb, getParty, cachedParty: (inn) => partyCache.get(inn), now });
 
   // Пересылка к api.telegram.org для нашего сервера в России. Секретов не хранит: токен приходит в адресе и дальше не пишется
   async function relayTelegram(req, res, url) {
@@ -466,6 +471,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
         return send(res, 200, { ok: true, dadata: !!cfg.dadataToken, ai: aiProvider(cfg), accounts: !!accounts, datanewton: !!cfg.dnKey });
       }
       if (!accounts && url.pathname.startsWith('/tg/')) return relayTelegram(req, res, url);
+      if (await companyPages(req, res, url, innValid)) return;
       if (req.method !== 'GET' && req.headers.origin && !cfg.origins.includes(req.headers.origin)) return send(res, 403, { error: 'Запрос с чужого сайта' });
       if (accounts && await accounts.handle(req, res, url, { send, readBody, getParty, innValid, ip: ipOf(req) })) return;
       if (req.method !== 'POST' || !['/api/org', '/api/org/ai', '/api/org/fns', '/api/org/more', '/api/org/suggest'].includes(url.pathname)) return send(res, 404, { error: 'Не найдено' });

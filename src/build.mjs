@@ -60,6 +60,8 @@ const icon = (name, cls = 'ph') => `<svg class="${cls}" viewBox="0 0 256 256" fi
 const OG_IMAGE = site.siteUrl + '/og.png';
 // Необязательный вход: включается, только когда поднят сервер аккаунтов в России (ACCOUNT_API_URL, см. server/accounts.mjs)
 const ACCT = (process.env.ACCOUNT_API_URL || '').replace(/\/$/, '');
+// Страницы компаний /organizacii/<ИНН>/ отдаёт наш сервер (server/company-page.mjs) — только когда сайт живёт на нём
+const COMPANY_PAGES = process.env.COMPANY_PAGES === '1';
 // Политику публикуем, только когда указан оператор персональных данных (config/site.json → operator)
 const POLICY = !!(site.operator && site.operator.name && site.operator.inn);
 if (ACCT && !POLICY) { console.error('Вход включён (ACCOUNT_API_URL), но в config/site.json не заполнен operator — без политики конфиденциальности вход включать нельзя.'); process.exit(1); }
@@ -406,8 +408,8 @@ write('kalkulyatory/index.html', layout({
 // в браузер, и есть ИИ-разбор. Иначе старый режим: ключ DADATA_TOKEN вшивается в страницу при сборке.
 write('organizacii/index.html', layout({
   title: 'Проверка организации по ИНН', desc: 'Проверка организации или ИП по ИНН: статус, реквизиты и руководитель из открытых реестров, памятка о налогах и сроках.', path: '/organizacii/', current: 'org',
-  body: `<h1 class="page">Проверка организации по ИНН</h1><p class="lede">Введите ИНН${process.env.ORG_API_URL ? ' или название' : ''} организации или ИП: покажем данные из открытых реестров и памятку, о чём стоит помнить.</p>
-<section class="calc" id="org" data-api="${esc(process.env.ORG_API_URL || '')}" data-token="${esc(process.env.ORG_API_URL ? '' : (process.env.DADATA_TOKEN || ''))}">
+  body: `<!--ssr:intro--><h1 class="page">Проверка организации по ИНН</h1><p class="lede">Введите ИНН${process.env.ORG_API_URL ? ' или название' : ''} организации или ИП: покажем данные из открытых реестров и памятку, о чём стоит помнить.</p><!--/ssr:intro-->
+<section class="calc" id="org"${COMPANY_PAGES ? ' data-pages="1"' : ''} data-api="${esc(process.env.ORG_API_URL || '')}" data-token="${esc(process.env.ORG_API_URL ? '' : (process.env.DADATA_TOKEN || ''))}">
   <form id="org-form" novalidate>
     ${process.env.ORG_API_URL
     ? `<label class="f" for="org-inn">ИНН или название</label>
@@ -729,7 +731,7 @@ write('manifest.webmanifest', JSON.stringify({
 }, null, 2));
 
 // robots и sitemap
-write('robots.txt', `User-agent: *\nAllow: /\n${site.siteUrl.includes('example') ? '' : `Sitemap: ${site.siteUrl}/sitemap.xml\n`}`);
+write('robots.txt', `User-agent: *\nAllow: /\n${site.siteUrl.includes('example') ? '' : `Sitemap: ${site.siteUrl}/sitemap.xml\n${COMPANY_PAGES ? `Sitemap: ${site.siteUrl}/sitemap-companies.xml\n` : ''}`}`);
 if (!site.siteUrl.includes('example')) {
   // lastmod: у ленты — время свежей новости, у карточки — время последней правки; у статичных страниц не ставим
   const fresh = cards.length ? cards[0].publishedAt : '';

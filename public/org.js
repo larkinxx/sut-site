@@ -969,6 +969,8 @@
       return;
     }
     sugClose();
+    // сайт со страницами компаний: у каждой организации свой адрес /organizacii/<ИНН>/ (его и находят поисковики)
+    if (root.getAttribute('data-pages') && innValid(inn) && inn !== root.getAttribute('data-inn')) { location.href = '/organizacii/' + inn + '/'; return; }
     if (!innValid(inn)) {
       msg.textContent = 'Проверьте ИНН: у организации 10 цифр, у ИП 12, и контрольные цифры должны сходиться.';
       return;
@@ -999,5 +1001,7 @@
     if (m && m[1] !== input.value.replace(/\s/g, '')) { input.value = m[1]; form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Event('submit')); }
   }
   window.addEventListener('hashchange', fromHash);
-  fromHash();
+  var pageInn = root.getAttribute('data-inn');
+  if (pageInn && !/inn=/.test(location.hash)) { input.value = pageInn; form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Event('submit')); }
+  else fromHash();
 })();

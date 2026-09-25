@@ -55,7 +55,8 @@ const SCHEMA = {
   fns_regime: '(inn TEXT PRIMARY KEY, usn INT, ausn INT, eshn INT, srp INT, asof TEXT)',
   fns_staff: '(inn TEXT PRIMARY KEY, n INT, asof TEXT)',
   fns_tax: '(inn TEXT PRIMARY KEY, total REAL, items TEXT, asof TEXT)',
-  fns_debt: '(inn TEXT PRIMARY KEY, total REAL, items TEXT, asof TEXT)'
+  fns_debt: '(inn TEXT PRIMARY KEY, total REAL, items TEXT, asof TEXT)',
+  fns_name: '(inn TEXT PRIMARY KEY, name TEXT)'           // названия организаций — для страниц компаний и карты сайта
 };
 export function openFnsDb(file, readOnly = false) {
   const db = new DatabaseSync(file, readOnly ? { readOnly: true } : {});
@@ -73,6 +74,7 @@ export async function importStream(db, name, stream) {
   // та же схема с первичным ключом: одна компания может встретиться в двух файлах выгрузки — оставляем последнюю запись
   db.exec(`DROP TABLE IF EXISTS ${tmp}; CREATE TABLE ${tmp} ${SCHEMA[ds.table]}`);
   const ins = db.prepare(`INSERT OR REPLACE INTO ${tmp} (${ds.columns}) VALUES (${ds.columns.split(',').map(() => '?').join(', ')})`);
+  const insName = db.prepare('INSERT OR REPLACE INTO fns_name (inn, name) VALUES (?, ?)');
   let buf = '', rows = 0;
   db.exec('BEGIN');
   const flush = (final) => {
@@ -84,6 +86,8 @@ export async function importStream(db, name, stream) {
       const inn = doc.match(/ИННЮЛ="(\d{10})"/)?.[1];
       if (!inn) continue;
       ins.run(inn, ...ds.row(doc, date(attrs(doc.match(/<Документ [^>]*>/)[0]).ДатаСост)));
+      const name = attrs(doc.match(/<СведНП[^>]*>/)?.[0] || '').НаимОрг;
+      if (name) insName.run(inn, name);
       if (++rows % 100000 === 0) { db.exec('COMMIT; BEGIN'); process.stdout.write(`  ${name}: ${rows}\r`); }
     }
     if (final) buf = '';

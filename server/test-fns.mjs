@@ -1,5 +1,8 @@
 // Тесты данных ФНС без сети: импорт открытых данных, ГИР БО и «Прозрачный бизнес» на заглушках.  Запуск: node server/test-fns.mjs
 import http from 'node:http';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import assert from 'node:assert/strict';
 import { Readable } from 'node:stream';
 import { createApp } from './index.mjs';
@@ -112,6 +115,34 @@ await t('/api/org/fns: ответ и кеш', async () => {
     const bad = await fetch(`http://127.0.0.1:${srv.address().port}/api/org/fns`, { method: 'POST', headers: { 'content-type': 'application/json', origin: 'https://fin-check.shop' }, body: JSON.stringify({ inn: '123' }) });
     assert.equal(bad.status, 400);
   } finally { srv.close(); }
+});
+
+await t('страницы компаний: название из ФНС, налоги, мета-теги, JSON-LD, карта сайта, 404 для неизвестных', async () => {
+  const dist = fs.mkdtempSync(path.join(os.tmpdir(), 'sut-dist-'));
+  fs.mkdirSync(path.join(dist, 'organizacii'));
+  fs.writeFileSync(path.join(dist, 'organizacii', 'index.html'), '<html><head><title>Проверка</title><meta name="description" content="x"><link rel="canonical" href="https://fin-check.shop/organizacii/"><meta property="og:title" content="x"><meta property="og:url" content="x"></head><body><!--ssr:intro--><h1 class="page">Проверка организации по ИНН</h1><!--/ssr:intro--><section class="calc" id="org" data-pages="1"></section><div id="org-out" aria-live="polite"></div></body></html>');
+  const srv = http.createServer(createApp({ env: { DADATA_TOKEN: 't', SITE_DIST: dist, SSR_DADATA_DAILY: '0' }, fetchImpl: fake, fnsPause: 0, fnsDb: db }));
+  await new Promise((r) => srv.listen(0, r));
+  const get = (p) => fetch(`http://127.0.0.1:${srv.address().port}${p}`, { redirect: 'manual' });
+  try {
+    const r = await get('/organizacii/2804011398/');
+    assert.equal(r.status, 200);
+    const h = await r.text();
+    assert.match(h, /<title>ООО &quot;ПЕКАРНЯ&quot; — ИНН 2804011398: проверка, налоги, суды — Суть<\/title>/);
+    assert.match(h, /<h1 class="page">ООО &quot;ПЕКАРНЯ&quot;<\/h1>/);
+    assert.match(h, /<link rel="canonical" href="https:\/\/fin-check.shop\/organizacii\/2804011398\/">/);
+    assert.match(h, /data-inn="2804011398"/);
+    assert.match(h, /Уплачено налогов и взносов<\/span><strong>552 тыс. ₽ за 2025 год/);
+    assert.match(h, /"@type":"Organization"/);
+    assert.equal((await get('/organizacii/2804011398')).headers.get('location'), '/organizacii/2804011398/');
+    const nf = await get('/organizacii/7707083893/');
+    assert.equal(nf.status, 404, 'нет ни в ФНС, ни в DaData');
+    assert.match(await nf.text(), /noindex/);
+    const idx = await (await get('/sitemap-companies.xml')).text();
+    assert.match(idx, /sitemap-companies-1\.xml/);
+    const sm = await (await get('/sitemap-companies-1.xml')).text();
+    assert.deepEqual([...sm.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]), ['https://fin-check.shop/organizacii/2804011398/', 'https://fin-check.shop/organizacii/7700000000/']);
+  } finally { srv.close(); fs.rmSync(dist, { recursive: true }); }
 });
 
 console.log(`\nВсе тесты ФНС прошли: ${n}`);

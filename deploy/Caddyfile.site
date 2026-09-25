@@ -1,0 +1,27 @@
+# Сайт fin-check.shop на этом сервере: статические страницы из /var/www/fin-check.shop,
+# страницы компаний и карта сайта компаний — от server/index.mjs. Подключается командой deploy/site-setup.sh.
+fin-check.shop {
+	encode zstd gzip
+	@company path_regexp company ^/(organizacii/[0-9]{10,12}/?|sitemap-companies(-[0-9]+)?\.xml)$
+	handle @company {
+		reverse_proxy 127.0.0.1:3000
+	}
+	handle {
+		root * /var/www/fin-check.shop
+		@static path *.css *.js *.woff2 *.svg *.png *.ico *.webmanifest
+		header @static Cache-Control "public, max-age=604800"
+		try_files {path} {path}/index.html
+		file_server
+	}
+	handle_errors {
+		@notfound expression {err.status_code} == 404
+		handle @notfound {
+			root * /var/www/fin-check.shop
+			rewrite * /404.html
+			file_server
+		}
+	}
+}
+www.fin-check.shop {
+	redir https://fin-check.shop{uri} permanent
+}
