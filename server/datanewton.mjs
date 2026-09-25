@@ -178,6 +178,6 @@ export async function dnData(inn, cfg, fetchImpl) {
     courts: ok(courts) ? normCourts(ok(courts), inn) : null,
     arbitration: ok(arb) ? normArbitration(ok(arb), inn) : null,
     fssp: ok(fssp) ? normFssp(ok(fssp), inn) : null,
-    left: ok(card)?.available_count ?? null
+    left: ok(card) ? (ok(card).available_count || 0) + (ok(card).demo_available_count || 0) : null
   };
 }

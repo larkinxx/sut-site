@@ -575,6 +575,13 @@
     });
     parent.appendChild(w);
   }
+  // «Отношения… → О защите прав потребителей → - из договоров в сфере: → услуг связи» → «О защите прав потребителей (услуг связи)»
+  function shortCat(c) {
+    var seg = String(c || '').split('→').map(function (x) { return x.trim(); }).filter(Boolean);
+    var main = seg.filter(function (x) { return x.charAt(0) !== '-'; });
+    var head = main[1] || main[0] || c, tail = seg[seg.length - 1];
+    return tail && tail !== head && seg.length > 2 ? head + ' (' + tail.replace(/^-\s*/, '') + ')' : head;
+  }
   function linkTo(text, href) { var a = el('a', null, text); a.href = href; a.target = '_blank'; a.rel = 'noopener'; return a; }
   function dateShort(s) { return s ? String(s).slice(0, 10).split('-').reverse().join('.') : ''; }
 
@@ -644,7 +651,7 @@
         var bl = el('p', 'big-line'); bl.appendChild(el('strong', null, String(k.total))); bl.appendChild(document.createTextNode(' ' + plural(k.total, 'дело', 'дела', 'дел'))); kc.appendChild(bl);
         chips(kc, [['ответчиком', k.defendant], ['истцом или заявителем', k.plaintiff], ['третьим или иным лицом', k.other]]);
         if (k.other && k.other >= k.shown / 2) kc.appendChild(el('p', 'note-sm', 'В большинстве дел компания — третье лицо: обычно это чужие споры, где она просто упомянута.'));
-        if (k.categories.length) { kc.appendChild(el('p', 'fns-sub', 'Категории')); hbars(kc, k.categories); }
+        if (k.categories.length) { kc.appendChild(el('p', 'fns-sub', 'Категории')); hbars(kc, k.categories.map(function (c) { return [shortCat(c[0]), c[1]]; })); }
         if (k.recent.length) {
           var dt = el('details', 'fns-more'); dt.appendChild(el('summary', null, 'Последние дела'));
           var ul = el('ul');
