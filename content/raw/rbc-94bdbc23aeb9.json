@@ -1,0 +1,15 @@
+{
+  "id": "rbc-94bdbc23aeb9",
+  "sourceId": "rbc",
+  "sourceName": "РБК",
+  "kind": "Новости",
+  "official": false,
+  "category": "",
+  "title": "Перекрытия 27 сентября",
+  "url": "https://www.rbc.ru/photoslider/6ab69d9b9a7947043e5dff5d",
+  "publishedAt": "2026-09-25T16:15:49.000Z",
+  "text": "Перекрытия 27 сентября",
+  "fetchedAt": "2026-09-25T18:35:37.568Z",
+  "drafted": true,
+  "skipReason": "Новость содержит только заголовок о перекрытиях без указания города, причин, списка улиц и практических последствий для граждан."
+}
