@@ -270,6 +270,33 @@ try {
     assert.deepEqual([f.total, f.open, f.openSum], [2, 1, 300]);
   });
 
+  await t('/api/org/more: DataNewton через сервер, кеш на сутки, без ключа — недоступно', async () => {
+    let calls = 0;
+    const dnFetch = async (url) => {
+      const u = new URL(String(url));
+      if (u.hostname !== 'api.datanewton.ru') return fakeFetch(url);
+      calls++;
+      assert.equal(u.searchParams.get('key'), 'dn');
+      if (u.pathname === '/v1/counterparty') return new Response(JSON.stringify({ inn: '7707083893', company: { company_names: { short_name: 'ООО "РОМАШКА"' }, charter_capital: '10000' }, available_count: 190 }));
+      if (u.pathname === '/v1/arbitration-cases') return new Response(JSON.stringify({ total_cases: 0, data: [] }));
+      return new Response(JSON.stringify({ total: 0, data: [] }));
+    };
+    const srv = http.createServer(createApp({ env: { DADATA_TOKEN: 't', DATANEWTON_KEY: 'dn' }, fetchImpl: dnFetch }));
+    await new Promise((r) => srv.listen(0, r));
+    const post = () => fetch('http://127.0.0.1:' + srv.address().port + '/api/org/more', { method: 'POST', headers: { 'content-type': 'application/json', origin: 'https://fin-check.shop' }, body: JSON.stringify({ inn: '7707083893' }) }).then((r) => r.json());
+    try {
+      const j = await post();
+      assert.equal(j.available, true);
+      assert.equal(j.card.capital, 10000);
+      assert.equal(j.left, 190);
+      assert.equal(calls, 4, 'карточка, суды, арбитраж, приставы');
+      await post();
+      assert.equal(calls, 4, 'второй раз из кеша');
+    } finally { srv.close(); }
+    const r = await fetch(base + '/api/org/more', { method: 'POST', headers: { 'content-type': 'application/json', origin: 'https://fin-check.shop' }, body: JSON.stringify({ inn: '7707083893' }) });
+    assert.deepEqual(await r.json(), { available: false });
+  });
+
   await t('проверка сайта: ИНН на странице, соцсети, возраст домена, внутренние адреса не открываем', async () => {
     const html = '<title>Ромашка</title><p>ИНН 7707 083 893</p><a href="https://vk.com/romashka">vk</a><a href="https://t.me/romashka">tg</a>';
     const fetchImpl = async (u) => ({ ok: true, url: String(u), text: async () => html });
