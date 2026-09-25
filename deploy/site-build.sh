@@ -7,9 +7,11 @@ REPO=/opt/sut-site
 OUT=/var/www/fin-check.shop
 mkdir -p /var/www
 cd "$REPO"
-OLD=$(git rev-parse HEAD)
-sudo -u sut git pull -q --ff-only || true
-NEW=$(git rev-parse HEAD)
+# git — от имени владельца папки (sut): от root git откажется работать с чужим репозиторием
+G="sudo -u sut git"
+OLD=$($G rev-parse HEAD)
+$G pull -q --ff-only || true
+NEW=$($G rev-parse HEAD)
 if [ "$OLD" = "$NEW" ] && [ -f "$OUT/index.html" ] && [ -z "$FORCE" ]; then exit 0; fi
 # настройки сборки: адрес сайта, адрес API, страницы компаний
 if [ ! -f /etc/sut/site.env ]; then
@@ -21,5 +23,5 @@ rm -rf "$OUT.new" && cp -a "$REPO/dist" "$OUT.new" && chmod -R a+rX "$OUT.new"
 [ -d "$OUT" ] && mv "$OUT" "$OUT.old"
 mv "$OUT.new" "$OUT" && rm -rf "$OUT.old"
 # если изменился сервер — перезапустить его
-if [ "$OLD" != "$NEW" ] && git diff --name-only "$OLD" "$NEW" | grep -q '^server/'; then systemctl restart sut-api; fi
+if [ "$OLD" != "$NEW" ] && $G diff --name-only "$OLD" "$NEW" | grep -q '^server/'; then systemctl restart sut-api; fi
 echo "$(date '+%F %T') сайт собран: $NEW"
