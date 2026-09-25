@@ -8,9 +8,9 @@
   --crit:#8C2436;--crit-ink:#FBEFF1;--crit-line:#B03A4E;
   --pos:#227A4F;--mark:rgba(154,116,44,.28);--lvl-l:#B23A56;
   --video:#2F5F92;--course:#8A5A1E;
-  --font-body:"Source Serif 4","PT Serif",Georgia,"Times New Roman",serif;
+  --font-body:"PT Serif",Georgia,"Times New Roman",serif;
   --font-display:"PT Serif",Georgia,"Times New Roman",serif;
-  --font-ui:"Source Sans 3",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --font-ui:"PT Serif",Georgia,"Times New Roman",serif;
 }
 :root[data-theme="dark"]{
   color-scheme:dark;
