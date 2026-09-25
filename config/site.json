@@ -18,7 +18,7 @@
   },
   "verification": {
     "_note": "Коды подтверждения сайта: Яндекс Вебмастер (webmaster.yandex.ru, способ «Метатег») и Google Search Console (способ «Тег HTML»). Вписывается только значение content, например 1a2b3c4d5e6f7a8b.",
-    "yandex": "",
+    "yandex": "a3615132408391d9",
     "google": ""
   }
 }
