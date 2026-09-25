@@ -281,6 +281,10 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
   /* ----- маршруты ----- */
   const emailOk = (e) => typeof e === 'string' && e.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
 
+  // Журнал входа (journalctl -u sut-api): только исход и внутренний номер пользователя — без имён, почты и ID Telegram/Яндекса
+  const log = (...a) => console.log(new Date().toISOString(), 'вход:', ...a);
+  const fail = (way, msg, detail) => (log(way, '—', msg + (detail ? ` (${detail})` : '')), back(null, msg));
+
   async function handle(req, res, url, { send, readBody, getParty, innValid, ip }) {
     const p = url.pathname;
     if (!p.startsWith('/auth/') && !['/api/me', '/api/history', '/api/watch', '/api/calcs'].includes(p)) return false;
@@ -288,8 +292,8 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
 
     // ---- вход через Яндекс ID ----
     if (m === 'GET' && p === '/auth/yandex') {
-      if (!cfg.yandexId) return redirect(res, back(null, 'Вход через Яндекс пока не подключён')), true;
-      if (url.searchParams.get('consent') !== '1') return redirect(res, back(null, 'Нужно согласие на обработку данных')), true;
+      if (!cfg.yandexId) return redirect(res, fail('Яндекс', 'Вход через Яндекс пока не подключён', 'нет YANDEX_CLIENT_ID')), true;
+      if (url.searchParams.get('consent') !== '1') return redirect(res, fail('Яндекс', 'Нужно согласие на обработку данных')), true;
       const state = token();
       const ret = safeReturn(url.searchParams.get('return'));
       const to = 'https://oauth.yandex.ru/authorize?' + new URLSearchParams({ response_type: 'code', client_id: cfg.yandexId, redirect_uri: cfg.api + '/auth/yandex/callback', state });
@@ -300,22 +304,23 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
       const [state, retB64] = String(cookies(req).sut_st || '').split('.');
       const ret = retB64 ? Buffer.from(retB64, 'base64url').toString() : null;
       const clear = cookie('sut_st', '', 0);
-      if (!state || state !== url.searchParams.get('state')) return redirect(res, back(null, 'Вход не удался, попробуйте ещё раз'), [clear]), true;
+      if (!state || state !== url.searchParams.get('state')) return redirect(res, fail('Яндекс', 'Вход не удался, попробуйте ещё раз', 'state не совпал: истёк или другой браузер'), [clear]), true;
       const code = url.searchParams.get('code');
-      if (!code) return redirect(res, back(null, 'Вход отменён'), [clear]), true;
+      if (!code) return redirect(res, fail('Яндекс', 'Вход отменён', url.searchParams.get('error') || 'нет code'), [clear]), true;
       const tr = await fetchImpl('https://oauth.yandex.ru/token', {
         method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ grant_type: 'authorization_code', code, client_id: cfg.yandexId, client_secret: cfg.yandexSecret }), signal: AbortSignal.timeout(15000)
       });
       const tj = await tr.json().catch(() => ({}));
-      if (!tj.access_token) return redirect(res, back(null, 'Яндекс не подтвердил вход'), [clear]), true;
+      if (!tj.access_token) return redirect(res, fail('Яндекс', 'Яндекс не подтвердил вход', `HTTP ${tr.status} ${tj.error || ''}`.trim()), [clear]), true;
       const ir = await fetchImpl('https://login.yandex.ru/info?format=json', { headers: { Authorization: 'OAuth ' + tj.access_token }, signal: AbortSignal.timeout(15000) });
       const info = await ir.json().catch(() => ({}));
-      if (!info.id) return redirect(res, back(null, 'Яндекс не передал данные профиля'), [clear]), true;
+      if (!info.id) return redirect(res, fail('Яндекс', 'Яндекс не передал данные профиля', `HTTP ${ir.status}`), [clear]), true;
       const email = info.default_email ? String(info.default_email).toLowerCase() : null;
       let u;
       try { u = findOrCreate({ field: 'yandex_id', id: String(info.id), email, name: info.real_name || info.display_name || '' }, userOf(req)); }
-      catch { return redirect(res, back(null, 'Этот Яндекс ID уже привязан к другому аккаунту'), [clear]), true; }
+      catch { return redirect(res, fail('Яндекс', 'Этот Яндекс ID уже привязан к другому аккаунту'), [clear]), true; }
+      log('Яндекс — успешно, пользователь #' + u.id);
       redirect(res, back(ret), [clear, startSession(u.id)]);
       return true;
     }
@@ -323,12 +328,16 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
     // ---- вход через Telegram (виджет в режиме перехода по ссылке) ----
     if (m === 'GET' && p === '/auth/telegram/callback') {
       const params = Object.fromEntries(url.searchParams);
-      if (params.consent !== '1') return redirect(res, back(null, 'Нужно согласие на обработку данных')), true;
+      if (params.consent !== '1') return redirect(res, fail('Telegram', 'Нужно согласие на обработку данных')), true;
       const tg = telegramCheck(params, cfg.tgToken, now());
-      if (!tg) return redirect(res, back(null, 'Telegram не подтвердил вход')), true;
+      if (!tg) {
+        const why = !cfg.tgToken ? 'нет TELEGRAM_BOT_TOKEN' : !params.hash ? 'Telegram не передал подпись' : now() / 1000 - Number(params.auth_date) > 86400 ? 'подпись старше суток' : 'подпись не сошлась: токен на сервере не от этого бота или устарел после /revoke';
+        return redirect(res, fail('Telegram', 'Telegram не подтвердил вход', why)), true;
+      }
       let u;
       try { u = findOrCreate({ field: 'telegram_id', id: tg.id, email: null, name: tg.name }, userOf(req)); }
-      catch { return redirect(res, back(null, 'Этот Telegram уже привязан к другому аккаунту')), true; }
+      catch { return redirect(res, fail('Telegram', 'Этот Telegram уже привязан к другому аккаунту')), true; }
+      log('Telegram — успешно, пользователь #' + u.id);
       redirect(res, back(params.return), [startSession(u.id)]);
       return true;
     }
@@ -349,7 +358,13 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
       q(`INSERT INTO email_codes (email, code_hash, expires_at, attempts, sent_at, sent_count) VALUES (?, ?, ?, 0, ?, ?)
          ON CONFLICT(email) DO UPDATE SET code_hash = excluded.code_hash, expires_at = excluded.expires_at, attempts = 0, sent_at = excluded.sent_at, sent_count = excluded.sent_count`)
         .run(email, sha(email + ':' + code), now() + 10 * 60e3, now(), count);
-      await mailer({ to: email, subject: `Код для входа: ${code}`, text: `Ваш код для входа на fin-check.shop: ${code}\n\nКод действует 10 минут. Если вы не запрашивали вход, просто проигнорируйте это письмо.\n\n— Суть` });
+      try {
+        await mailer({ to: email, subject: `Код для входа: ${code}`, text: `Ваш код для входа на fin-check.shop: ${code}\n\nКод действует 10 минут. Если вы не запрашивали вход, просто проигнорируйте это письмо.\n\n— Суть` });
+      } catch (e) {
+        log('почта — письмо с кодом не отправлено:', e.message);
+        return send(res, 502, { error: 'Не получилось отправить письмо. Попробуйте позже или войдите другим способом.' }), true;
+      }
+      log('почта — код отправлен');
       return send(res, 200, { ok: true }), true;
     }
     if (m === 'POST' && p === '/auth/email/verify') {
@@ -360,11 +375,13 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
       if (!row || row.expires_at < now()) return send(res, 400, { error: 'Код устарел. Запросите новый.' }), true;
       if (row.attempts >= 5) return send(res, 429, { error: 'Слишком много попыток. Запросите новый код.' }), true;
       if (sha(email + ':' + code) !== row.code_hash) {
+        log('почта — неверный код');
         q('UPDATE email_codes SET attempts = attempts + 1 WHERE email = ?').run(email);
         return send(res, 400, { error: 'Неверный код.' }), true;
       }
       q('DELETE FROM email_codes WHERE email = ?').run(email);
       const u = findOrCreate({ field: 'email', id: email, email, name: '' });
+      log('почта — успешно, пользователь #' + u.id);
       res.setHeader('Set-Cookie', startSession(u.id));
       return send(res, 200, { user: publicUser(u) }), true;
     }
