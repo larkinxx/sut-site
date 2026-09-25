@@ -189,3 +189,6 @@ footer .fine a{color:var(--accent)}
 :root[data-theme="dark"] .theme-btn .ic-sun{display:block}
 :root[data-theme="dark"] .theme-btn .ic-moon{display:none}
 .tip.idea{border-left-color:var(--pos)}
+.scheme{border-left:2px solid var(--crit-line);padding-left:14px;margin:26px 0}
+.scheme h2{margin-top:0}
+.scheme .risk b{color:var(--crit-line)}
