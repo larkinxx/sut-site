@@ -48,4 +48,6 @@ curl https://api.fin-check.shop/health   # должно быть "accounts":true
 - Обновить сервер после изменений в GitHub: `sh /opt/sut-site/deploy/update.sh`
 - Логи: `journalctl -u sut-api -f`
 - Копии базы: каждый день в 04:30 в `/var/backups/sut/`, хранятся 14 дней.
+- Данные ФНС о налогах и численности (`/var/lib/sut/fns.db`): обновляются 26-го числа каждого месяца, лог — `/var/log/sut-fns-import.log`.
+  Первый раз после установки запустите вручную: `runuser -u sut -- node /opt/sut-site/scripts/fns-import.mjs /var/lib/sut/fns.db` (10–15 минут).
 - Слежение за компаниями запускается само раз в сутки после 08:00 по Москве.
