@@ -296,11 +296,14 @@
   }
 
   // Результаты — сетка карточек на всю ширину (как на Rusprofile): шапка, финансы, налоги, суды, люди, контакты…
+  // Широкие карточки (span) — во всю ширину; остальные — плотными колонками без пустот (.cols-flow)
+  var flow = null;
   function card(id, title, cls, before) {
     var c = el('section', 'dcard' + (cls ? ' ' + cls : ''));
     if (id) c.id = id;
     if (title) c.appendChild(el('h2', null, title));
-    if (before) out.insertBefore(c, before); else out.appendChild(c);
+    var parent = /(^| )span( |$)/.test(cls || '') ? out : flow;
+    if (before) before.parentNode.insertBefore(c, before); else parent.appendChild(c);
     return c;
   }
   function plural(n, a, b, c) { var m = n % 10, h = n % 100; return m === 1 && h !== 11 ? a : m >= 2 && m <= 4 && (h < 12 || h > 14) ? b : c; }
@@ -329,14 +332,16 @@
     row(box, 'Адрес', d.address && d.address.value);
     head.appendChild(box);
 
+    if (api) card('org-ai', null, 'span');
+    flow = el('div', 'cols-flow');
+    out.appendChild(flow);
     if (api) {
       card('org-fns');
-      var more = card('org-more', null, 'span loading');
+      var more = card('org-more', null, 'loading');
       more.appendChild(el('p', 'note-sm', 'Загружаем суды, приставов, учредителей и контакты…'));
-      card('org-ai', null, 'span');
     }
-    card('org-memo', null, 'span');
-    card('org-tax', null, 'span');
+    card('org-memo');
+    card('org-tax');
     card(null, null, 'span').appendChild(freeSourcesBox(d));
     renderMemo(d, advice);
     renderTax(d);
@@ -592,7 +597,7 @@
     var W = 420, H = 100, bw = W / pts.length;
     var svg = '<svg viewBox="0 0 ' + W + ' ' + (H + 32) + '" class="bar-chart" role="img" aria-label="' + label + '">';
     pts.forEach(function (p, i) {
-      var h = Math.max(2, Math.round(p.v / max * H)), x = Math.round(i * bw + bw * 0.2), w = Math.round(bw * 0.6);
+      var w = Math.round(Math.min(bw * 0.6, 44)), h = Math.max(2, Math.round(p.v / max * H)), x = Math.round(i * bw + (bw - w) / 2);
       svg += '<rect x="' + x + '" y="' + (H - h + 14) + '" width="' + w + '" height="' + h + '" rx="2"><title>' + p.x + ': ' + p.v + '</title></rect>';
       svg += '<text x="' + (x + w / 2) + '" y="' + (H - h + 10) + '" text-anchor="middle" class="val">' + p.v + '</text>';
       svg += '<text x="' + (x + w / 2) + '" y="' + (H + 28) + '" text-anchor="middle" class="axis">' + p.x + '</text>';
@@ -606,7 +611,7 @@
     var anchor = document.getElementById('org-more');
     if (!anchor) return;
     if (!j || !j.available) { anchor.remove(); return; }
-    if (j.limited) { anchor.className = 'dcard span'; anchor.textContent = ''; anchor.appendChild(el('p', 'note-sm', 'Суды, учредители и контакты сейчас недоступны: исчерпан лимит запросов на сегодня. Попробуйте позже или посмотрите сами по ссылкам внизу страницы.')); return; }
+    if (j.limited) { anchor.className = 'dcard'; anchor.textContent = ''; anchor.appendChild(el('p', 'note-sm', 'Суды, учредители и контакты сейчас недоступны: исчерпан лимит запросов на сегодня. Попробуйте позже или посмотрите сами по ссылкам внизу страницы.')); return; }
     var c = j.card;
     var add = function (title, cls) { return card(null, title, cls, anchor); };
 
