@@ -295,40 +295,49 @@
     return wrap;
   }
 
+  // Результаты — сетка карточек на всю ширину (как на Rusprofile): шапка, финансы, налоги, суды, люди, контакты…
+  function card(id, title, cls, before) {
+    var c = el('section', 'dcard' + (cls ? ' ' + cls : ''));
+    if (id) c.id = id;
+    if (title) c.appendChild(el('h2', null, title));
+    if (before) out.insertBefore(c, before); else out.appendChild(c);
+    return c;
+  }
+  function plural(n, a, b, c) { var m = n % 10, h = n % 100; return m === 1 && h !== 11 ? a : m >= 2 && m <= 4 && (h < 12 || h > 14) ? b : c; }
+  function yearsAgo(ms) { var y = Math.floor((Date.now() - ms) / (365.25 * 864e5)); return y + ' ' + plural(y, 'год', 'года', 'лет'); }
+
   function render(s, advice) {
     var d = s.data || {};
     out.textContent = '';
-    var head = el('h2', null, (d.name && d.name.short_with_opf) || s.value);
-    head.style.marginTop = '18px';
-    out.appendChild(head);
-
-    var box = el('div', 'result');
+    out.className = 'dash';
+    var head = card('card-head', null, 'span head');
+    var top = el('div', 'head-top');
+    top.appendChild(el('h2', null, (d.name && d.name.short_with_opf) || s.value));
     var st = (d.state && d.state.status) || '';
-    row(box, 'Статус', STATUS[st] || st);
+    if (st) top.appendChild(el('span', 'badge ' + (st === 'ACTIVE' ? 'ok' : 'bad'), STATUS[st] || st));
+    head.appendChild(top);
+    if (d.name && d.name.full_with_opf) head.appendChild(el('p', 'note-sm', d.name.full_with_opf));
+    var box = el('div', 'result cols');
+    box.id = 'head-rows';
     row(box, 'ИНН', d.inn);
     row(box, 'ОГРН', d.ogrn);
-    row(box, 'Зарегистрирована', d.state && d.state.registration_date ? dateRu(d.state.registration_date) : '');
+    row(box, 'КПП', d.kpp);
+    row(box, 'Зарегистрирована', d.state && d.state.registration_date ? dateRu(d.state.registration_date) + ' (' + yearsAgo(d.state.registration_date) + ')' : '');
     row(box, 'Руководитель', d.management && d.management.name);
-    row(box, 'Адрес', d.address && d.address.value);
+    row(box, 'Основной вид деятельности', d.okved);
     row(box, 'Работников', d.employee_count != null ? String(d.employee_count) : '');
-    out.appendChild(box);
+    row(box, 'Адрес', d.address && d.address.value);
+    head.appendChild(box);
 
     if (api) {
-      var fnsBox = el('div');
-      fnsBox.id = 'org-fns';
-      out.appendChild(fnsBox);
+      card('org-fns');
+      var more = card('org-more', null, 'span loading');
+      more.appendChild(el('p', 'note-sm', 'Загружаем суды, приставов, учредителей и контакты…'));
+      card('org-ai', null, 'span');
     }
-
-    out.appendChild(freeSourcesBox(d));
-
-    if (api) {
-      var aiBox = el('div');
-      aiBox.id = 'org-ai';
-      out.appendChild(aiBox);
-    }
-
-    var memo = el('div'); memo.id = 'org-memo'; out.appendChild(memo);
-    var tax = el('div'); tax.id = 'org-tax'; out.appendChild(tax);
+    card('org-memo', null, 'span');
+    card('org-tax', null, 'span');
+    card(null, null, 'span').appendChild(freeSourcesBox(d));
     renderMemo(d, advice);
     renderTax(d);
   }
@@ -389,55 +398,65 @@
     dt.appendChild(ul);
     return dt;
   }
-  function revenueChart(years) {
-    var ys = years.filter(function (y) { return y.revenue != null; });
-    if (ys.length < 2) return null;
-    var max = Math.max.apply(null, ys.map(function (y) { return y.revenue; })) || 1;
-    var W = 320, H = 110, bw = W / ys.length;
-    var svg = '<svg viewBox="0 0 ' + W + ' ' + (H + 18) + '" class="fns-chart" role="img" aria-label="Выручка по годам">';
-    ys.forEach(function (y, i) {
-      var h = Math.max(2, Math.round(y.revenue / max * H));
-      var x = Math.round(i * bw + bw * 0.18), w = Math.round(bw * 0.64);
-      svg += '<rect x="' + x + '" y="' + (H - h) + '" width="' + w + '" height="' + h + '" rx="2" class="' + (y.profit != null && y.profit < 0 ? 'neg' : 'pos') + '"><title>' + y.year + ': ' + money(y.revenue) + '</title></rect>';
-      svg += '<text x="' + (x + w / 2) + '" y="' + (H + 14) + '" text-anchor="middle">' + y.year + '</text>';
+  // Линейный график по годам (выручка), с точками и подписями
+  function lineChart(pts, label) {
+    if (pts.length < 2) return null;
+    var W = 420, H = 160, L = 8, R = 8, T = 26, B = 22;
+    var vals = pts.map(function (p) { return p.v; });
+    var max = Math.max.apply(null, vals), min = Math.min(0, Math.min.apply(null, vals));
+    var span = max - min || 1;
+    var x = function (i) { return L + i * (W - L - R) / (pts.length - 1); };
+    var y = function (v) { return T + (1 - (v - min) / span) * (H - T - B); };
+    var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="line-chart" role="img" aria-label="' + label + '">';
+    [0, 0.5, 1].forEach(function (k) { var yy = T + k * (H - T - B); svg += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + yy + '" y2="' + yy + '" class="grid"/>'; });
+    svg += '<text x="' + (W - R) + '" y="12" text-anchor="end" class="axis">макс. ' + money(max) + '</text>';
+    svg += '<polyline points="' + pts.map(function (p, i) { return x(i) + ',' + y(p.v); }).join(' ') + '" class="ln"/>';
+    pts.forEach(function (p, i) {
+      svg += '<circle cx="' + x(i) + '" cy="' + y(p.v) + '" r="4" class="' + (p.v < 0 ? 'neg' : 'dot') + '"><title>' + p.x + ': ' + money(p.v) + '</title></circle>';
+      svg += '<text x="' + x(i) + '" y="' + (H - 6) + '" text-anchor="' + (i === 0 ? 'start' : i === pts.length - 1 ? 'end' : 'middle') + '" class="axis">' + p.x + '</text>';
     });
-    var wrap = el('div', 'fns-chart-wrap');
+    var wrap = el('div', 'chart-wrap');
     wrap.innerHTML = svg + '</svg>';
     return wrap;
+  }
+  // Крупная цифра с изменением к прошлому году
+  function bigStat(parent, label, v, prev) {
+    var b = el('div', 'bigstat');
+    b.appendChild(el('span', 'bs-label', label));
+    b.appendChild(el('strong', 'bs-val' + (v < 0 ? ' bad' : ''), money(v)));
+    if (prev != null && prev !== 0 && v != null) {
+      var ch = Math.round((v - prev) / Math.abs(prev) * 100);
+      b.appendChild(el('span', 'bs-delta ' + (ch >= 0 ? 'up' : 'down'), (ch >= 0 ? '↑ +' : '↓ ') + ch + ' %'));
+    }
+    parent.appendChild(b);
   }
   function renderFns(box, j) {
     box.textContent = '';
     var p = j.pb, b = j.bo;
-    if (!p && !b) { box.appendChild(el('p', 'note-sm', 'В открытых данных ФНС нет сведений о налогах и отчётности этой организации. Так бывает у банков и крупных компаний, которым разрешено не раскрывать эти сведения, и у совсем новых компаний. Если сведения есть, их можно найти в «Прозрачном бизнесе» и ГИР БО по ссылкам ниже.')); return; }
-    box.appendChild(el('h2', null, 'Финансы и налоги')).style.marginTop = '22px';
-    box.appendChild(el('p', 'note-sm', 'Официальные данные ФНС: ' + (p && p.source === 'opendata' ? 'открытые данные о налогах и численности' : 'сервис «Прозрачный бизнес»') + (b ? ' и бухгалтерская отчётность из ГИР БО' : '') + '.'));
-    var t = el('div', 'result');
-    if (p) {
-      if (p.regime && p.regime.known) row(t, 'Налоговый режим', (p.regime.names.length ? p.regime.names.join(', ') : 'общая система') + (p.regime.period ? ' (на ' + p.regime.period + ')' : ''));
-      if (p.employees && p.employees.length) row(t, 'Сотрудников', p.employees.map(function (e) { return e.n + ' в ' + e.year; }).slice(0, 2).join(', '));
-      if (p.msp && p.msp.category) row(t, 'Реестр МСП', p.msp.category + (p.msp.since ? ' с ' + p.msp.since : ''));
-      if (p.taxesPaid) row(t, 'Уплачено налогов и взносов', money(p.taxesPaid.total) + ' за ' + p.taxesPaid.year);
-      if (p.arrears) {
-        var ar = el('div');
-        ar.appendChild(el('span', null, 'Налоговая задолженность'));
-        ar.appendChild(el('strong', p.arrears.total > 0 ? 'bad' : null, p.arrears.total > 0 ? money(p.arrears.total) + (p.arrears.asOf ? ' на ' + p.arrears.asOf : '') : 'нет'));
-        t.appendChild(ar);
-      }
+    if (!p && !b) {
+      box.appendChild(el('h2', null, 'Финансы и налоги'));
+      box.appendChild(el('p', 'note-sm', 'В открытых данных ФНС нет сведений о налогах и отчётности этой организации. Так бывает у банков и крупных компаний, которым разрешено не раскрывать эти сведения, и у совсем новых компаний. Если сведения есть, их можно найти в «Прозрачном бизнесе» и ГИР БО по ссылкам внизу страницы.'));
+      return;
     }
-    box.appendChild(t);
-    if (p && p.taxesPaid && p.taxesPaid.items && p.taxesPaid.items.length) box.appendChild(details('Какие налоги уплачены', p.taxesPaid.items, function (x) { return x.name + ': ' + money(x.sum); }));
-    if (p && p.arrears && p.arrears.items && p.arrears.items.length) box.appendChild(details('Из чего складывается долг', p.arrears.items, function (x) {
-      var parts = []; if (x.arrear) parts.push('недоимка ' + money(x.arrear)); if (x.penalty) parts.push('пени ' + money(x.penalty)); if (x.fine) parts.push('штрафы ' + money(x.fine));
-      return x.name + ': ' + (parts.join(', ') || money(x.total));
-    }));
-
-    // отчётность по годам
+    // Финансы — отдельной карточкой перед налогами
     var ys = (b && b.years) || [];
+    var last = ys[ys.length - 1], prev = ys[ys.length - 2];
     if (ys.length) {
-      box.appendChild(el('p', 'fns-sub', 'Бухгалтерская отчётность'));
-      var ch = revenueChart(ys); if (ch) box.appendChild(ch);
+      var fin = el('section', 'dcard');
+      box.parentNode.insertBefore(fin, box);
+      fin.appendChild(el('h2', null, 'Финансы'));
+      fin.appendChild(el('p', 'note-sm', 'Бухгалтерская отчётность за ' + last.year + ' год (ГИР БО, ФНС).'));
+      var stats = el('div', 'bigstats');
+      bigStat(stats, 'Выручка', last.revenue, prev && prev.revenue);
+      bigStat(stats, 'Чистая прибыль', last.profit, prev && prev.profit);
+      bigStat(stats, 'Капитал', last.equity, prev && prev.equity);
+      fin.appendChild(stats);
+      var ch = lineChart(ys.filter(function (y) { return y.revenue != null; }).map(function (y) { return { x: y.year, v: y.revenue }; }), 'Выручка по годам');
+      if (ch) { fin.appendChild(el('p', 'fns-sub', 'Динамика выручки')); fin.appendChild(ch); }
+      var dt = el('details', 'fns-more');
+      dt.appendChild(el('summary', null, 'Таблица по годам'));
       var tbl = el('table', 'fns-table');
-      var hr = el('tr'); ['Год', 'Выручка', 'Чистая прибыль', 'Активы', 'Капитал'].forEach(function (h) { hr.appendChild(el('th', null, h)); }); tbl.appendChild(hr);
+      var hr = el('tr'); ['Год', 'Выручка', 'Прибыль', 'Активы', 'Капитал'].forEach(function (h) { hr.appendChild(el('th', null, h)); }); tbl.appendChild(hr);
       ys.slice().reverse().forEach(function (y) {
         var tr = el('tr');
         [String(y.year), money(y.revenue), money(y.profit), money(y.assets), money(y.equity)].forEach(function (v, i) {
@@ -445,13 +464,37 @@
         });
         tbl.appendChild(tr);
       });
-      box.appendChild(tbl);
-      if (b.url) { var a = el('a', null, 'Отчётность полностью на bo.nalog.gov.ru'); a.href = b.url; a.target = '_blank'; a.rel = 'noopener'; var pp = el('p', 'note-sm'); pp.appendChild(a); box.appendChild(pp); }
+      dt.appendChild(tbl);
+      fin.appendChild(dt);
+      if (b.url) { var a = el('a', null, 'Отчётность полностью на bo.nalog.gov.ru'); a.href = b.url; a.target = '_blank'; a.rel = 'noopener'; var pp = el('p', 'note-sm'); pp.appendChild(a); fin.appendChild(pp); }
+    }
+
+    box.appendChild(el('h2', null, 'Налоги и сотрудники'));
+    box.appendChild(el('p', 'note-sm', 'Официальные данные ФНС: ' + (p && p.source === 'opendata' ? 'открытые данные о налогах и численности' : 'сервис «Прозрачный бизнес»') + '.'));
+    if (p) {
+      var stats2 = el('div', 'bigstats');
+      if (p.taxesPaid) { var tp = el('div', 'bigstat'); tp.appendChild(el('span', 'bs-label', 'Уплачено налогов за ' + p.taxesPaid.year)); tp.appendChild(el('strong', 'bs-val', money(p.taxesPaid.total))); stats2.appendChild(tp); }
+      if (p.employees && p.employees.length) { var em = el('div', 'bigstat'); em.appendChild(el('span', 'bs-label', 'Сотрудников в ' + p.employees[0].year)); em.appendChild(el('strong', 'bs-val', String(p.employees[0].n))); stats2.appendChild(em); }
+      if (stats2.children.length) box.appendChild(stats2);
+      var t = el('div', 'result');
+      if (p.regime && p.regime.known) row(t, 'Налоговый режим', (p.regime.names.length ? p.regime.names.join(', ') : 'общая система') + (p.regime.period ? ' (на ' + p.regime.period + ')' : ''));
+      if (p.msp && p.msp.category) row(t, 'Реестр МСП', p.msp.category + (p.msp.since ? ' с ' + p.msp.since : ''));
+      if (p.arrears) {
+        var ar = el('div');
+        ar.appendChild(el('span', null, 'Налоговая задолженность'));
+        ar.appendChild(el('strong', p.arrears.total > 0 ? 'bad' : null, p.arrears.total > 0 ? money(p.arrears.total) + (p.arrears.asOf ? ' на ' + p.arrears.asOf : '') : 'нет'));
+        t.appendChild(ar);
+      }
+      box.appendChild(t);
+      if (p.taxesPaid && p.taxesPaid.items && p.taxesPaid.items.length) box.appendChild(details('Какие налоги уплачены', p.taxesPaid.items, function (x) { return x.name + ': ' + money(x.sum); }));
+      if (p.arrears && p.arrears.items && p.arrears.items.length) box.appendChild(details('Из чего складывается долг', p.arrears.items, function (x) {
+        var parts = []; if (x.arrear) parts.push('недоимка ' + money(x.arrear)); if (x.penalty) parts.push('пени ' + money(x.penalty)); if (x.fine) parts.push('штрафы ' + money(x.fine));
+        return x.name + ': ' + (parts.join(', ') || money(x.total));
+      }));
     }
 
     // сигналы по этим данным
     var sig = [];
-    var last = ys[ys.length - 1], prev = ys[ys.length - 2];
     if (last && last.profit < 0) sig.push(['warn', 'Убыток за ' + last.year + ' год: ' + money(last.profit) + '.']);
     if (last && prev && prev.revenue > 0 && last.revenue != null && last.revenue < prev.revenue * 0.7) sig.push(['warn', 'Выручка за ' + last.year + ' год упала на ' + Math.round((1 - last.revenue / prev.revenue) * 100) + '% к ' + prev.year + ' году.']);
     if (last && last.equity < 0) sig.push(['warn', 'Капитал отрицательный: обязательства больше активов. Это признак финансовых трудностей.']);
@@ -461,13 +504,15 @@
     if (p && p.vestnik) sig.push(['warn', 'Есть сообщения в «Вестнике государственной регистрации» (ликвидация, реорганизация или уменьшение капитала).']);
     if (p && p.managerOtherCompanies) sig.push(['info', 'Руководитель связан ещё с ' + p.managerOtherCompanies + ' организаци' + (p.managerOtherCompanies === 1 ? 'ей' : 'ями') + '.']);
     if (p && p.offenseYears && p.offenseYears.length) sig.push(['info', 'Штрафы за налоговые правонарушения в ' + p.offenseYears.slice().sort().join(', ') + ' годах.']);
-    sig.forEach(function (s) {
-      var q = el('p', 'tip'); q.style.margin = '8px 0';
-      if (s[0] === 'warn') q.style.borderLeftColor = 'var(--crit-line)';
-      q.appendChild(el('b', null, s[0] === 'warn' ? 'Обратите внимание. ' : 'К сведению. '));
-      q.appendChild(document.createTextNode(s[1]));
-      box.appendChild(q);
-    });
+    sig.forEach(function (x) { box.appendChild(tip(x[0], x[1])); });
+  }
+  function tip(level, text) {
+    var q = el('p', 'tip'); q.style.margin = '8px 0';
+    if (level === 'warn') q.style.borderLeftColor = 'var(--crit-line)';
+    if (level === 'ok') q.style.borderLeftColor = 'var(--pos)';
+    q.appendChild(el('b', null, level === 'warn' ? 'Обратите внимание. ' : level === 'ok' ? 'В порядке. ' : 'К сведению. '));
+    q.appendChild(document.createTextNode(text));
+    return q;
   }
   // Подставляем данные ФНС в карточку, чтобы памятка и налоговые советы считались по реальным цифрам
   function enrich(d, j) {
@@ -487,12 +532,200 @@
   function loadFns(inn, d) {
     var box = document.getElementById('org-fns');
     if (!box) return;
+    box.appendChild(el('h2', null, 'Финансы и налоги'));
     box.appendChild(el('p', 'note-sm', 'Загружаем данные ФНС о налогах и отчётности…'));
     postApi('/api/org/fns', inn).then(function (j) {
       if (j.status !== 200) throw new Error();
       renderFns(box, j);
       if (j.pb || j.bo) { var e = enrich(d, j); renderMemo(e, null); renderTax(e); }
     }).catch(function () { renderFns(box, {}); });
+  }
+
+  /* ---------- Подробные данные: DataNewton + проверка сайтов (сервер: server/datanewton.mjs, POST /api/org/more) ---------- */
+  var OUTCOME = {
+    WON: ['Выиграно', 'o-won'], WON_PARTIAL: ['Частично выиграно', 'o-won2'], SETTLEMENT: ['Мировое соглашение', 'o-set'],
+    LOST_PARTIAL: ['Частично проиграно', 'o-lost2'], LOST: ['Проиграно', 'o-lost'], IN_PROGRESS: ['Рассматривается', 'o-prog'],
+    TERMINATED: ['Прекращено', 'o-other'], RETURNED: ['Иск возвращён', 'o-other'], COMPLETED: ['Завершено', 'o-other'],
+    UNDEF: ['Исход не определён', 'o-other'], THIRD: ['Третье или иное лицо', 'o-third']
+  };
+  function donut(parts, center) {
+    var total = parts.reduce(function (s, p) { return s + p.n; }, 0) || 1;
+    var r = 42, C = 2 * Math.PI * r, off = 0;
+    var svg = '<svg viewBox="0 0 120 120" class="donut" role="img" aria-label="' + center + '"><circle cx="60" cy="60" r="' + r + '" class="d-bg"/>';
+    parts.forEach(function (p) {
+      var len = p.n / total * C;
+      svg += '<circle cx="60" cy="60" r="' + r + '" class="' + p.cls + '" stroke-dasharray="' + len.toFixed(2) + ' ' + (C - len).toFixed(2) + '" stroke-dashoffset="' + (-off).toFixed(2) + '" transform="rotate(-90 60 60)"><title>' + p.label + ': ' + p.n + '</title></circle>';
+      off += len;
+    });
+    return svg + '<text x="60" y="58" text-anchor="middle" class="d-num">' + center.split(' ')[0] + '</text><text x="60" y="74" text-anchor="middle" class="d-cap">' + center.split(' ').slice(1).join(' ') + '</text></svg>';
+  }
+  function chips(parent, items) {
+    var w = el('div', 'chips');
+    items.forEach(function (x) { if (x[1]) { var c = el('span', 'chip-stat'); c.appendChild(el('b', null, x[1])); c.appendChild(document.createTextNode(' ' + x[0])); w.appendChild(c); } });
+    if (w.children.length) parent.appendChild(w);
+  }
+  function hbars(parent, rows, fmt) {
+    var max = Math.max.apply(null, rows.map(function (r) { return r[1]; }).concat([1]));
+    var w = el('div', 'hbars');
+    rows.forEach(function (r) {
+      var line = el('div', 'hbar');
+      line.appendChild(el('span', 'hb-label', fmt ? fmt(r) : r[0] + ': ' + r[1]));
+      var bar = el('span', 'hb-bar'); var fill = el('i'); fill.style.width = Math.max(3, Math.round(r[1] / max * 100)) + '%'; bar.appendChild(fill);
+      line.appendChild(bar); w.appendChild(line);
+    });
+    parent.appendChild(w);
+  }
+  function linkTo(text, href) { var a = el('a', null, text); a.href = href; a.target = '_blank'; a.rel = 'noopener'; return a; }
+  function dateShort(s) { return s ? String(s).slice(0, 10).split('-').reverse().join('.') : ''; }
+
+  function renderMore(j, inn) {
+    var anchor = document.getElementById('org-more');
+    if (!anchor) return;
+    if (!j || !j.available) { anchor.remove(); return; }
+    if (j.limited) { anchor.className = 'dcard span'; anchor.textContent = ''; anchor.appendChild(el('p', 'note-sm', 'Суды, учредители и контакты сейчас недоступны: исчерпан лимит запросов на сегодня. Попробуйте позже или посмотрите сами по ссылкам внизу страницы.')); return; }
+    var c = j.card;
+    var add = function (title, cls) { return card(null, title, cls, anchor); };
+
+    // шапка: то, чего нет в DaData
+    var hr = document.getElementById('head-rows');
+    if (c && hr) {
+      if (c.capital != null) row(hr, 'Уставный капитал', money(c.capital));
+      if (c.workers.length) row(hr, 'Сотрудников', c.workers[c.workers.length - 1].n + ' в ' + c.workers[c.workers.length - 1].year);
+      if (c.msp) row(hr, 'Реестр МСП', c.msp.category);
+      if (c.regime) row(hr, 'Налоговый режим', c.regime.names.join(', '));
+      if (c.taxOffice) row(hr, 'Налоговая', c.taxOffice);
+      if (c.branches) row(hr, 'Филиалы и представительства', String(c.branches));
+    }
+
+    // отметки в реестрах
+    if (c) {
+      var fl = add('Отметки в реестрах');
+      if (!c.flags.length) fl.appendChild(tip('ok', 'Нет отметок о недостоверности сведений, дисквалификации, банкротстве, санкциях, блокировке счетов и долгах у приставов больше 300 тыс. ₽.'));
+      c.flags.forEach(function (f) { fl.appendChild(tip('warn', f.text + (f.key === 'fssp_debt' && c.fsspDebt ? ': ' + money(c.fsspDebt) : '') + '.')); });
+      c.bankruptcy.filter(function (b) { return b.active; }).forEach(function (b) { fl.appendChild(tip('warn', 'Дело о банкротстве' + (b.case ? ' № ' + b.case : '') + (b.start ? ' с ' + dateShort(b.start) : '') + '.')); });
+      fl.appendChild(el('p', 'note-sm', 'По данным ЕГРЮЛ, ФНС, ФССП, Федресурса, ЦБ и Росфинмониторинга через сервис DataNewton.'));
+    }
+
+    // арбитраж
+    var a = j.arbitration;
+    if (a) {
+      var ac = add('Арбитражные дела');
+      if (!a.total) ac.appendChild(el('p', null, 'Арбитражных дел не найдено.'));
+      else {
+        var big = el('p', 'big-line');
+        big.appendChild(el('strong', null, String(a.total)));
+        big.appendChild(document.createTextNode(' ' + plural(a.total, 'дело', 'дела', 'дел') + (a.sum ? ' на сумму ' : '')));
+        if (a.sum) big.appendChild(el('strong', null, money(a.sum)));
+        ac.appendChild(big);
+        chips(ac, [['ответчиком', a.defendant], ['истцом', a.plaintiff], ['третьим лицом', a.other], ['рассматривается сейчас', a.open]]);
+        var parts = Object.keys(OUTCOME).filter(function (k) { return a.outcomes[k]; }).map(function (k) { return { n: a.outcomes[k], label: OUTCOME[k][0], cls: OUTCOME[k][1] }; });
+        if (parts.length) {
+          var row2 = el('div', 'donut-row');
+          var dw = el('div'); dw.innerHTML = donut(parts, a.shown + ' ' + plural(a.shown, 'дело', 'дела', 'дел')); row2.appendChild(dw);
+          var lg = el('ul', 'legend');
+          parts.forEach(function (p) { var li = el('li'); li.appendChild(el('i', p.cls)); li.appendChild(document.createTextNode(p.label + ': ' + p.n + ' (' + Math.round(p.n / a.shown * 100) + '%)')); lg.appendChild(li); });
+          row2.appendChild(lg); ac.appendChild(el('p', 'fns-sub', 'Исход дел для компании')); ac.appendChild(row2);
+        }
+        var yrs = Object.keys(a.years).sort().reverse().slice(0, 5).map(function (y) { return [y, a.years[y].n, a.years[y].sum]; });
+        if (yrs.length > 1) { ac.appendChild(el('p', 'fns-sub', 'По годам')); hbars(ac, yrs, function (r) { return r[0] + ': ' + r[1] + ' ' + plural(r[1], 'дело', 'дела', 'дел') + (r[2] ? ' на ' + money(r[2]) : ''); }); }
+        if (a.defendantSum) ac.appendChild(el('p', 'note-sm', 'Иски к компании: ' + money(a.defendantSum) + '. Иски компании: ' + money(a.plaintiffSum) + '.'));
+        if (a.shown < a.total) ac.appendChild(el('p', 'note-sm', 'Исходы и суммы посчитаны по последним ' + a.shown + ' делам.'));
+        if (a.recent.length) ac.appendChild(details('Последние дела', a.recent, function (x) { return (x.number || '') + (x.date ? ' от ' + dateShort(x.date) : '') + (x.sum ? ', ' + money(x.sum) : '') + (OUTCOME[x.outcome] ? ' — ' + OUTCOME[x.outcome][0].toLowerCase() : ''); }));
+      }
+      var kp = el('p', 'note-sm'); kp.appendChild(linkTo('Картотека арбитражных дел', 'https://kad.arbitr.ru/')); ac.appendChild(kp);
+    }
+
+    // суды общей юрисдикции
+    var k = j.courts;
+    if (k) {
+      var kc = add('Суды общей юрисдикции');
+      if (!k.total) kc.appendChild(el('p', null, 'Дел в судах общей юрисдикции не найдено.'));
+      else {
+        var bl = el('p', 'big-line'); bl.appendChild(el('strong', null, String(k.total))); bl.appendChild(document.createTextNode(' ' + plural(k.total, 'дело', 'дела', 'дел'))); kc.appendChild(bl);
+        chips(kc, [['ответчиком', k.defendant], ['истцом или заявителем', k.plaintiff], ['третьим или иным лицом', k.other]]);
+        if (k.other && k.other >= k.shown / 2) kc.appendChild(el('p', 'note-sm', 'В большинстве дел компания — третье лицо: обычно это чужие споры, где она просто упомянута.'));
+        if (k.categories.length) { kc.appendChild(el('p', 'fns-sub', 'Категории')); hbars(kc, k.categories); }
+        if (k.recent.length) {
+          var dt = el('details', 'fns-more'); dt.appendChild(el('summary', null, 'Последние дела'));
+          var ul = el('ul');
+          k.recent.forEach(function (x) {
+            var li = el('li');
+            var t = (x.number || 'Дело') + (x.date ? ' от ' + dateShort(x.date) : '');
+            li.appendChild(x.url ? linkTo(t, x.url) : document.createTextNode(t));
+            li.appendChild(document.createTextNode([x.roleText ? ' — ' + x.roleText.toLowerCase() : '', x.category ? ', ' + x.category.toLowerCase() : '', x.court ? '. ' + x.court : ''].join('')));
+            ul.appendChild(li);
+          });
+          dt.appendChild(ul); kc.appendChild(dt);
+        }
+        if (k.shown < k.total) kc.appendChild(el('p', 'note-sm', 'Роли посчитаны по последним ' + k.shown + ' делам.'));
+      }
+    }
+
+    // приставы
+    var f = j.fssp;
+    if (f) {
+      var fc = add('Исполнительные производства');
+      if (!f.total) fc.appendChild(el('p', null, 'Исполнительных производств не найдено.'));
+      else {
+        var fb = el('p', 'big-line'); fb.appendChild(el('strong', null, String(f.open))); fb.appendChild(document.createTextNode(' ' + plural(f.open, 'открытое', 'открытых', 'открытых') + (f.openSum ? ' на ' : ''))); if (f.openSum) fb.appendChild(el('strong', f.openSum > 300000 ? 'bad' : null, money(f.openSum))); fc.appendChild(fb);
+        fc.appendChild(el('p', 'note-sm', 'Всего ' + f.total + ' ' + plural(f.total, 'производство', 'производства', 'производств') + ', включая закрытые. Небольшие производства бывают и у надёжных компаний: штрафы ГИБДД, госпошлины.'));
+        if (f.recent.length) fc.appendChild(details('Последние', f.recent, function (x) { return dateShort(x.date) + ' — ' + (x.subject || 'взыскание') + (x.sum ? ', ' + money(x.sum) : '') + (x.open ? ' (открыто)' : ' (закрыто)'); }));
+      }
+      var fp = el('p', 'note-sm'); fp.appendChild(linkTo('Банк данных ФССП', 'https://fssp.gov.ru/iss/ip')); fc.appendChild(fp);
+    }
+
+    // руководство и учредители
+    if (c && (c.managers.length || c.owners.length || c.managementCompany)) {
+      var pc = add('Руководство и учредители');
+      c.managers.forEach(function (m) {
+        var q = el('div', 'person');
+        q.appendChild(el('b', null, m.fio || '—'));
+        q.appendChild(el('span', 'note-sm', [m.position, m.since ? 'с ' + dateShort(m.since) : ''].filter(Boolean).join(', ')));
+        if (m.inaccurate) q.appendChild(el('span', 'bad-note', 'сведения отмечены как недостоверные'));
+        pc.appendChild(q);
+      });
+      if (c.managementCompany) { var mc = el('div', 'person'); mc.appendChild(el('b', null, c.managementCompany.name)); mc.appendChild(el('span', 'note-sm', 'управляющая компания' + (c.managementCompany.inn ? ', ИНН ' + c.managementCompany.inn : ''))); pc.appendChild(mc); }
+      if (c.owners.length) {
+        pc.appendChild(el('p', 'fns-sub', 'Учредители'));
+        hbars(pc, c.owners.slice(0, 8).map(function (o) { var sh = parseFloat(String(o.share || '').replace(',', '.')); return [o.name + (o.kind === 'foreign' && o.country ? ' (' + o.country + ')' : '') + (o.inn ? ', ИНН ' + o.inn : ''), isFinite(sh) ? sh : 0, o.sum]; }),
+          function (r) { return r[0] + (r[1] ? ' — ' + String(r[1]).replace('.', ',') + '%' : '') + (r[2] ? ', ' + money(r[2]) : ''); });
+        if (c.owners.length > 8) pc.appendChild(el('p', 'note-sm', 'И ещё ' + (c.owners.length - 8) + '.'));
+      } else if (c.registryKeeper) pc.appendChild(el('p', 'note-sm', 'Акционеров ведёт реестродержатель: ' + c.registryKeeper + '.'));
+      pc.appendChild(el('p', 'note-sm', 'Открытые сведения ЕГРЮЛ.'));
+    }
+
+    // виды деятельности
+    if (c && c.okveds.length) {
+      var oc = add('Виды деятельности');
+      var ol = el('ul', 'okveds');
+      c.okveds.slice(0, 6).forEach(function (o) { var li = el('li', o.main ? 'main' : null); li.appendChild(el('b', null, o.code)); li.appendChild(document.createTextNode(' ' + (o.name || '') + (o.main ? ' — основной' : ''))); ol.appendChild(li); });
+      oc.appendChild(ol);
+      if (c.okveds.length > 6) oc.appendChild(details('Ещё ' + (c.okveds.length - 6), c.okveds.slice(6), function (o) { return o.code + ' ' + (o.name || ''); }));
+    }
+
+    // контакты и сайты
+    var sites = j.sites || [];
+    if (c && (c.contacts.phones.length || c.contacts.emails.length || c.contacts.sites.length)) {
+      var cc = add('Контакты и сайты');
+      var cr = el('div', 'result');
+      if (c.contacts.phones.length) row(cr, 'Телефоны', c.contacts.phones.map(function (x) { return x.value; }).join(', '));
+      if (c.contacts.emails.length) row(cr, 'Почта', c.contacts.emails.map(function (x) { return x.value; }).join(', '));
+      cc.appendChild(cr);
+      c.contacts.sites.forEach(function (sv) {
+        var chk = sites.filter(function (x) { return x.site === sv.value.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, ''); })[0];
+        var sb = el('div', 'site');
+        sb.appendChild(linkTo(sv.value, /^https?:/.test(sv.value) ? sv.value : 'http://' + sv.value));
+        if (chk && chk.title) sb.appendChild(el('span', 'note-sm', ' — ' + chk.title));
+        (chk ? chk.notes : []).forEach(function (n) { sb.appendChild(tip(n.level, n.text)); });
+        if (chk && chk.socials.length) { var sp = el('p', 'note-sm'); chk.socials.forEach(function (x, i) { if (i) sp.appendChild(document.createTextNode(' · ')); sp.appendChild(linkTo(x.name, x.url)); }); sb.appendChild(sp); }
+        cc.appendChild(sb);
+      });
+      cc.appendChild(el('p', 'note-sm', 'Контакты компании из открытых источников. Личные контакты сотрудников и руководителей мы не показываем.'));
+    }
+    anchor.remove();
+  }
+  function loadMore(inn) {
+    postApi('/api/org/more', inn).then(function (j) { renderMore(j.status === 200 ? j : null, inn); }).catch(function () { renderMore(null, inn); });
   }
 
   /* ---------- ИИ-разбор ---------- */
@@ -553,6 +786,7 @@
       render(j.suggestion, j.advice);
       accountActions(j.suggestion, j.signedIn);
       loadFns(inn, j.suggestion.data || {});
+      loadMore(inn);
       var box = document.getElementById('org-ai');
       if (!box) return;
       var pending = el('div', 'ai-pending');
@@ -603,7 +837,7 @@
       });
       box.appendChild(note);
     }
-    out.insertBefore(box, out.children[2] || null);
+    (document.getElementById('card-head') || out).appendChild(box);
   }
 
   /* ---------- поиск по названию: подсказки под полем (сервер: /api/org/suggest) ---------- */

@@ -416,9 +416,9 @@ write('organizacii/index.html', layout({
     <p><button class="btn" type="submit">Проверить</button></p>
   </form>
   <p class="note-sm" id="org-msg" aria-live="polite"></p>
-  <div id="org-out"></div>
   <p class="note-sm">Данные берём из открытых реестров через сервис DaData: ИНН отправляется туда для поиска, мы его не храним.${process.env.ORG_API_URL ? ' Разбор готовится автоматически с помощью сервиса Yandex AI Studio (Alice AI) от Яндекса: ему передаются только сведения об организации из реестра, без ФИО руководителя и адреса.' : ''}${process.env.ORG_API_URL ? ' Памятка и разбор составлены по общим правилам и не являются' : ' Памятка составлена по общим правилам и не является'} налоговой или юридической консультацией. Сроки и суммы сверяйте на nalog.gov.ru.</p>
 </section>
+<div id="org-out" aria-live="polite"></div>
 <script src="${url('/org.js')}?v=${hashOf('org.js')}" defer></script>`
 }));
 
