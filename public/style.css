@@ -1,16 +1,25 @@
-/* Суть — палитра «ночной океан и платина», строгие углы, газетные шрифты */
+/* Суть — палитра «газетная платина» (светлая по умолчанию) и «ночной океан» (тёмная, по кнопке) */
 :root{
-  color-scheme:dark;
+  color-scheme:light;
   --r:3px;
+  --bg:#F7F4EC;--surface:#FFFFFF;--ink:#1B2130;--muted:#67707F;--line:#E2DCCB;
+  --accent:#8A6A34;--accent-ink:#FFFFFF;--accent-soft:#F0E8D4;
+  --bar:#FFFFFF;
+  --crit:#8C2436;--crit-ink:#FBEFF1;--crit-line:#B03A4E;
+  --pos:#227A4F;--mark:rgba(154,116,44,.28);--lvl-l:#B23A56;
+  --video:#2F5F92;--course:#8A5A1E;
+  --font-body:"Source Serif 4","PT Serif",Georgia,"Times New Roman",serif;
+  --font-display:"PT Serif",Georgia,"Times New Roman",serif;
+  --font-ui:"Source Sans 3",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
   --bg:#0B1325;--surface:#121C33;--ink:#E2E8F0;--muted:#98A6BD;--line:#27334D;
   --accent:#C5A880;--accent-ink:#0B1325;--accent-soft:#1B2743;
   --bar:#17223B;
   --crit:#8C2436;--crit-ink:#FBEFF1;--crit-line:#B03A4E;
-  --pos:#7ED0A4;--mark:rgba(214,164,84,.34);
+  --pos:#7ED0A4;--mark:rgba(214,164,84,.34);--lvl-l:#E7A0A9;
   --video:#8FB4DC;--course:#D9A877;
-  --font-body:"Source Serif 4","PT Serif",Georgia,"Times New Roman",serif;
-  --font-display:"PT Serif",Georgia,"Times New Roman",serif;
-  --font-ui:"Source Sans 3",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
@@ -89,7 +98,7 @@ h1.art{font:500 clamp(30px,5.6vw,44px)/1.15 var(--font-display);letter-spacing:-
 .steps svg{width:20px;height:20px;color:var(--accent);margin-top:3px}
 .conf{margin:40px 0 0;padding:14px 16px;background:transparent;border:1px solid var(--line);border-radius:var(--r);font:400 14px/1.5 var(--font-ui);color:var(--muted)}
 .conf b{color:var(--ink)}
-.conf .lvl-h{color:var(--pos)}.conf .lvl-m{color:var(--accent)}.conf .lvl-l{color:#E7A0A9}
+.conf .lvl-h{color:var(--pos)}.conf .lvl-m{color:var(--accent)}.conf .lvl-l{color:var(--lvl-l)}
 
 /* калькуляторы */
 .calc{margin:28px 0 0;border:1px solid var(--line);border-radius:var(--r);background:transparent;padding:20px 20px 22px}
@@ -145,3 +154,11 @@ footer .fine a{color:var(--accent)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 
 .btn:hover{background:var(--accent);color:var(--accent-ink)}
+
+/* переключатель темы */
+.theme-btn{appearance:none;align-self:center;background:transparent;border:1px solid var(--line);color:var(--muted);width:36px;height:36px;border-radius:var(--r);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex:none}
+.theme-btn:hover{border-color:var(--accent);color:var(--accent)}
+.theme-btn svg{width:18px;height:18px}
+.theme-btn .ic-sun{display:none}
+:root[data-theme="dark"] .theme-btn .ic-sun{display:block}
+:root[data-theme="dark"] .theme-btn .ic-moon{display:none}

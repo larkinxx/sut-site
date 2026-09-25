@@ -8,6 +8,26 @@
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
 
+  /* ---------- Тема оформления ---------- */
+  var themeBtn = $('#theme-toggle');
+  if (themeBtn) {
+    var THEME_LIGHT = '#F7F4EC', THEME_DARK = '#0B1325';
+    var meta = $('#theme-color-meta');
+    var setMeta = function (dark) { if (meta) meta.setAttribute('content', dark ? THEME_DARK : THEME_LIGHT); };
+    setMeta(document.documentElement.getAttribute('data-theme') === 'dark');
+    themeBtn.addEventListener('click', function () {
+      var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      if (isDark) {
+        document.documentElement.removeAttribute('data-theme');
+        try { localStorage.setItem('theme', 'light'); } catch (e) {}
+      } else {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        try { localStorage.setItem('theme', 'dark'); } catch (e) {}
+      }
+      setMeta(!isDark);
+    });
+  }
+
   function plural(n, f) {
     var a = n % 10, b = n % 100;
     if (a === 1 && b !== 11) return f[0];

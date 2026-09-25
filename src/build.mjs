@@ -69,7 +69,8 @@ function layout({ title, desc, path: pagePath, current, body, ld }) {
 <meta property="og:description" content="${esc(desc || site.tagline)}">
 <meta property="og:type" content="${ld ? 'article' : 'website'}">
 <meta property="og:locale" content="ru_RU">
-<meta name="theme-color" content="#0B1325">
+<meta name="theme-color" content="#F7F4EC" id="theme-color-meta">
+<script>(function(){try{if(localStorage.getItem('theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=PT+Serif:wght@400;700&family=Source+Serif+4:wght@400;500;600&family=Source+Sans+3:wght@400;500;600&display=swap">
@@ -85,6 +86,10 @@ ${withExamples ? '<div class="wrap" style="padding:8px 16px 0;font:500 13px var(
     <nav aria-label="Основное меню">
       ${nav}
     </nav>
+    <button id="theme-toggle" class="theme-btn" type="button" aria-label="Переключить тему оформления" title="Переключить тему">
+      <svg class="ic-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      <svg class="ic-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>
+    </button>
   </div>
 </header>
 <main class="wrap" id="main">
