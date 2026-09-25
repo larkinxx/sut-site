@@ -69,7 +69,7 @@
       add('info', 'Годовая бухгалтерская отчётность',
         'Организации сдают годовую бухгалтерскую отчётность в налоговую (через ГИР БО), обычно до 31 марта следующего года.');
     }
-    if (fin.tax_system === 'USN') {
+    if (String(fin.tax_system || '').split(',').indexOf('USN') >= 0) {
       add('info', 'Упрощённая система налогообложения (УСН)',
         'Декларация за год обычно сдаётся до 25 марта для организаций и до 25 апреля для ИП. Авансовые платежи платят до 28 числа после каждого квартала: в апреле, июле и октябре.');
     } else if (!fin.tax_system) {
@@ -102,8 +102,10 @@
     var add = function (level, title, text, link) { out.push({ level: level, title: title, text: text, link: link || null }); };
     var isIp = d.type === 'INDIVIDUAL';
     var fin = d.finance || {};
-    var ts = String(fin.tax_system || '');
-    var onUsn = ts.indexOf('USN') >= 0, onAusn = ts.indexOf('AUSN') >= 0, special = !!ts;
+    // коды режимов через запятую (USN, AUSN, PSN, NPD…); сравниваем целиком: «AUSN» — не УСН
+    var codes = String(fin.tax_system || '').split(/[,\s]+/).filter(Boolean);
+    var has = function (c) { return codes.indexOf(c) >= 0; };
+    var onUsn = has('USN'), onAusn = has('AUSN'), special = codes.length > 0;
     var inc = typeof fin.income === 'number' ? fin.income : null;
     var exp = typeof fin.expense === 'number' ? fin.expense : null;
     var emp = typeof d.employee_count === 'number' ? d.employee_count : null;
@@ -185,7 +187,7 @@
 
     // 4. ИП: патент и самозанятость
     if (isIp) {
-      if (ts.indexOf('PSN') < 0 && (emp == null || emp <= R.psnEmployees)) {
+      if (!has('PSN') && (emp == null || emp <= R.psnEmployees)) {
         add('idea', 'Патент для части деятельности',
           'Если вы занимаетесь розницей, бытовыми услугами, сдачей жилья и другими видами из списка ПСН, патент бывает дешевле УСН: его стоимость не зависит от фактического дохода. ' +
           'Условия: до ' + R.psnEmployees + ' работников и доход до ' + rub(R.psnIncomeLimit) + ' в ' + R.year + ' году (в 2027 году порог 15 млн ₽, с 2028 года 10 млн ₽). Стоимость патента ' + inRegion + ' есть на сайте ФНС.',
@@ -311,6 +313,12 @@
     row(box, 'Работников', d.employee_count != null ? String(d.employee_count) : '');
     out.appendChild(box);
 
+    if (api) {
+      var fnsBox = el('div');
+      fnsBox.id = 'org-fns';
+      out.appendChild(fnsBox);
+    }
+
     out.appendChild(freeSourcesBox(d));
 
     if (api) {
@@ -319,7 +327,16 @@
       out.appendChild(aiBox);
     }
 
-    out.appendChild(el('h2', null, 'Памятка')).style.marginTop = '22px';
+    var memo = el('div'); memo.id = 'org-memo'; out.appendChild(memo);
+    var tax = el('div'); tax.id = 'org-tax'; out.appendChild(tax);
+    renderMemo(d, advice);
+    renderTax(d);
+  }
+
+  function renderMemo(d, advice) {
+    var box = document.getElementById('org-memo');
+    box.textContent = '';
+    box.appendChild(el('h2', null, 'Памятка')).style.marginTop = '22px';
     (advice || advise(d, Date.now())).forEach(function (a) {
       var p = el('p', 'tip');
       var b = el('b', null, a.title + '. ');
@@ -327,13 +344,17 @@
       p.appendChild(b);
       p.appendChild(document.createTextNode(a.text));
       p.style.margin = '10px 0';
-      out.appendChild(p);
+      box.appendChild(p);
     });
+  }
 
+  function renderTax(d) {
+    var out = document.getElementById('org-tax');
+    out.textContent = '';
     var ideas = taxIdeas(d, FIN.regimes);
     if (ideas.length) {
       out.appendChild(el('h2', null, 'Если это ваша компания: как законно снизить налоги')).style.marginTop = '26px';
-      out.appendChild(el('p', 'note-sm', 'Советы по данным реестра' + (d.finance && d.finance.year ? ' за ' + d.finance.year + ' год' : '') + ' и правилам на ' + FIN.regimes.year + ' год. Это не налоговая консультация: перед сменой режима посчитайте всё вместе с бухгалтером.'));
+      out.appendChild(el('p', 'note-sm', 'Советы по данным ' + (d.__fns ? 'ФНС' : 'реестра') + (d.finance && d.finance.year ? ' за ' + d.finance.year + ' год' : '') + ' и правилам на ' + FIN.regimes.year + ' год. Это не налоговая консультация: перед сменой режима посчитайте всё вместе с бухгалтером.'));
       ideas.forEach(function (a) {
         var p = el('p', 'tip' + (a.level === 'idea' ? ' idea' : ''));
         if (a.level === 'warn') p.style.borderLeftColor = 'var(--crit-line)';
@@ -349,6 +370,129 @@
         out.appendChild(p);
       });
     }
+  }
+
+  /* ---------- Финансы и налоги по данным ФНС (сервер: server/fns.mjs) ---------- */
+  function money(n) {
+    if (n == null || !isFinite(n)) return '—';
+    var a = Math.abs(n), sign = n < 0 ? '−' : '';
+    if (a >= 1e9) return sign + (a / 1e9).toFixed(1).replace('.', ',') + ' млрд ₽';
+    if (a >= 1e6) return sign + (a / 1e6).toFixed(1).replace('.', ',') + ' млн ₽';
+    if (a >= 1e3) return sign + Math.round(a / 1e3) + ' тыс. ₽';
+    return sign + Math.round(a) + ' ₽';
+  }
+  function details(summary, items, fmt) {
+    var dt = el('details', 'fns-more');
+    dt.appendChild(el('summary', null, summary));
+    var ul = el('ul');
+    items.forEach(function (x) { ul.appendChild(el('li', null, fmt(x))); });
+    dt.appendChild(ul);
+    return dt;
+  }
+  function revenueChart(years) {
+    var ys = years.filter(function (y) { return y.revenue != null; });
+    if (ys.length < 2) return null;
+    var max = Math.max.apply(null, ys.map(function (y) { return y.revenue; })) || 1;
+    var W = 320, H = 110, bw = W / ys.length;
+    var svg = '<svg viewBox="0 0 ' + W + ' ' + (H + 18) + '" class="fns-chart" role="img" aria-label="Выручка по годам">';
+    ys.forEach(function (y, i) {
+      var h = Math.max(2, Math.round(y.revenue / max * H));
+      var x = Math.round(i * bw + bw * 0.18), w = Math.round(bw * 0.64);
+      svg += '<rect x="' + x + '" y="' + (H - h) + '" width="' + w + '" height="' + h + '" rx="2" class="' + (y.profit != null && y.profit < 0 ? 'neg' : 'pos') + '"><title>' + y.year + ': ' + money(y.revenue) + '</title></rect>';
+      svg += '<text x="' + (x + w / 2) + '" y="' + (H + 14) + '" text-anchor="middle">' + y.year + '</text>';
+    });
+    var wrap = el('div', 'fns-chart-wrap');
+    wrap.innerHTML = svg + '</svg>';
+    return wrap;
+  }
+  function renderFns(box, j) {
+    box.textContent = '';
+    var p = j.pb, b = j.bo;
+    if (!p && !b) { box.appendChild(el('p', 'note-sm', 'Данные ФНС о налогах и отчётности сейчас недоступны. Проверьте их сами в «Прозрачном бизнесе» и ГИР БО по ссылкам ниже.')); return; }
+    box.appendChild(el('h2', null, 'Финансы и налоги')).style.marginTop = '22px';
+    box.appendChild(el('p', 'note-sm', 'Официальные данные ФНС: ' + (p && p.source === 'opendata' ? 'открытые данные о налогах и численности' : 'сервис «Прозрачный бизнес»') + (b ? ' и бухгалтерская отчётность из ГИР БО' : '') + '.'));
+    var t = el('div', 'result');
+    if (p) {
+      if (p.regime && p.regime.known) row(t, 'Налоговый режим', (p.regime.names.length ? p.regime.names.join(', ') : 'общая система') + (p.regime.period ? ' (на ' + p.regime.period + ')' : ''));
+      if (p.employees && p.employees.length) row(t, 'Сотрудников', p.employees.map(function (e) { return e.n + ' в ' + e.year; }).slice(0, 2).join(', '));
+      if (p.msp && p.msp.category) row(t, 'Реестр МСП', p.msp.category + (p.msp.since ? ' с ' + p.msp.since : ''));
+      if (p.taxesPaid) row(t, 'Уплачено налогов и взносов', money(p.taxesPaid.total) + ' за ' + p.taxesPaid.year);
+      if (p.arrears) {
+        var ar = el('div');
+        ar.appendChild(el('span', null, 'Налоговая задолженность'));
+        ar.appendChild(el('strong', p.arrears.total > 0 ? 'bad' : null, p.arrears.total > 0 ? money(p.arrears.total) + (p.arrears.asOf ? ' на ' + p.arrears.asOf : '') : 'нет'));
+        t.appendChild(ar);
+      }
+    }
+    box.appendChild(t);
+    if (p && p.taxesPaid && p.taxesPaid.items && p.taxesPaid.items.length) box.appendChild(details('Какие налоги уплачены', p.taxesPaid.items, function (x) { return x.name + ': ' + money(x.sum); }));
+    if (p && p.arrears && p.arrears.items && p.arrears.items.length) box.appendChild(details('Из чего складывается долг', p.arrears.items, function (x) {
+      var parts = []; if (x.arrear) parts.push('недоимка ' + money(x.arrear)); if (x.penalty) parts.push('пени ' + money(x.penalty)); if (x.fine) parts.push('штрафы ' + money(x.fine));
+      return x.name + ': ' + (parts.join(', ') || money(x.total));
+    }));
+
+    // отчётность по годам
+    var ys = (b && b.years) || [];
+    if (ys.length) {
+      box.appendChild(el('p', 'fns-sub', 'Бухгалтерская отчётность'));
+      var ch = revenueChart(ys); if (ch) box.appendChild(ch);
+      var tbl = el('table', 'fns-table');
+      var hr = el('tr'); ['Год', 'Выручка', 'Чистая прибыль', 'Активы', 'Капитал'].forEach(function (h) { hr.appendChild(el('th', null, h)); }); tbl.appendChild(hr);
+      ys.slice().reverse().forEach(function (y) {
+        var tr = el('tr');
+        [String(y.year), money(y.revenue), money(y.profit), money(y.assets), money(y.equity)].forEach(function (v, i) {
+          tr.appendChild(el('td', (i === 2 && y.profit < 0) || (i === 4 && y.equity < 0) ? 'bad' : null, v));
+        });
+        tbl.appendChild(tr);
+      });
+      box.appendChild(tbl);
+      if (b.url) { var a = el('a', null, 'Отчётность полностью на bo.nalog.gov.ru'); a.href = b.url; a.target = '_blank'; a.rel = 'noopener'; var pp = el('p', 'note-sm'); pp.appendChild(a); box.appendChild(pp); }
+    }
+
+    // сигналы по этим данным
+    var sig = [];
+    var last = ys[ys.length - 1], prev = ys[ys.length - 2];
+    if (last && last.profit < 0) sig.push(['warn', 'Убыток за ' + last.year + ' год: ' + money(last.profit) + '.']);
+    if (last && prev && prev.revenue > 0 && last.revenue != null && last.revenue < prev.revenue * 0.7) sig.push(['warn', 'Выручка за ' + last.year + ' год упала на ' + Math.round((1 - last.revenue / prev.revenue) * 100) + '% к ' + prev.year + ' году.']);
+    if (last && last.equity < 0) sig.push(['warn', 'Капитал отрицательный: обязательства больше активов. Это признак финансовых трудностей.']);
+    if (p && p.arrears && p.arrears.total > 0) sig.push(['warn', 'Есть налоговая задолженность ' + money(p.arrears.total) + '. Если её не погасить, налоговая может приостановить операции по счетам.']);
+    if (p && p.massAddress) sig.push(['warn', 'Адрес массовой регистрации: по нему зарегистрировано много компаний.']);
+    if (p && p.notReporting) sig.push(['warn', 'Компания больше года не сдаёт налоговую отчётность.']);
+    if (p && p.vestnik) sig.push(['warn', 'Есть сообщения в «Вестнике государственной регистрации» (ликвидация, реорганизация или уменьшение капитала).']);
+    if (p && p.managerOtherCompanies) sig.push(['info', 'Руководитель связан ещё с ' + p.managerOtherCompanies + ' организаци' + (p.managerOtherCompanies === 1 ? 'ей' : 'ями') + '.']);
+    if (p && p.offenseYears && p.offenseYears.length) sig.push(['info', 'Штрафы за налоговые правонарушения в ' + p.offenseYears.slice().sort().join(', ') + ' годах.']);
+    sig.forEach(function (s) {
+      var q = el('p', 'tip'); q.style.margin = '8px 0';
+      if (s[0] === 'warn') q.style.borderLeftColor = 'var(--crit-line)';
+      q.appendChild(el('b', null, s[0] === 'warn' ? 'Обратите внимание. ' : 'К сведению. '));
+      q.appendChild(document.createTextNode(s[1]));
+      box.appendChild(q);
+    });
+  }
+  // Подставляем данные ФНС в карточку, чтобы памятка и налоговые советы считались по реальным цифрам
+  function enrich(d, j) {
+    var e = JSON.parse(JSON.stringify(d));
+    var fin = e.finance = e.finance || {};
+    var p = j.pb, b = j.bo, ys = (b && b.years) || [], last = ys[ys.length - 1];
+    if (p && p.regime && p.regime.known) fin.tax_system = p.regime.code || null;
+    if (p && p.employees && p.employees.length) e.employee_count = p.employees[0].n;
+    if (p && p.arrears) fin.debt = p.arrears.total;
+    if (last && last.revenue != null) {
+      fin.income = last.revenue; fin.year = last.year;
+      if (last.profit != null) fin.expense = Math.max(0, last.revenue - last.profit);   // оценка: выручка минус чистая прибыль
+    }
+    e.__fns = true;
+    return e;
+  }
+  function loadFns(inn, d) {
+    var box = document.getElementById('org-fns');
+    if (!box) return;
+    box.appendChild(el('p', 'note-sm', 'Загружаем данные ФНС о налогах и отчётности…'));
+    postApi('/api/org/fns', inn).then(function (j) {
+      if (j.status !== 200) throw new Error();
+      renderFns(box, j);
+      if (j.pb || j.bo) { var e = enrich(d, j); renderMemo(e, null); renderTax(e); }
+    }).catch(function () { renderFns(box, {}); });
   }
 
   /* ---------- ИИ-разбор ---------- */
@@ -408,6 +552,7 @@
       msg.textContent = '';
       render(j.suggestion, j.advice);
       accountActions(j.suggestion, j.signedIn);
+      loadFns(inn, j.suggestion.data || {});
       var box = document.getElementById('org-ai');
       if (!box) return;
       var pending = el('div', 'ai-pending');

@@ -235,3 +235,19 @@ footer .fine a{color:var(--accent)}
 .linkbtn:hover{color:var(--crit-line)}
 mark.todo{background:var(--crit);color:var(--crit-ink);padding:0 4px}
 .bar-btns{display:flex;gap:8px;align-self:center}
+/* финансы и налоги по данным ФНС */
+.result strong.bad,.fns-table td.bad{color:var(--crit-line)}
+.fns-sub{font:500 11px/1.4 var(--font-ui);letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin:18px 0 6px}
+.fns-chart-wrap{max-width:420px}
+.fns-chart{width:100%;height:auto;display:block}
+.fns-chart rect.pos{fill:var(--accent)}
+.fns-chart rect.neg{fill:var(--crit-line)}
+.fns-chart text{font:400 10px var(--font-ui);fill:var(--muted)}
+.fns-table{width:100%;border-collapse:collapse;margin:10px 0 4px;font:400 13px/1.4 var(--font-ui);font-variant-numeric:tabular-nums}
+.fns-table th,.fns-table td{text-align:right;padding:5px 6px;border-bottom:1px dashed var(--line)}
+.fns-table th:first-child,.fns-table td:first-child{text-align:left}
+.fns-table th{font-weight:500;color:var(--muted)}
+.fns-more{margin:6px 0;font:400 14px/1.5 var(--font-ui)}
+.fns-more summary{cursor:pointer;color:var(--accent)}
+.fns-more ul{margin:6px 0 0;padding-left:20px}
+@media (max-width:560px){.fns-table{font-size:12px}.fns-table th:nth-child(4),.fns-table td:nth-child(4){display:none}}

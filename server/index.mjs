@@ -5,6 +5,7 @@
 //   GET  /health            — проверка, что сервер жив
 //   POST /api/org   {inn}   — данные из реестра (DaData) + памятка по правилам. Быстро.
 //   POST /api/org/ai {inn}  — ИИ-разбор этой организации простым языком. 5–15 секунд.
+//   POST /api/org/fns {inn} — бесплатные данные ФНС: отчётность, налоговый режим, налоги, долги (server/fns.mjs)
 //   /auth/*, /api/me, /api/history, /api/watch, /api/calcs — необязательный вход и кабинет (server/accounts.mjs)
 //
 // Переменные окружения:
@@ -16,6 +17,7 @@
 //   AI_PER_IP_HOUR    — сколько ИИ-разборов в час с одного адреса, по умолчанию 15
 //   AI_UPSTREAM_URL   — если задан, разбор делает другой наш сервер по этому адресу (например, https://sut-api.onrender.com):
 //                       Google не пускает к Gemini с российских адресов. Туда уходит только ИНН организации
+//   FNS_DB            — база открытых данных ФНС (scripts/fns-import.mjs), например /var/lib/sut/fns.db
 //   PORT              — порт, по умолчанию 3000
 // Аккаунты (включаются, только если задан ACCOUNTS_DB; по 152-ФЗ — только на сервере в России):
 //   ACCOUNTS_DB       — путь к файлу базы SQLite, например /var/lib/sut/sut.db
@@ -32,6 +34,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FORBIDDEN } from '../src/lib/schema.mjs';
 import { openDb, createAccounts, smtpMailer } from './accounts.mjs';
+import { fnsData } from './fns.mjs';
+import { DatabaseSync } from 'node:sqlite';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
@@ -269,11 +273,15 @@ export async function analyze(suggestion, cfg, fetchImpl) {
 }
 
 /* ---------- HTTP ---------- */
-export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now = () => Date.now(), db = null, mailer = null } = {}) {
+export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now = () => Date.now(), db = null, mailer = null, fnsPause = 700, fnsDb = undefined } = {}) {
   const cfg = config(env);
   const accounts = db ? createAccounts({ env, db, fetchImpl, mailer, now }) : null;
   const partyCache = makeCache(12 * 3600e3);
   const aiCache = makeCache(DAY);
+  const fnsCache = makeCache(DAY);
+  // база открытых данных ФНС открывается только на чтение; если её ещё нет — работаем без неё
+  let fdb = fnsDb;
+  if (fdb === undefined && env.FNS_DB) { try { fdb = new DatabaseSync(env.FNS_DB, { readOnly: true }); } catch (e) { console.error('FNS_DB:', e.message); fdb = null; } }
   const ipHits = new Map();
   let day = { key: '', count: 0 };
 
@@ -331,13 +339,19 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
       }
       if (req.method !== 'GET' && req.headers.origin && !cfg.origins.includes(req.headers.origin)) return send(res, 403, { error: 'Запрос с чужого сайта' });
       if (accounts && await accounts.handle(req, res, url, { send, readBody, getParty, innValid, ip: ipOf(req) })) return;
-      if (req.method !== 'POST' || !['/api/org', '/api/org/ai'].includes(url.pathname)) return send(res, 404, { error: 'Не найдено' });
+      if (req.method !== 'POST' || !['/api/org', '/api/org/ai', '/api/org/fns'].includes(url.pathname)) return send(res, 404, { error: 'Не найдено' });
       if (req.headers.origin && !cfg.origins.includes(req.headers.origin)) return send(res, 403, { error: 'Запрос с чужого сайта' });
       if (!cfg.dadataToken) return send(res, 503, { error: 'Проверка организаций не подключена.' });
 
       const body = await readBody(req);
       const inn = String(body.inn || '').replace(/\s/g, '');
       if (!innValid(inn)) return send(res, 400, { error: 'Проверьте ИНН: у организации 10 цифр, у ИП 12, и контрольные цифры должны сходиться.' });
+
+      if (url.pathname === '/api/org/fns') {
+        let f = fnsCache.get(inn);
+        if (!f) { f = await fnsData(inn, fetchImpl, fnsPause, fdb, now); if (f.pb || f.bo) fnsCache.set(inn, f); }
+        return send(res, 200, f);
+      }
 
       const s = await getParty(inn);
       if (!s) return send(res, 404, { error: 'По этому ИНН ничего не найдено.' });
