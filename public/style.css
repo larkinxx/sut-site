@@ -320,3 +320,7 @@ mark.todo{background:var(--crit);color:var(--crit-ink);padding:0 4px}
 .okveds li{margin:3px 0}
 .okveds li.main{font-weight:500}
 .site{border-top:1px dashed var(--line);padding-top:10px;margin-top:10px}
+.bar-chart{width:100%;height:auto;display:block}
+.bar-chart rect{fill:var(--info)}
+.bar-chart .val{font:500 11px var(--font-ui);fill:var(--ink)}
+.bar-chart .axis{font:400 11px var(--font-ui);fill:var(--muted)}

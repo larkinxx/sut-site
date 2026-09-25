@@ -1,7 +1,7 @@
 // Тесты сервера без сети: DaData и Gemini подменены заглушками.  Запуск: node server/test.mjs
 import http from 'node:http';
 import assert from 'node:assert/strict';
-import { createApp, innValid, validateAi, factsForAi } from './index.mjs';
+import { createApp, innValid, validateAi, factsForAi, moreFactsForAi } from './index.mjs';
 import { normCard, normArbitration, normCourts, normFssp } from './datanewton.mjs';
 import { checkSite, siteNotes } from './site-check.mjs';
 
@@ -266,6 +266,11 @@ try {
     assert.deepEqual(a.years['2025'], { n: 2, sum: 1500 });
     const k = normCourts({ total: 2, data: [{ case_number: '2-1', category: 'Трудовые', participants: [{ inn: '7707083893', role: 'Ответчик' }] }, { case_number: '2-2', participants: [{ inn: '7707083893', role: 'Третье лицо' }] }] }, '7707083893');
     assert.deepEqual([k.total, k.defendant, k.other], [2, 1, 1]);
+    const facts = moreFactsForAi({ available: true, card: c, arbitration: a, courts: null, fssp: null, sites: [{ site: 'romashka.ru', opens: true, https: false, innFound: true, created: '2010-01-01', ageYears: 16, socials: [{ name: 'ВКонтакте' }] }] });
+    assert.ok(!JSON.stringify(facts).includes('Иванов'), 'ФИО не уходят в ИИ');
+    assert.deepEqual(facts.registry.founders, { fl: 1, ul: 1 });
+    assert.deepEqual(facts.sites[0].socials, ['ВКонтакте']);
+    assert.equal(facts.arbitration.as_defendant, 1);
     const f = normFssp({ total: 2, data: [{ status: 'OPEN', debt_remaining_balance: 300, debtor_inn: '7707083893' }, { status: 'CLOSE', amount_due: 100, debtor_inn: '7707083893' }] }, '7707083893');
     assert.deepEqual([f.total, f.open, f.openSum], [2, 1, 300]);
   });

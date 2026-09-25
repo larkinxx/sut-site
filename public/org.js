@@ -585,6 +585,23 @@
   function linkTo(text, href) { var a = el('a', null, text); a.href = href; a.target = '_blank'; a.rel = 'noopener'; return a; }
   function dateShort(s) { return s ? String(s).slice(0, 10).split('-').reverse().join('.') : ''; }
 
+  // Столбики по годам (численность сотрудников)
+  function barChart(pts, label) {
+    if (pts.length < 2) return null;
+    var max = Math.max.apply(null, pts.map(function (p) { return p.v; })) || 1;
+    var W = 420, H = 100, bw = W / pts.length;
+    var svg = '<svg viewBox="0 0 ' + W + ' ' + (H + 32) + '" class="bar-chart" role="img" aria-label="' + label + '">';
+    pts.forEach(function (p, i) {
+      var h = Math.max(2, Math.round(p.v / max * H)), x = Math.round(i * bw + bw * 0.2), w = Math.round(bw * 0.6);
+      svg += '<rect x="' + x + '" y="' + (H - h + 14) + '" width="' + w + '" height="' + h + '" rx="2"><title>' + p.x + ': ' + p.v + '</title></rect>';
+      svg += '<text x="' + (x + w / 2) + '" y="' + (H - h + 10) + '" text-anchor="middle" class="val">' + p.v + '</text>';
+      svg += '<text x="' + (x + w / 2) + '" y="' + (H + 28) + '" text-anchor="middle" class="axis">' + p.x + '</text>';
+    });
+    var wrap = el('div', 'chart-wrap');
+    wrap.innerHTML = svg + '</svg>';
+    return wrap;
+  }
+
   function renderMore(j, inn) {
     var anchor = document.getElementById('org-more');
     if (!anchor) return;
@@ -602,6 +619,15 @@
       if (c.regime) row(hr, 'Налоговый режим', c.regime.names.join(', '));
       if (c.taxOffice) row(hr, 'Налоговая', c.taxOffice);
       if (c.branches) row(hr, 'Филиалы и представительства', String(c.branches));
+    }
+
+    // численность по годам — в карточку «Налоги и сотрудники» (или отдельной карточкой)
+    var wk = c ? c.workers.slice(-8) : [];
+    if (wk.length >= 2) {
+      var wc = add('Численность сотрудников');
+      wc.appendChild(el('p', 'note-sm', 'Среднесписочная численность по данным ФНС.'));
+      var chw = barChart(wk.map(function (w) { return { x: w.year, v: w.n }; }), 'Среднесписочная численность по годам');
+      wc.appendChild(chw);
     }
 
     // отметки в реестрах
@@ -732,7 +758,7 @@
     anchor.remove();
   }
   function loadMore(inn) {
-    postApi('/api/org/more', inn).then(function (j) { renderMore(j.status === 200 ? j : null, inn); }).catch(function () { renderMore(null, inn); });
+    return postApi('/api/org/more', inn).then(function (j) { renderMore(j.status === 200 ? j : null, inn); }).catch(function () { renderMore(null, inn); });
   }
 
   /* ---------- ИИ-разбор ---------- */
@@ -793,7 +819,7 @@
       render(j.suggestion, j.advice);
       accountActions(j.suggestion, j.signedIn);
       loadFns(inn, j.suggestion.data || {});
-      loadMore(inn);
+      var moreDone = loadMore(inn);
       var box = document.getElementById('org-ai');
       if (!box) return;
       var pending = el('div', 'ai-pending');
@@ -802,7 +828,10 @@
       pending.appendChild(spin);
       pending.appendChild(document.createTextNode('Готовим разбор — обычно 5–15 секунд, иногда до минуты, если сервер «просыпался» после паузы. Страница не зависла, просто подождите.'));
       box.appendChild(pending);
-      postApi('/api/org/ai', inn).then(function (a) { renderAi(box, a); })
+      // разбор просим после подробных данных (суды, сайты): сервер добавит их в разбор. Ждём не дольше 20 секунд
+      Promise.race([moreDone, new Promise(function (r) { setTimeout(r, 20000); })])
+        .then(function () { return postApi('/api/org/ai', inn); })
+        .then(function (a) { renderAi(box, a); })
         .catch(function () { renderAi(box, { reason: 'Разбор сейчас недоступен. Попробуйте позже.' }); });
     }).catch(function () {
       msg.textContent = 'Не получилось получить данные. Попробуйте позже.';

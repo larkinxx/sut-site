@@ -188,7 +188,7 @@ const mln = (n) => (n / 1e6).toLocaleString('ru-RU') + ' млн ₽';
 export const SYSTEM = `Ты — помощник сайта «Суть». Тебе дают сведения об организации или ИП из открытых реестров (через DaData). Твоя задача — дать читателю развёрнутый, содержательный разбор именно этой организации: не общие слова, а то, что конкретно следует из переданных полей. Читатель — предприниматель, бухгалтер или человек, который собирается заключить договор с этой организацией, и ему нужно понять детали, а не шаблон.
 
 ЖЁСТКИЕ ПРАВИЛА
-1. Опирайся только на переданные поля. В поле fns — официальные данные ФНС (налоговый режим, численность, уплаченные налоги, налоговый долг, отчётность по годам в рублях): используй их в первую очередь, называй год. Ничего не выдумывай: ни судов, ни долгов, ни новостей, ни репутации. Если поля нет или оно null — не делай по нему выводов; можешь сказать, что этих сведений в открытых данных нет.
+1. Опирайся только на переданные поля. В поле fns — официальные данные ФНС (налоговый режим, численность, уплаченные налоги, налоговый долг, отчётность по годам в рублях): используй их в первую очередь, называй год. В поле details — данные ЕГРЮЛ и судов: уставный капитал, численность по годам, отметки в реестрах (flags), суды общей юрисдикции (courts), арбитраж (arbitration: роли, суммы, исходы), исполнительные производства (fssp), проверка сайтов компании (sites) и число её контактов. Ничего не выдумывай сверх переданного: ни судов, ни долгов, ни новостей, ни репутации. Если поля нет или оно null — не делай по нему выводов; можешь сказать, что этих сведений в открытых данных нет.
 2. Не выноси вердиктов «надёжная/ненадёжная компания», «можно/нельзя доверять», не ставь оценок и баллов. Описывай наблюдения: что в данных и почему это стоит проверить.
 3. Не давай инвестиционных советов и не обещай доход. Не пиши «покупайте», «продавайте», «вкладывайте», «гарантированно», «без риска».
 4. Это не юридическая и не налоговая консультация.
@@ -204,6 +204,10 @@ export const SYSTEM = `Ты — помощник сайта «Суть». Теб
 — если oквэды выглядят разнородными или основной ОКВЭД не похож на то, чем по названию занимается организация, — отметь это как повод уточнить фактическую деятельность у самой организации;
 — если сумма выручки/капитала большая для заявленного числа сотрудников (или наоборот) — можно отметить это как наблюдение, требующее уточнения, без выводов о причинах;
 — если ощутимых поводов для тревоги в данных нет — вместо общих фраз предложи 2–3 точечные проверки, отталкиваясь от суммы капитала, отрасли (okved.name) или региона (например, отраслевые лицензии/членство в СРО, если ОКВЭД на это указывает).
+— если есть details.arbitration или details.courts — скажи, в какой роли компания чаще (ответчик, истец, третье лицо), на какие суммы и чем дела заканчиваются (outcomes); дела, где компания третье лицо, не выдавай за риск;
+— если есть details.fssp с открытыми производствами — назови их число и сумму;
+— если есть details.flags — перечисли их как наблюдения (без вердиктов);
+— если есть details.sites — дай отдельный сигнал про сайт и соцсети: открывается ли сайт, указан ли на нём ИНН (inn_on_site), есть ли HTTPS, сколько лет домену по сравнению с возрастом компании, какие соцсети указаны. Если сайт молодой, без ИНН или не открывается — предложи проверить реквизиты на сайте; если соцсетей нет — это просто наблюдение;
 Общие проверки (ЕГРЮЛ/ЕГРИП egrul.nalog.ru, картотека арбитражных дел kad.arbitr.ru, реестр банкротств bankrot.fedresurs.ru, бухотчётность bo.nalog.gov.ru, запрос документов у контрагента) используй точечно и только когда они действительно к месту, а не как обязательный набор.
 
 ФОРМАТ ОТВЕТА
@@ -320,10 +324,35 @@ export function fnsFactsForAi(f) {
   };
 }
 
-export async function analyze(suggestion, cfg, fetchImpl, fns = null) {
+// Данные DataNewton и проверки сайтов для ИИ — только цифры и факты о компании, без ФИО, ИНН и контактов людей
+export function moreFactsForAi(m) {
+  if (!m || !m.available) return null;
+  const c = m.card, a = m.arbitration, k = m.courts, f = m.fssp;
+  const out = {};
+  if (c) {
+    const kinds = {};
+    for (const o of c.owners) kinds[o.kind] = (kinds[o.kind] || 0) + 1;
+    out.registry = {
+      charter_capital: c.capital, employees_by_year: c.workers.slice(-4), okved_count: c.okveds.length,
+      founders: kinds, managers_count: c.managers.length, management_company: !!c.managementCompany,
+      msp: c.msp ? c.msp.category : null, branches: c.branches, contacts: { phones: c.contacts.phones.length, emails: c.contacts.emails.length, sites: c.contacts.sites.length }
+    };
+    out.flags = c.flags.map((x) => x.text);
+    if (c.bankruptcy.some((b) => b.active)) out.flags.push('Активное дело о банкротстве');
+  }
+  if (k) out.courts = { total: k.total, as_defendant: k.defendant, as_plaintiff: k.plaintiff, as_third_party: k.other, counted_from: k.shown, top_categories: k.categories.map(([n, q]) => [n.split('→').pop().trim(), q]) };
+  if (a) out.arbitration = { total: a.total, sum: a.sum, as_defendant: a.defendant, defendant_sum: a.defendantSum, as_plaintiff: a.plaintiff, plaintiff_sum: a.plaintiffSum, as_third_party: a.other, open: a.open, outcomes: a.outcomes, counted_from: a.shown };
+  if (f) out.fssp = { total: f.total, open: f.open, open_sum: f.openSum };
+  if (m.sites && m.sites.length) out.sites = m.sites.map((x) => ({ domain: x.site, opens: x.opens, https: x.https, inn_on_site: x.innFound, domain_created: x.created, domain_age_years: x.ageYears, socials: x.socials.map((q) => q.name) }));
+  return Object.keys(out).length ? out : null;
+}
+
+export async function analyze(suggestion, cfg, fetchImpl, fns = null, more = null) {
   const facts = factsForAi(suggestion);
   const extra = fnsFactsForAi(fns);
   if (extra) facts.fns = extra;         // режим, численность, налоги, долги и отчётность из данных ФНС
+  const details = moreFactsForAi(more);
+  if (details) facts.details = details; // ЕГРЮЛ, суды, арбитраж, приставы, сайты (DataNewton и своя проверка сайтов)
   const prompt = 'Сведения из реестра (JSON):\n' + JSON.stringify(facts, null, 1) + '\n\nСегодня: ' + new Date().toISOString().slice(0, 10);
   let lastErr;
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -518,7 +547,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
         // свой ИИ (Алиса или Gemini): добавляем данные ФНС, если они есть в кеше или быстро получаются
         let f = fnsCache.get(inn);
         if (!f) { try { f = await fnsData(inn, fetchImpl, fnsPause, fdb, now); if (f.pb || f.bo) fnsCache.set(inn, f); } catch { f = null; } }
-        ai = await analyze(s, cfg, fetchImpl, f);
+        ai = await analyze(s, cfg, fetchImpl, f, moreCache.get(inn));   // сайт запрашивает разбор после /api/org/more
       }
       aiCache.set(inn, ai);
       return send(res, 200, { ai });
