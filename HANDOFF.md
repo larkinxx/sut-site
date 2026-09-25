@@ -107,3 +107,14 @@ journalctl -u sut-api -f                   # логи
   даты заседаний ЦБ на следующий год добавить вручную.
 - Если сайт не видит изменения сервера — сервер на Timeweb обновляется **только вручную** (`deploy/update.sh`),
   Render и сайт — автоматически из GitHub.
+
+## 9. На чём остановились (26.09.2026, ночь)
+
+**Страницы компаний для поиска** — код готов и работает на сервере (проверено через https://api.fin-check.shop/organizacii/7719272976/):
+`server/company-page.mjs` собирает `/organizacii/<ИНН>/` из шаблона сайта и данных ФНС (в `fns.db` теперь есть таблица `fns_name` с названиями), карта сайта `/sitemap-companies.xml` (53 файла по 50 000). Сайт собирается на сервере: `deploy/site-build.sh` → `/var/www/fin-check.shop`.
+
+Осталось:
+1. В REG.RU (ispmanager → Доменные имена → fin-check.shop → Записи) записи **A** для `@` и `www` поменять на `5.129.207.51`, записи AAAA для них удалить, `api` не трогать.
+2. Когда DNS разойдётся — на сервере `sh /opt/sut-site/deploy/site-setup.sh` (HTTPS для fin-check.shop, редирект с www, пересборка каждые 10 минут).
+3. В Яндекс Вебмастере (сайт `https://fin-check.shop`, подтверждён метатегом) добавить Sitemap `https://fin-check.shop/sitemap-companies.xml`; в старой версии `http://` — «Переезд сайта» → HTTPS.
+4. После проверки выключить приложение «Cute Hoopoe» на Timeweb и workflow `.github/workflows/timeweb.yml`.
