@@ -21,7 +21,7 @@ export function message(c, siteUrl) {
     '',
     `<b>Что делать:</b> ${html(c.tip)}`,
     '',
-    `<a href="${siteUrl}/n/${c.id}/">Полный разбор</a> · источник: ${html(c.source.name)}${c.review && c.review.auto ? ' · подготовлено ИИ' : ''}`
+    `<a href="${siteUrl}/n/${c.id}/">Полный разбор</a> · источник: ${html(c.source.name)}${c.review && c.review.auto ? ' · подготовлено автоматически' : ''}`
   ].filter((x, i) => i || x).join('\n');
 }
 

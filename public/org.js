@@ -354,10 +354,10 @@
   /* ---------- ИИ-разбор ---------- */
   function renderAi(box, j) {
     box.textContent = '';
-    var h = el('h2', null, 'Разбор ИИ');
+    var h = el('h2', null, 'Экспресс-разбор');
     h.style.marginTop = '22px';
     box.appendChild(h);
-    var label = el('p', 'note-sm', 'Подготовлено ИИ по данным реестра. Это не проверка благонадёжности и не консультация: перепроверяйте по ссылкам в шагах.');
+    var label = el('p', 'note-sm', 'Подготовлено автоматически по данным реестра. Это не проверка благонадёжности и не консультация: перепроверяйте по ссылкам в шагах.');
     box.appendChild(label);
     var a = j && j.ai;
     if (!a) {
@@ -411,10 +411,10 @@
       var spin = el('span', 'spin');
       spin.setAttribute('aria-hidden', 'true');
       pending.appendChild(spin);
-      pending.appendChild(document.createTextNode('ИИ готовит разбор — обычно 5–15 секунд, иногда до минуты, если сервер «просыпался» после паузы. Страница не зависла, просто подождите.'));
+      pending.appendChild(document.createTextNode('Готовим разбор — обычно 5–15 секунд, иногда до минуты, если сервер «просыпался» после паузы. Страница не зависла, просто подождите.'));
       box.appendChild(pending);
       postApi('/api/org/ai', inn).then(function (a) { renderAi(box, a); })
-        .catch(function () { renderAi(box, { reason: 'ИИ сейчас не ответил. Попробуйте позже.' }); });
+        .catch(function () { renderAi(box, { reason: 'Разбор сейчас недоступен. Попробуйте позже.' }); });
     }).catch(function () {
       msg.textContent = 'Не получилось получить данные. Попробуйте позже.';
     });

@@ -292,7 +292,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
     const t = now();
     const key = new Date(t).toISOString().slice(0, 10);
     if (day.key !== key) day = { key, count: 0 };
-    if (day.count >= cfg.aiDailyLimit) return 'Лимит ИИ-разборов на сегодня исчерпан. Данные реестра и памятка выше доступны, разбор — завтра.';
+    if (day.count >= cfg.aiDailyLimit) return 'Лимит разборов на сегодня исчерпан. Данные реестра и памятка выше доступны, разбор — завтра.';
     const hits = (ipHits.get(ip) || []).filter((x) => t - x < 3600e3);
     if (hits.length >= cfg.aiPerIpHour) return 'Слишком много разборов подряд. Попробуйте через час.';
     hits.push(t); ipHits.set(ip, hits);
@@ -331,7 +331,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
       }
 
       // /api/org/ai
-      if (!cfg.geminiKey) return send(res, 200, { ai: null, reason: 'ИИ-разбор пока не подключён.' });
+      if (!cfg.geminiKey) return send(res, 200, { ai: null, reason: 'Экспресс-разбор пока не подключён.' });
       const cached = aiCache.get(inn);
       if (cached) return send(res, 200, { ai: cached, cached: true });
       const limited = allowAi(ipOf(req));
@@ -342,7 +342,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
     } catch (e) {
       console.error(new Date().toISOString(), req.method, url.pathname, e.message);
       if (/too big|bad json/.test(e.message)) return send(res, 400, { error: 'Некорректный запрос' });
-      return send(res, 502, { error: url.pathname === '/api/org/ai' ? 'ИИ сейчас не ответил. Попробуйте позже.' : 'Не получилось получить данные. Попробуйте позже.' });
+      return send(res, 502, { error: url.pathname === '/api/org/ai' ? 'Разбор сейчас недоступен. Попробуйте позже.' : 'Не получилось получить данные. Попробуйте позже.' });
     }
   };
 }
