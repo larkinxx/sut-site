@@ -1,7 +1,8 @@
 # Автосбор новостей и публикация без участия человека. Каждый час (и по кнопке «Run workflow»):
 # 1) читает RSS-ленты из config/sources.json, 2) просит ИИ подготовить карточки,
 # 3) обычные карточки, прошедшие автопроверки, сразу получают status = published; важные и сомнительные
-#    остаются черновиками (draft) и ждут человека, 4) сохраняет результат; затем сайт пересобирается сам (deploy.yml).
+#    остаются черновиками (draft) и ждут человека, 4) обновляет ключевую ставку и инфляцию, 5) отправляет новые
+#    новости в Telegram (если заданы TELEGRAM_BOT_TOKEN и TELEGRAM_CHAT_ID), 6) сохраняет результат; затем сайт пересобирается сам.
 # Шаг с ИИ пропускается, пока в Settings → Secrets не добавлен ANTHROPIC_API_KEY (Claude) или GEMINI_API_KEY (Google Gemini).
 name: Собрать новости и черновики
 
@@ -38,12 +39,20 @@ jobs:
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
           AUTO_PUBLISH: "true"
         run: npm run draft
+      - name: Ключевая ставка и инфляция с cbr.ru
+        run: npm run rates
+      - name: Новые новости в Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ vars.TELEGRAM_CHAT_ID }}
+        run: npm run telegram
       - name: Сохранить
         run: |
           git config user.name "sut-bot"
           git config user.email "sut-bot@users.noreply.github.com"
           mkdir -p content/news content/raw
-          git add content/news content/raw
+          git add content/news content/raw config/finance.json
+          [ -f content/telegram.json ] && git add content/telegram.json
           if git diff --cached --quiet; then
             echo "Новых материалов нет"
           else
