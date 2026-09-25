@@ -47,6 +47,18 @@
     return isFinite(n) ? new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(Math.round(n)) + ' ₽' : '—';
   }
 
+  /* ---------- Ближайшее решение ЦБ: считаем в браузере, чтобы дата не устаревала между сборками ---------- */
+  var nextCbr = $('.next-cbr');
+  if (nextCbr) {
+    var today = new Date(Date.now() + 3 * 3600e3).toISOString().slice(0, 10); // дата по Москве
+    var next = (nextCbr.getAttribute('data-dates') || '').split(' ').filter(function (d) { return d >= today; })[0];
+    if (next) {
+      $('b', nextCbr).textContent = next === today ? 'сегодня' : new Date(next + 'T12:00:00+03:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', timeZone: 'Europe/Moscow' });
+    } else {
+      nextCbr.hidden = true;
+    }
+  }
+
   /* ---------- Лента ---------- */
   var feed = $('#feed');
   if (feed) {
@@ -271,5 +283,58 @@
         (inc > ip.ndsFrom ? '<p class="verdict warn">Доход больше ' + rub(ip.ndsFrom) + ' в год: на упрощёнке придётся платить ещё и НДС, он здесь не учтён.</p>' : '');
     };
     bind(root, run);
+  });
+
+  /* ---------- Поделиться расчётом: введённые цифры сохраняются в адресе после # ---------- */
+  var calcs = $$('[data-calc]');
+  function fieldsOf(root) { return $$('input[name], select[name]', root); }
+  function linkFor(root) {
+    var p = ['calc=' + encodeURIComponent(root.getAttribute('data-calc'))];
+    fieldsOf(root).forEach(function (f) {
+      p.push(encodeURIComponent(f.name) + '=' + encodeURIComponent(f.type === 'checkbox' ? (f.checked ? '1' : '0') : f.value));
+    });
+    return location.origin + location.pathname + '#' + p.join('&');
+  }
+  // Открыли ссылку с расчётом: подставляем цифры и пересчитываем
+  var hash = {};
+  location.hash.replace(/^#/, '').split('&').forEach(function (kv) {
+    var i = kv.indexOf('=');
+    if (i > 0) { try { hash[decodeURIComponent(kv.slice(0, i))] = decodeURIComponent(kv.slice(i + 1)); } catch (e) { /* битая ссылка */ } }
+  });
+  calcs.forEach(function (root) {
+    if (hash.calc && hash.calc === root.getAttribute('data-calc')) {
+      fieldsOf(root).forEach(function (f) {
+        if (!(f.name in hash)) return;
+        if (f.type === 'checkbox') f.checked = hash[f.name] === '1';
+        else f.value = hash[f.name];
+        f.dispatchEvent(new Event('input'));
+      });
+      hash.calc = null; // только первый подходящий калькулятор на странице
+      if (root.scrollIntoView) root.scrollIntoView({ block: 'start' });
+    }
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'share';
+    btn.textContent = 'Поделиться расчётом';
+    var note = document.createElement('span');
+    note.className = 'share-note';
+    note.setAttribute('aria-live', 'polite');
+    btn.addEventListener('click', function () {
+      var link = linkFor(root);
+      var done = function (t) { note.textContent = t; setTimeout(function () { note.textContent = ''; }, 3000); };
+      if (navigator.share && /Mobi|Android/i.test(navigator.userAgent)) {
+        navigator.share({ title: document.title, url: link }).catch(function () {});
+      } else if (navigator.clipboard) {
+        navigator.clipboard.writeText(link).then(function () { done('Ссылка скопирована'); }, function () { window.prompt('Скопируйте ссылку:', link); });
+      } else {
+        window.prompt('Скопируйте ссылку:', link);
+      }
+    });
+    var res = $('.result', root);
+    var bar = document.createElement('div');
+    bar.className = 'share-bar';
+    bar.appendChild(btn);
+    bar.appendChild(note);
+    res.parentNode.insertBefore(bar, res.nextSibling);
   });
 })();

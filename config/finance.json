@@ -47,5 +47,21 @@
     "ausnIncomeLimit": 60000000,
     "ausnEmployees": 5,
     "profitTax": 0.25
-  }
+  },
+  "keyRateSince": "2026-07-27",
+  "inflation": {
+    "value": 6.33,
+    "month": "2026-08"
+  },
+  "cbrMeetings": [
+    "2026-02-13",
+    "2026-03-20",
+    "2026-04-24",
+    "2026-06-19",
+    "2026-07-24",
+    "2026-09-11",
+    "2026-10-23",
+    "2026-12-18"
+  ],
+  "_ratesNote": "keyRate, keyRateSince и inflation обновляет scripts/rates.mjs (cbr.ru) при каждом сборе новостей. cbrMeetings — календарь решений по ключевой ставке, cbr.ru/dkp/cal_mp/: добавьте даты на следующий год, когда ЦБ их опубликует."
 }

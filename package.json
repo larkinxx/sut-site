@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "description": "Суть: новости экономики с понятными шагами. Статический сайт, сбор новостей и черновики карточек.",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "node src/build.mjs",
     "preview": "node src/build.mjs --examples && node src/serve.mjs",
@@ -16,6 +18,8 @@
     "pipeline": "node scripts/fetch.mjs && node scripts/draft.mjs",
     "server": "node server/index.mjs",
     "test:server": "node server/test.mjs",
-    "start": "node server/index.mjs"
+    "start": "node server/index.mjs",
+    "rates": "node scripts/rates.mjs",
+    "telegram": "node scripts/telegram.mjs"
   }
 }

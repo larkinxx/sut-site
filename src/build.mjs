@@ -94,6 +94,7 @@ function layout({ title, desc, path: pagePath, current, body, ld }) {
 <link rel="preload" href="${url('/fonts/pt-serif-400-cyrillic.woff2')}" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="${url('/fonts/pt-serif-700-cyrillic.woff2')}" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="${url('/style.css')}?v=${cssV}">
+<link rel="alternate" type="application/rss+xml" title="${esc(site.name)}" href="${url('/rss.xml')}">
 ${ld ? `<script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script>` : ''}
 </head>
 <body>
@@ -262,10 +263,23 @@ function calcSelfEmployed(id = '') {
 }
 
 // ---------- страницы ----------
+// Ключевая ставка, инфляция и ближайшее решение ЦБ (цифры обновляет scripts/rates.mjs, дату заседания выбирает app.js)
+function macroWidget() {
+  if (!FIN.keyRate) return '';
+  const d = (iso, opt) => new Date(iso + 'T12:00:00+03:00').toLocaleDateString('ru-RU', { timeZone: 'Europe/Moscow', ...opt });
+  const pct = (n) => String(n).replace('.', ',') + '%';
+  const inf = FIN.inflation;
+  return `<div class="macro" aria-label="Главные цифры">
+  <a href="${url('/kalkulyatory/kredit/')}"><span>Ключевая ставка</span><b>${pct(FIN.keyRate)}</b>${FIN.keyRateSince ? `<small>с ${d(FIN.keyRateSince, { day: 'numeric', month: 'long' })}</small>` : ''}</a>
+  ${inf ? `<a href="${url('/kalkulyatory/vklad/')}"><span>Инфляция за год</span><b>${pct(inf.value)}</b><small>на ${d(inf.month + '-01', { month: 'long', year: 'numeric' }).replace(' г.', '')}</small></a>` : ''}
+  ${(FIN.cbrMeetings || []).length ? `<div class="next-cbr" data-dates="${esc(FIN.cbrMeetings.join(' '))}"><span>Следующее решение ЦБ</span><b></b><small>в 13:30 МСК</small></div>` : ''}
+</div>`;
+}
+
 // Главная: лента за 24 часа
 {
   const list = cards.map(feedItem).join('\n');
-  const body = `<h1 class="page">Новости за ${site.windowHours} ${site.windowHours === 24 ? 'часа' : 'часов'}</h1>
+  const body = `${macroWidget()}<h1 class="page">Новости за ${site.windowHours} ${site.windowHours === 24 ? 'часа' : 'часов'}</h1>
 <div class="filters" id="filters" role="group" aria-label="Для кого показывать новости">
   <button type="button" class="chip" data-f="*" aria-pressed="true">Все</button>
   <button type="button" class="chip" data-f="borrowers" aria-pressed="false">${AUDIENCES.borrowers}</button>
@@ -585,6 +599,33 @@ write('o-proekte/index.html', layout({
 ${site.editorialContact || site.contactEmail ? `<h2>Контакты</h2><p>Вопросы, ошибки в новостях и предложения: <a href="mailto:${esc(site.editorialContact || site.contactEmail)}">${esc(site.editorialContact || site.contactEmail)}</a>.</p>` : ''}
 </div>`
 }));
+
+// RSS: последние 30 новостей — для Дзена, агрегаторов и читалок
+if (!site.siteUrl.includes('example')) {
+  const xml = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const items = cards.slice(0, 30).map((c) => `<item>
+  <title>${xml(c.title)}</title>
+  <link>${site.siteUrl}/n/${c.id}/</link>
+  <guid isPermaLink="true">${site.siteUrl}/n/${c.id}/</guid>
+  <pubDate>${new Date(c.publishedAt).toUTCString()}</pubDate>
+  <category>${xml(c.source.name)}</category>
+  <description>${xml(c.gloss + ' Что делать: ' + c.tip)}</description>
+  <content:encoded><![CDATA[<p>${esc(c.summary)}</p><p><b>Что это значит:</b> ${esc(c.gloss)}</p><p><b>Что делать:</b> ${esc(c.tip)}</p><p>Источник: <a href="${esc(c.source.url)}">${esc(c.source.name)}</a></p>]]></content:encoded>
+</item>`).join('\n');
+  write('rss.xml', `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+<title>${xml(site.name)}: ${xml(site.tagline)}</title>
+<link>${site.siteUrl}/</link>
+<atom:link href="${site.siteUrl}/rss.xml" rel="self" type="application/rss+xml"/>
+<description>${xml(site.tagline)}</description>
+<language>ru</language>
+${cards.length ? `<lastBuildDate>${new Date(cards[0].publishedAt).toUTCString()}</lastBuildDate>` : ''}
+${items}
+</channel>
+</rss>
+`);
+}
 
 // robots и sitemap
 write('robots.txt', `User-agent: *\nAllow: /\n${site.siteUrl.includes('example') ? '' : `Sitemap: ${site.siteUrl}/sitemap.xml\n`}`);
