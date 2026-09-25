@@ -7,7 +7,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { ROOT, loadSite, loadCards, loadMaterials, readJson } from './lib/content.mjs';
 import { AUDIENCES, AUDIENCE_TABS, esc, markTitle, dateRu, agoRu } from './lib/util.mjs';
-import { SCHEMES, taxSections } from './lib/taxes.mjs';
+import { SCHEMES, taxSections, personalSections } from './lib/taxes.mjs';
 
 const withExamples = process.argv.includes('--examples');
 const site = loadSite();
@@ -467,11 +467,14 @@ const schemeBlock = (x, h = 'h2') => `<section class="scheme" id="${x.id}"><${h}
 
 // Раздел «Налоги»: законные способы по видам налогов + предупреждения о схемах этого вида
 const TAX = taxSections(FIN.regimes || {});
-for (const sec of TAX) {
+const TAX_YEAR = (FIN.regimes && FIN.regimes.year) || new Date().getFullYear();
+const TAX_P = personalSections(FIN.personal || {}, TAX_YEAR, ((FIN.depositTax || {}).freeLimit || {})[TAX_YEAR] || 0).map((x) => ({ ...x, person: true }));
+for (const sec of [...TAX, ...TAX_P]) {
   const warn = SCHEMES.filter((x) => x.tax.includes(sec.slug));
+  const crumb = sec.person ? 'Налоги · физлицам' : 'Налоги · бизнесу';
   write(`nalogi/${sec.slug}/index.html`, layout({
     title: sec.title, desc: sec.desc, path: `/nalogi/${sec.slug}/`, current: 'tax',
-    body: `<a class="crumb" href="${url('/nalogi/')}">${icon('arrowLeft')} Налоги</a>
+    body: `<a class="crumb" href="${url('/nalogi/' + (sec.person ? '#fizlicam' : '#biznesu'))}">${icon('arrowLeft')} ${crumb}</a>
 <h1 class="page">${esc(sec.title)}</h1><p class="lede">${esc(sec.lede)}</p>
 <h2 class="label" style="margin-top:28px">Законные способы</h2>
 <div class="ways">${sec.ways.map((w, i) => `<section class="way"><h3><span class="n">${i + 1}</span>${esc(w.t)}</h3>
@@ -479,17 +482,26 @@ for (const sec of TAX) {
 ${warn.length ? `<h2 class="label" style="margin-top:36px">Так делать нельзя</h2>
 <div class="prose">${warn.map((x) => schemeBlock(x, 'h3')).join('\n')}
 <p><a href="${url('/nalogovye-shemy/')}">Все опасные схемы и общие последствия</a></p></div>` : ''}
-<p class="note-sm">Правила на ${esc(String((FIN.regimes && FIN.regimes.year) || ''))} год, сверены ${esc(new Date(FIN.checkedAt + 'T12:00:00+03:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Moscow' }))}. Это не налоговая консультация: перед сменой режима или учётной политики посчитайте всё вместе с бухгалтером. Советы по данным своей компании — в <a href="${url('/organizacii/')}">проверке по ИНН</a>.</p>`
+<p class="note-sm">Правила на ${esc(String(TAX_YEAR))} год, сверены ${esc(new Date(FIN.checkedAt + 'T12:00:00+03:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Moscow' }))}. ${sec.person
+  ? 'Это не налоговая консультация: условия вычетов и льгот проверяйте в личном кабинете на nalog.gov.ru.'
+  : `Это не налоговая консультация: перед сменой режима или учётной политики посчитайте всё вместе с бухгалтером. Советы по данным своей компании — в <a href="${url('/organizacii/')}">проверке по ИНН</a>.`}</p>`
   }));
 }
+const taxList = (list) => list.map((t) => `<li><a href="${url(`/nalogi/${t.slug}/`)}"><b>${esc(t.short)}</b><span>${esc(t.desc)}</span></a></li>`).join('');
 write('nalogi/index.html', layout({
   title: 'Налоги', path: '/nalogi/', current: 'tax',
-  desc: 'Как законно снизить налоги малому бизнесу: режимы, НДС, налог на прибыль, взносы с зарплаты, налоги владельца. И какие схемы опасны.',
-  body: `<h1 class="page">Налоги</h1><p class="lede">Законные способы платить меньше, по видам налогов, и схемы, за которые доначисляют налоги и штрафы.</p>
-<ul class="calcs">${TAX.map((t) => `<li><a href="${url(`/nalogi/${t.slug}/`)}"><b>${esc(t.short)}</b><span>${esc(t.desc)}</span></a></li>`).join('')}
+  desc: 'Как законно платить меньше налогов: бизнесу — режимы, НДС, прибыль, взносы; физлицам — вычеты, вклады и инвестиции, продажа имущества, подработка. И какие схемы опасны.',
+  body: `<h1 class="page">Налоги</h1><p class="lede">Законные способы платить меньше — отдельно для бизнеса и для физлиц — и схемы, за которые доначисляют налоги и штрафы.</p>
+<p class="filters"><a class="chip" href="#biznesu">Бизнесу</a> <a class="chip" href="#fizlicam">Физлицам</a></p>
+<h2 class="label" id="biznesu" style="margin-top:24px">Бизнесу: компаниям и ИП</h2>
+<ul class="calcs">${taxList(TAX)}
 <li><a href="${url('/nalogi/blokirovka-scheta/')}"><b>Блокировка счёта по 115-ФЗ</b><span>За какие операции банки блокируют счета, как узнать свою зону риска на платформе ЦБ и как снять ограничения.</span></a></li>
 <li><a class="danger" href="${url('/nalogovye-shemy/')}"><b>Опасные схемы</b><span>Дробление бизнеса, «технические» компании, зарплата в конвертах и другое: как находят и чем заканчивается.</span></a></li></ul>
-<p class="note-sm">Советы для конкретной компании по данным реестра — в <a href="${url('/organizacii/')}">проверке организации по ИНН</a>.</p>`
+<p class="note-sm">Советы для конкретной компании по данным реестра — в <a href="${url('/organizacii/')}">проверке организации по ИНН</a>.</p>
+<h2 class="label" id="fizlicam" style="margin-top:36px">Физлицам</h2>
+<ul class="calcs">${taxList(TAX_P)}
+<li><a class="danger" href="${url('/nalogovye-shemy/#fizlicam')}"><b>Чего не делать</b><span>Заниженная цена в договоре, сдача квартиры без налога, купленные справки для вычета: как находят и чем заканчивается.</span></a></li>
+<li><a class="danger" href="${url('/fizlica/dropy/')}"><b>Не становитесь дропом</b><span>Чем грозит «подработка» с вашей картой и что делать, если уже согласились.</span></a></li></ul>`
 }));
 
 // Предупреждения: дропы (для людей) и блокировки по 115-ФЗ (для бизнеса). Факты сверены 25.09.2026
@@ -577,7 +589,10 @@ write('nalogovye-shemy/index.html', layout({
 <h1 class="page">Опасные налоговые схемы</h1>
 <p class="lede">Чем заканчиваются популярные способы «сэкономить» на налогах. Здесь нет инструкций: только в чём суть, по каким признакам налоговая это находит и что за это бывает. Законные способы снизить налоги собраны в разделе <a href="${url('/nalogi/')}">«Налоги»</a>.</p>
 <div class="prose">
-${SCHEMES.map((x) => schemeBlock(x)).join('\n')}
+<h2 id="biznesu">Бизнесу</h2>
+${SCHEMES.filter((x) => x.who !== 'person').map((x) => schemeBlock(x, 'h3')).join('\n')}
+<h2 id="fizlicam">Физлицам</h2>
+${SCHEMES.filter((x) => x.who === 'person').map((x) => schemeBlock(x, 'h3')).join('\n')}
 <h2>Общие последствия</h2>
 <ul>
 <li>Недоимка, пени за каждый день просрочки и штраф: 20% от неуплаченного налога, 40% при умысле (статья 122 НК).</li>
@@ -719,7 +734,7 @@ if (!site.siteUrl.includes('example')) {
   // lastmod: у ленты — время свежей новости, у карточки — время последней правки; у статичных страниц не ставим
   const fresh = cards.length ? cards[0].publishedAt : '';
   const urls = [
-    ['/', fresh], ['/arhiv/', fresh], ['/kalkulyatory/'], ...CALCS.map((c) => [`/kalkulyatory/${c.slug}/`]), ['/organizacii/'], ['/fizlica/'], ['/nalogi/'], ...TAX.map((t) => [`/nalogi/${t.slug}/`]), ['/nalogovye-shemy/'], ['/nalogi/blokirovka-scheta/'], ['/fizlica/dropy/'], ['/kak-my-rabotaem/'], ['/o-proekte/'], ...(POLICY ? [['/politika/']] : []),
+    ['/', fresh], ['/arhiv/', fresh], ['/kalkulyatory/'], ...CALCS.map((c) => [`/kalkulyatory/${c.slug}/`]), ['/organizacii/'], ['/fizlica/'], ['/nalogi/'], ...[...TAX, ...TAX_P].map((t) => [`/nalogi/${t.slug}/`]), ['/nalogovye-shemy/'], ['/nalogi/blokirovka-scheta/'], ['/fizlica/dropy/'], ['/kak-my-rabotaem/'], ['/o-proekte/'], ...(POLICY ? [['/politika/']] : []),
     ...cards.map((c) => [`/n/${c.id}/`, (c.review && c.review.at) || c.publishedAt])
   ];
   write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(([u, m]) => `<url><loc>${site.siteUrl}${u}</loc>${m ? `<lastmod>${new Date(m).toISOString()}</lastmod>` : ''}</url>`).join('\n')}\n</urlset>\n`);
