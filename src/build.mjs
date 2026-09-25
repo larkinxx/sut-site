@@ -115,7 +115,7 @@ ${body}
 <footer class="wrap">
   <p class="fine">${esc(site.disclaimer)} Как мы готовим новости: <a href="${url('/kak-my-rabotaem/')}">как мы работаем</a>. <a href="${url('/o-proekte/')}">О проекте</a>.${site.contactEmail ? ` Нашли ошибку? Напишите: <a href="mailto:${esc(site.contactEmail)}">${esc(site.contactEmail)}</a>.` : ''}</p>
 </footer>
-${body.includes('data-calc=') ? `<script type="application/json" id="fin">${JSON.stringify(FIN).replace(/</g, '\\u003c')}</script>\n` : ''}<script src="${url('/app.js')}?v=${jsV}" defer></script>
+${body.includes('data-calc=') || body.includes('id="org"') ? `<script type="application/json" id="fin">${JSON.stringify(FIN).replace(/</g, '\\u003c')}</script>\n` : ''}<script src="${url('/app.js')}?v=${jsV}" defer></script>
 <script>
    (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
    m[i].l=1*new Date();

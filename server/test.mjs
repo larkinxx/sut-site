@@ -101,6 +101,9 @@ try {
 
   await t('ответ с вердиктом «надёжная компания» отклоняется, вторая попытка проходит', async () => {
     assert.ok(validateAi({ ...GOOD_AI, summary: 'Это надёжная компания, покупайте её услуги.' }).length > 0);
+    assert.deepEqual(validateAi({ ...GOOD_AI, tax_ideas: ['Доход за 2025 год 5 млн ₽ — проверьте пониженную ставку УСН в регионе на nalog.gov.ru и посчитайте с бухгалтером.'] }), []);
+    assert.ok(validateAi({ ...GOOD_AI, tax_ideas: ['Можно сэкономить через дробление бизнеса на два ИП.'] }).length > 0);
+    assert.ok(validateAi({ ...GOOD_AI, tax_ideas: ['a', 'b', 'c', 'd'] }).length > 0);
   });
 
   await t('плохой ответ ИИ → повтор; лимит в час на один адрес', async () => {

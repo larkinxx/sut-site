@@ -188,3 +188,4 @@ footer .fine a{color:var(--accent)}
 .theme-btn .ic-sun{display:none}
 :root[data-theme="dark"] .theme-btn .ic-sun{display:block}
 :root[data-theme="dark"] .theme-btn .ic-moon{display:none}
+.tip.idea{border-left-color:var(--pos)}
