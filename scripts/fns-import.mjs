@@ -86,8 +86,8 @@ export async function importStream(db, name, stream) {
       const inn = doc.match(/ИННЮЛ="(\d{10})"/)?.[1];
       if (!inn) continue;
       ins.run(inn, ...ds.row(doc, date(attrs(doc.match(/<Документ [^>]*>/)[0]).ДатаСост)));
-      const name = attrs(doc.match(/<СведНП[^>]*>/)?.[0] || '').НаимОрг;
-      if (name) insName.run(inn, name);
+      const org = attrs(doc.match(/<СведНП[^>]*>/)?.[0] || '').НаимОрг;
+      if (org) insName.run(inn, org);
       if (++rows % 100000 === 0) { db.exec('COMMIT; BEGIN'); process.stdout.write(`  ${name}: ${rows}\r`); }
     }
     if (final) buf = '';
