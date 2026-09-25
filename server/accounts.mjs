@@ -5,7 +5,9 @@
 // Маршруты (все ответы JSON, кроме переходов входа):
 //   GET  /auth/yandex?return=/kabinet/&consent=1   — переход на oauth.yandex.ru
 //   GET  /auth/yandex/callback                      — возврат от Яндекса, ставит сессию и ведёт обратно на сайт
-//   GET  /auth/telegram/callback?...&consent=1      — возврат от виджета Telegram Login
+//   POST /auth/telegram/start {consent}             — вход через бота: ссылка t.me/<бот>?start=<код>
+//   GET  /auth/telegram/status?nonce=…              — сайт ждёт, пока человек подтвердит вход в боте
+//   GET  /auth/telegram/callback?...&consent=1      — возврат от виджета Telegram Login (старый способ)
 //   POST /auth/email/start   {email}                — отправить код на почту
 //   POST /auth/email/verify  {email, code, consent} — войти по коду
 //   POST /auth/logout
@@ -24,6 +26,8 @@ const SESSION_DAYS = 90;
 const LIMITS = { history: 200, watch: 50, calcs: 50 };
 const sha = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');
 const token = () => crypto.randomBytes(32).toString('base64url');
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const TG_LOGIN_TTL = 10 * 60e3;
 
 /* ---------- база ---------- */
 export function openDb(file) {
@@ -149,6 +153,8 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
     cookieDomain: env.COOKIE_DOMAIN || '',              // .fin-check.shop — чтобы сессия была общей для сайта и api
     yandexId: env.YANDEX_CLIENT_ID || '', yandexSecret: env.YANDEX_CLIENT_SECRET || '',
     tgToken: env.TELEGRAM_BOT_TOKEN || '', tgBot: env.TELEGRAM_BOT_NAME || '',
+    // Timeweb не пускает сервер к api.telegram.org — ходим через наш сервер на Render (маршрут /tg/ в index.mjs)
+    tgApi: (env.TELEGRAM_API_URL || (env.AI_UPSTREAM_URL ? env.AI_UPSTREAM_URL.replace(/\/$/, '') + '/tg' : 'https://api.telegram.org')).replace(/\/$/, ''),
     mailOn: !!mailer
   };
   const q = (sql) => db.prepare(sql);
@@ -208,15 +214,70 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
   function redirect(res, to, setCookies = []) { res.writeHead(302, { Location: to, 'Set-Cookie': setCookies, 'Cache-Control': 'no-store' }); res.end(); }
   const back = (ret, err) => cfg.site + (err ? '/vhod/?oshibka=' + encodeURIComponent(err) : safeReturn(ret));
 
+  /* ----- Telegram: вызовы бота и вход через бота ----- */
+  async function tgCall(method, body, timeoutMs = 15000) {
+    const r = await fetchImpl(`${cfg.tgApi}/bot${cfg.tgToken}/${method}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(timeoutMs)
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!j.ok) throw new Error(`Telegram ${method}: ${j.description || r.status}`);
+    return j.result;
+  }
+  // Ожидающие входы живут в памяти 10 минут: код из ссылки → кто нажал «Запустить» и подтвердил ли вход кнопкой.
+  // Подтверждение кнопкой — чтобы по чужой ссылке нельзя было незаметно войти в аккаунт человека.
+  const tgLogins = new Map();
+  let tgOffset = 0, tgPolling = false;
+  const tgName = (f) => [f.first_name, f.last_name].filter(Boolean).join(' ') || f.username || '';
+  function tgPrune() { for (const [k, v] of tgLogins) if (now() - v.created > TG_LOGIN_TTL) tgLogins.delete(k); }
+  async function tgUpdate(up) {
+    const msg = up.message;
+    if (msg && msg.chat?.type === 'private' && typeof msg.text === 'string') {
+      const m = /^\/start(?:\s+([\w-]{10,64}))?/.exec(msg.text);
+      const L = m && m[1] && tgLogins.get(m[1]);
+      if (!L || L.state === 'ok') {
+        return tgCall('sendMessage', { chat_id: msg.chat.id, text: m && m[1]
+          ? 'Ссылка для входа устарела. Нажмите «Войти через Telegram» на сайте fin-check.shop ещё раз.'
+          : 'Это бот сайта «Суть» (fin-check.shop): через него входят в кабинет и получают уведомления об изменениях у компаний.' });
+      }
+      L.from = String(msg.from.id);
+      return tgCall('sendMessage', {
+        chat_id: msg.chat.id,
+        text: 'Вход на сайт fin-check.shop («Суть»).\n\nНажмите кнопку, если это вы сейчас входите на сайт. Если вы ничего не нажимали на сайте — просто закройте это сообщение.',
+        reply_markup: { inline_keyboard: [[{ text: 'Войти на fin-check.shop', callback_data: 'login:' + m[1] }]] }
+      });
+    }
+    const cb = up.callback_query;
+    if (cb && String(cb.data || '').startsWith('login:')) {
+      const L = tgLogins.get(cb.data.slice(6));
+      const ok = !!(L && L.from === String(cb.from.id) && L.state !== 'ok');
+      if (ok) { L.state = 'ok'; L.tg = { id: String(cb.from.id), name: tgName(cb.from) }; }
+      await tgCall('answerCallbackQuery', { callback_query_id: cb.id, text: ok ? 'Готово' : 'Ссылка устарела, начните вход на сайте заново' }).catch(() => {});
+      if (ok && cb.message) await tgCall('editMessageText', { chat_id: cb.message.chat.id, message_id: cb.message.message_id, text: 'Вход подтверждён. Вернитесь на сайт — страница обновится сама.' }).catch(() => {});
+    }
+  }
+  // Сообщения боту забираем, только пока кто-то входит: Render на бесплатном тарифе не будим зря
+  async function tgPoll() {
+    if (tgPolling || !cfg.tgToken) return;
+    tgPolling = true;
+    try {
+      for (;;) {
+        tgPrune();
+        if (!tgLogins.size) break;
+        const t0 = now();
+        try {
+          const ups = await tgCall('getUpdates', { offset: tgOffset, timeout: 25, allowed_updates: ['message', 'callback_query'] }, 45000);
+          for (const up of ups) { tgOffset = up.update_id + 1; await tgUpdate(up).catch((e) => console.error('бот', e.message)); }
+          if (!ups.length && now() - t0 < 1000) await sleep(1000);
+        } catch (e) { console.error('бот', e.message); await sleep(3000); }
+      }
+    } finally { tgPolling = false; }
+  }
+
   /* ----- уведомления ----- */
   async function notify(u, text) {
     const ch = channelOf(u);
     if (ch === 'telegram' && cfg.tgToken) {
-      const r = await fetchImpl(`https://api.telegram.org/bot${cfg.tgToken}/sendMessage`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: u.telegram_id, text, link_preview_options: { is_disabled: true } }), signal: AbortSignal.timeout(15000)
-      });
-      if (!(await r.json().catch(() => ({}))).ok) throw new Error('Telegram не доставил сообщение');
+      await tgCall('sendMessage', { chat_id: u.telegram_id, text, link_preview_options: { is_disabled: true } });
     } else if (ch === 'email' && mailer) {
       await mailer({ to: u.email, subject: 'Суть: изменения у компаний, за которыми вы следите', text });
     }
@@ -323,6 +384,36 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
       log('Яндекс — успешно, пользователь #' + u.id);
       redirect(res, back(ret), [clear, startSession(u.id)]);
       return true;
+    }
+
+    // ---- вход через бота Telegram: не нужен ни номер телефона, ни сайт telegram.org ----
+    if (m === 'POST' && p === '/auth/telegram/start') {
+      const body = await readBody(req, 1024);
+      if (!cfg.tgToken || !cfg.tgBot) return send(res, 503, { error: 'Вход через Telegram пока не подключён.' }), true;
+      if (body.consent !== true) return send(res, 400, { error: 'Нужно согласие на обработку данных.' }), true;
+      tgPrune();
+      if (tgLogins.size > 2000) return send(res, 429, { error: 'Слишком много входов сразу. Попробуйте через минуту.' }), true;
+      const nonce = crypto.randomBytes(16).toString('base64url'), secret = token();
+      tgLogins.set(nonce, { created: now(), state: 'wait', browser: sha(secret) });
+      tgPoll();
+      res.setHeader('Set-Cookie', cookie('sut_tg', secret, TG_LOGIN_TTL / 1000));
+      return send(res, 200, { nonce, url: `https://t.me/${cfg.tgBot}?start=${nonce}` }), true;
+    }
+    if (m === 'GET' && p === '/auth/telegram/status') {
+      const nonce = String(url.searchParams.get('nonce') || '');
+      tgPrune();
+      const L = tgLogins.get(nonce);
+      if (!L) return send(res, 200, { state: 'expired' }), true;
+      // забрать вход может только тот браузер, который его начал
+      if (L.browser !== sha(cookies(req).sut_tg || '')) return send(res, 403, { error: 'Начните вход заново на этой странице.' }), true;
+      tgPoll();
+      if (L.state !== 'ok') return send(res, 200, { state: 'wait' }), true;
+      tgLogins.delete(nonce);
+      let u;
+      try { u = findOrCreate({ field: 'telegram_id', id: L.tg.id, email: null, name: L.tg.name }, userOf(req)); }
+      catch { return send(res, 409, { state: 'error', error: 'Этот Telegram уже привязан к другому аккаунту.' }), true; }
+      res.setHeader('Set-Cookie', [cookie('sut_tg', '', 0), startSession(u.id)]);
+      return send(res, 200, { state: 'ok', user: publicUser(u) }), true;
     }
 
     // ---- вход через Telegram (виджет в режиме перехода по ссылке) ----

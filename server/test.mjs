@@ -222,6 +222,22 @@ try {
     } finally { srv.close(); }
   });
 
+  await t('пересылка к Telegram: только методы бота и только разрешённый бот', async () => {
+    const seen = [];
+    const tgFetch = async (url, opts) => { seen.push([String(url), JSON.parse(opts.body)]); return new Response(JSON.stringify({ ok: true, result: [] })); };
+    const srv = http.createServer(createApp({ env: { DADATA_TOKEN: 't', TELEGRAM_RELAY_BOTS: '123' }, fetchImpl: tgFetch }));
+    await new Promise((r) => srv.listen(0, r));
+    const post = (p) => fetch('http://127.0.0.1:' + srv.address().port + p, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ chat_id: 1, text: 'x' }) });
+    try {
+      const ok = await post('/tg/bot123:AAA-b_c/sendMessage');
+      assert.equal(ok.status, 200);
+      assert.deepEqual(seen[0], ['https://api.telegram.org/bot123:AAA-b_c/sendMessage', { chat_id: 1, text: 'x' }]);
+      assert.equal((await post('/tg/bot123:AAA/deleteWebhook')).status, 404, 'чужие методы не пересылаем');
+      assert.equal((await post('/tg/bot999:AAA/sendMessage')).status, 403, 'чужой бот');
+      assert.equal(seen.length, 1);
+    } finally { srv.close(); }
+  });
+
   await t('в ИИ не уходят ФИО и адрес', () => {
     const f = factsForAi(PARTY);
     assert.equal(f.region, 'г Москва');

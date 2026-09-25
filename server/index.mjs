@@ -26,7 +26,11 @@
 //   ACCOUNTS_DB       — путь к файлу базы SQLite, например /var/lib/sut/sut.db
 //   SITE_URL, PUBLIC_API_URL, COOKIE_DOMAIN — https://fin-check.shop, https://api.fin-check.shop, .fin-check.shop
 //   YANDEX_CLIENT_ID, YANDEX_CLIENT_SECRET   — приложение на oauth.yandex.ru
-//   TELEGRAM_BOT_TOKEN, TELEGRAM_BOT_NAME    — бот для входа и уведомлений (домен задаётся в @BotFather: /setdomain)
+//   TELEGRAM_BOT_TOKEN, TELEGRAM_BOT_NAME    — бот для входа и уведомлений
+//   TELEGRAM_API_URL  — через что ходить к Telegram. Timeweb не пускает к api.telegram.org, поэтому по умолчанию
+//                       AI_UPSTREAM_URL + '/tg' (наш сервер на Render), а без него — напрямую
+// Пересылка к Telegram (на Render, где нет аккаунтов): POST /tg/bot<токен>/<метод> — только методы бота «Сути»;
+//   TELEGRAM_RELAY_BOTS — необязательно: номера ботов через запятую (часть токена до двоеточия), кому разрешена пересылка
 //   SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, MAIL_FROM — почта для кодов входа и уведомлений
 //
 // Запуск: node server/index.mjs   (зависимостей нет, нужен Node.js 22.13+ — для встроенной SQLite)
@@ -350,6 +354,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
   let fdb = fnsDb;
   if (fdb === undefined && env.FNS_DB) { try { fdb = new DatabaseSync(env.FNS_DB, { readOnly: true }); } catch (e) { console.error('FNS_DB:', e.message); fdb = null; } }
   const ipHits = new Map();
+  const relayHits = new Map();
   let day = { key: '', count: 0 };
 
   function cors(req, res) {
@@ -396,6 +401,24 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
     return s;
   }
 
+  // Пересылка к api.telegram.org для нашего сервера в России. Секретов не хранит: токен приходит в адресе и дальше не пишется
+  async function relayTelegram(req, res, url) {
+    const m = /^\/tg\/bot(\d+):([\w-]+)\/(getUpdates|sendMessage|answerCallbackQuery|editMessageText|getMe)$/.exec(url.pathname);
+    if (req.method !== 'POST' || !m) return send(res, 404, { ok: false, description: 'Не найдено' });
+    const allowed = (env.TELEGRAM_RELAY_BOTS || '').split(',').map((x) => x.trim()).filter(Boolean);
+    if (allowed.length && !allowed.includes(m[1])) return send(res, 403, { ok: false, description: 'Бот не разрешён' });
+    const ip = ipOf(req), t = now();
+    const hits = (relayHits.get(ip) || []).filter((x) => t - x < 60e3);
+    if (hits.length >= 120) return send(res, 429, { ok: false, description: 'Слишком много запросов' });
+    hits.push(t); relayHits.set(ip, hits);
+    if (relayHits.size > 1000) relayHits.clear();
+    const body = await readBody(req, 16384);
+    const r = await fetchImpl(`https://api.telegram.org/bot${m[1]}:${m[2]}/${m[3]}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(45000)
+    });
+    return send(res, r.status, await r.json().catch(() => ({ ok: false, description: 'Telegram ' + r.status })));
+  }
+
   return async function handler(req, res) {
     cors(req, res);
     const url = new URL(req.url, 'http://x');
@@ -404,6 +427,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
       if (req.method === 'GET' && (url.pathname === '/health' || url.pathname === '/')) {
         return send(res, 200, { ok: true, dadata: !!cfg.dadataToken, ai: aiProvider(cfg), accounts: !!accounts });
       }
+      if (!accounts && url.pathname.startsWith('/tg/')) return relayTelegram(req, res, url);
       if (req.method !== 'GET' && req.headers.origin && !cfg.origins.includes(req.headers.origin)) return send(res, 403, { error: 'Запрос с чужого сайта' });
       if (accounts && await accounts.handle(req, res, url, { send, readBody, getParty, innValid, ip: ipOf(req) })) return;
       if (req.method !== 'POST' || !['/api/org', '/api/org/ai', '/api/org/fns', '/api/org/suggest'].includes(url.pathname)) return send(res, 404, { error: 'Не найдено' });

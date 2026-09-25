@@ -632,7 +632,7 @@ ${SCHEMES.map((x) => schemeBlock(x)).join('\n')}
   <label class="consent"><input type="checkbox" id="consent"> Я соглашаюсь на обработку персональных данных по <a href="${url('/politika/')}">политике конфиденциальности</a></label>
   <div class="login-ways">
     <a class="btn login-yandex" id="login-yandex" href="#" hidden aria-disabled="true">Войти через Яндекс ID</a>
-    <div id="login-telegram" hidden><p class="note-sm">Отметьте согласие, чтобы появилась кнопка Telegram.</p></div>
+    <button class="btn" id="login-telegram" type="button" hidden>Войти через Telegram</button>
     <form id="login-email" hidden novalidate>
       <label class="f">Или по коду на почту<input type="email" id="email" autocomplete="email" placeholder="you@example.ru"></label>
       <label class="f" id="code-row" hidden>Код из письма<input type="text" id="code" inputmode="numeric" maxlength="6" autocomplete="one-time-code"></label>

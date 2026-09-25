@@ -13,7 +13,7 @@ const PARTY = () => ({
   data: { inn: '7707083893', type: 'LEGAL', branch_type: 'MAIN', name: { short_with_opf: 'ООО "РОМАШКА"' },
     state: { status: party.status }, management: { name: 'Иванов И. И.' }, address: { value: 'г Москва' }, finance: { debt: party.debt, penalty: 0 } }
 });
-const mails = [], tgSent = [];
+const mails = [], tgSent = [], tgQueue = [];
 async function fakeFetch(url, opts = {}) {
   const u = String(url);
   if (u.includes('dadata')) {
@@ -28,7 +28,10 @@ async function fakeFetch(url, opts = {}) {
     assert.equal(opts.headers.Authorization, 'OAuth yt');
     return new Response(JSON.stringify({ id: '555', default_email: 'Ivan@Example.ru', real_name: 'Иван Петров' }));
   }
-  if (u.startsWith('https://api.telegram.org/')) { tgSent.push(JSON.parse(opts.body)); return new Response(JSON.stringify({ ok: true })); }
+  if (u.startsWith('https://api.telegram.org/')) {
+    if (u.endsWith('/getUpdates')) return new Response(JSON.stringify({ ok: true, result: tgQueue.splice(0) }));
+    tgSent.push(JSON.parse(opts.body)); return new Response(JSON.stringify({ ok: true, result: {} }));
+  }
   throw new Error('неожиданный запрос ' + u);
 }
 const mailer = async (m) => { mails.push(m); };
@@ -158,6 +161,30 @@ try {
     assert.equal(me.json.user.name, 'Мария');
     assert.equal(me.json.user.notify, 'telegram');
     assert.equal(telegramCheck({ ...auth, hash }, BOT, clock + 2 * 864e5), null, 'подпись старше суток');
+  });
+
+  await t('вход через бота: согласие, свой браузер, подтверждение кнопкой', async () => {
+    assert.equal((await call('POST', '/auth/telegram/start', { body: {} })).status, 400, 'без согласия');
+    const st = await call('POST', '/auth/telegram/start', { body: { consent: true } });
+    assert.match(st.json.url, /^https:\/\/t\.me\/sut_bot\?start=[\w-]{22}$/);
+    const nonce = st.json.nonce, browser = st.setCookie.find((c) => c.startsWith('sut_tg=')).split(';')[0];
+    const status = (cookie) => call('GET', '/auth/telegram/status?nonce=' + nonce, { cookie, origin: null });
+    assert.equal((await status()).status, 403, 'чужой браузер не заберёт вход');
+    assert.equal((await status(browser)).json.state, 'wait');
+    const until = async (fn) => { for (let i = 0; i < 100 && !fn(); i++) await new Promise((r) => setTimeout(r, 30)); assert.ok(fn()); };
+    const from = { id: 999, first_name: 'Пётр', last_name: 'Сидоров' };
+    tgQueue.push({ update_id: 1, message: { chat: { id: 999, type: 'private' }, from, text: '/start ' + nonce } });
+    await until(() => tgSent.some((m) => m.reply_markup && m.chat_id === 999));
+    tgQueue.push({ update_id: 2, callback_query: { id: 'c0', from: { id: 111 }, data: 'login:' + nonce } });   // кнопку нажал другой человек
+    await until(() => tgSent.some((m) => m.callback_query_id === 'c0'));
+    assert.equal((await status(browser)).json.state, 'wait');
+    tgQueue.push({ update_id: 3, callback_query: { id: 'c1', from, data: 'login:' + nonce, message: { chat: { id: 999 }, message_id: 5 } } });
+    await until(() => tgSent.some((m) => m.message_id === 5));
+    const ok = await status(browser);
+    assert.equal(ok.json.state, 'ok');
+    const me = await call('GET', '/api/me', { cookie: sessionOf(ok.setCookie) });
+    assert.equal(me.json.user.name, 'Пётр Сидоров');
+    assert.equal((await status(browser)).json.state, 'expired', 'вход забирается один раз');
   });
 
   await t('привязка Telegram к уже вошедшему по почте: один аккаунт, второй раз — отказ', async () => {

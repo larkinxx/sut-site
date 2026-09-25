@@ -35,20 +35,36 @@
         var ok = consent.checked;
         ya.setAttribute('aria-disabled', String(!ok));
         ya.href = ok ? ACCT + '/auth/yandex?' + new URLSearchParams({ consent: '1', return: ret }) : '#';
-        // виджет Telegram вставляем только после согласия: в его адрес возврата входит consent=1
-        if (m.telegram && ok && !tg.querySelector('script')) {
-          tg.textContent = '';
-          var sc = document.createElement('script');
-          sc.async = true; sc.src = 'https://telegram.org/js/telegram-widget.js?22';
-          sc.setAttribute('data-telegram-login', m.telegram);
-          sc.setAttribute('data-size', 'large');
-          sc.setAttribute('data-request-access', 'write');   // чтобы бот мог присылать уведомления о компаниях
-          sc.setAttribute('data-auth-url', ACCT + '/auth/telegram/callback?' + new URLSearchParams({ consent: '1', return: ret }));
-          tg.appendChild(sc);
-        }
       }
       consent.addEventListener('change', sync); sync();
       ya.addEventListener('click', function (e) { if (!consent.checked) { e.preventDefault(); msgEl.textContent = 'Отметьте согласие на обработку данных.'; } });
+
+      // Вход через бота: открываем Telegram по ссылке t.me/<бот>?start=<код>, человек подтверждает вход кнопкой в боте,
+      // а эта страница раз в 2 секунды спрашивает сервер, готово ли
+      var polling = null;
+      tg.addEventListener('click', function () {
+        if (!consent.checked) { msgEl.textContent = 'Отметьте согласие на обработку данных.'; return; }
+        var win = window.open('', '_blank');      // открываем окно сразу по нажатию, иначе браузер его заблокирует
+        tg.disabled = true;
+        api('POST', '/auth/telegram/start', { consent: true }).then(function (r) {
+          tg.disabled = false;
+          if (!r.url) { if (win) win.close(); msgEl.textContent = r.error || 'Не получилось начать вход.'; return; }
+          if (win) { win.opener = null; win.location.href = r.url; }
+          msgEl.textContent = '';
+          msgEl.appendChild(document.createTextNode('В Telegram нажмите «Запустить», а затем «Войти на fin-check.shop». Эта страница обновится сама. Telegram не открылся? '));
+          var a = el('a', null, 'Открыть бота'); a.href = r.url; a.target = '_blank'; a.rel = 'noopener';
+          msgEl.appendChild(a);
+          clearInterval(polling);
+          var started = Date.now();
+          polling = setInterval(function () {
+            if (Date.now() - started > 10 * 60e3) { clearInterval(polling); msgEl.textContent = 'Время на вход истекло. Нажмите «Войти через Telegram» ещё раз.'; return; }
+            api('GET', '/auth/telegram/status?nonce=' + encodeURIComponent(r.nonce)).then(function (s) {
+              if (s.state === 'ok') { clearInterval(polling); location.replace(ret); }
+              else if (s.state === 'expired' || s.state === 'error' || s.status === 403) { clearInterval(polling); msgEl.textContent = s.error || 'Время на вход истекло. Нажмите «Войти через Telegram» ещё раз.'; }
+            }, function () {});
+          }, 2000);
+        }, function () { tg.disabled = false; if (win) win.close(); msgEl.textContent = 'Сервер входа не отвечает. Попробуйте позже.'; });
+      });
 
       var step = 'email', email = $('#email'), code = $('#code'), btn = $('#email-btn');
       form.addEventListener('submit', function (e) {
