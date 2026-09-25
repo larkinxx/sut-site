@@ -61,7 +61,7 @@ try {
 
   await t('health', async () => {
     const j = await (await fetch(base + '/health')).json();
-    assert.deepEqual(j, { ok: true, dadata: true, ai: true, accounts: false });
+    assert.deepEqual(j, { ok: true, dadata: true, ai: 'gemini', accounts: false });
   });
 
   await t('/api/org: данные + памятка + CORS', async () => {
@@ -157,6 +157,68 @@ try {
       assert.deepEqual(seen[0].body, { inn: '7707083893' });
       assert.equal(seen[0].url, 'https://up.example/api/org/ai');
       assert.equal(seen[0].origin, 'https://fin-check.shop');
+    } finally { srv.close(); }
+  });
+
+  await t('Алиса (Yandex AI Studio): ключ, каталог, модель; данные ФНС в запросе; без ФИО', async () => {
+    const seen = [];
+    const yaFetch = async (url, opts) => {
+      const u = String(url);
+      if (u === 'https://ai.api.cloud.yandex.net/v1/chat/completions') {
+        seen.push({ headers: opts.headers, body: JSON.parse(opts.body) });
+        return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(GOOD_AI) } }] }), { status: 200 });
+      }
+      if (u.includes('bo.nalog.gov.ru/advanced-search')) return new Response(JSON.stringify({ content: [{ id: 7, inn: '7707083893' }] }));
+      if (u.includes('/nbo/organizations/7/bfo/')) return new Response(JSON.stringify([{ period: '2025', typeCorrections: [{ correction: { financialResult: { current2110: 5000, current2400: 300 }, balance: {} } }] }]));
+      if (u.includes('generativelanguage')) throw new Error('Gemini не должен вызываться, когда настроена Алиса');
+      return fakeFetch(url, opts);
+    };
+    const srv = http.createServer(createApp({ env: { DADATA_TOKEN: 't', GEMINI_API_KEY: 'g', YANDEX_AI_KEY: 'yk', YANDEX_FOLDER_ID: 'b1gfolder' }, fetchImpl: yaFetch, fnsPause: 0, fnsDb: null }));
+    await new Promise((r) => srv.listen(0, r));
+    const b = 'http://127.0.0.1:' + srv.address().port;
+    try {
+      const h = await (await fetch(b + '/health')).json();
+      assert.equal(h.ai, 'yandex');
+      const j = await fetch(b + '/api/org/ai', { method: 'POST', headers: { 'content-type': 'application/json', origin: 'https://fin-check.shop' }, body: JSON.stringify({ inn: '7707083893' }) }).then((r) => r.json());
+      assert.equal(j.ai.summary, GOOD_AI.summary);
+      assert.equal(seen.length, 1);
+      assert.equal(seen[0].headers.Authorization, 'Api-Key yk');
+      assert.equal(seen[0].headers['OpenAI-Project'], 'b1gfolder');
+      assert.equal(seen[0].body.model, 'gpt://b1gfolder/aliceai-llm');
+      assert.equal(seen[0].body.messages[0].role, 'system');
+      const userMsg = seen[0].body.messages[1].content;
+      assert.match(userMsg, /"fns"/, 'данные ФНС переданы');
+      assert.match(userMsg, /"revenue": 5000000/);
+      assert.ok(!userMsg.includes('Иванов') && !userMsg.includes('Тестовая'), 'ФИО и точный адрес не уходят');
+    } finally { srv.close(); }
+  });
+
+  await t('поиск по названию: подсказки, кеш, лимит, без филиалов', async () => {
+    let calls = 0;
+    const sgFetch = async (url, opts) => {
+      if (String(url).includes('suggest/party')) {
+        calls++;
+        assert.equal(JSON.parse(opts.body).query.toLowerCase(), 'ромашка');
+        return new Response(JSON.stringify({ suggestions: [
+          { value: 'ООО "РОМАШКА"', data: { inn: '7707083893', type: 'LEGAL', branch_type: 'MAIN', state: { status: 'ACTIVE' }, address: { data: { city_with_type: 'г Москва' } }, okved: '62.01' } },
+          { value: 'ООО "РОМАШКА" филиал', data: { inn: '7707083893', type: 'LEGAL', branch_type: 'BRANCH', state: { status: 'ACTIVE' } } },
+          { value: 'ИП Ромашкин', data: { inn: '500100732259', type: 'INDIVIDUAL', state: { status: 'ACTIVE' }, address: { data: { region_with_type: 'Московская обл' } } } }
+        ] }), { status: 200 });
+      }
+      return fakeFetch(url, opts);
+    };
+    const srv = http.createServer(createApp({ env: { DADATA_TOKEN: 't' }, fetchImpl: sgFetch }));
+    await new Promise((r) => srv.listen(0, r));
+    const q = (text) => fetch('http://127.0.0.1:' + srv.address().port + '/api/org/suggest', { method: 'POST', headers: { 'content-type': 'application/json', origin: 'https://fin-check.shop' }, body: JSON.stringify({ q: text }) });
+    try {
+      assert.deepEqual((await (await q('ро')).json()).items, [], 'короче 3 символов — пусто, без запроса');
+      const j = await (await q('  Ромашка ')).json();
+      assert.deepEqual(j.items.map((x) => [x.name, x.type, x.place]), [['ООО "РОМАШКА"', 'ul', 'г Москва'], ['ИП Ромашкин', 'ip', 'Московская обл']]);
+      await q('ромашка');
+      assert.equal(calls, 1, 'второй раз из кеша');
+      let last;
+      for (let i = 0; i < 120; i++) last = await q('ромашка');
+      assert.equal(last.status, 429, 'лимит с одного адреса');
     } finally { srv.close(); }
   });
 

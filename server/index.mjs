@@ -6,12 +6,15 @@
 //   POST /api/org   {inn}   — данные из реестра (DaData) + памятка по правилам. Быстро.
 //   POST /api/org/ai {inn}  — ИИ-разбор этой организации простым языком. 5–15 секунд.
 //   POST /api/org/fns {inn} — бесплатные данные ФНС: отчётность, налоговый режим, налоги, долги (server/fns.mjs)
+//   POST /api/org/suggest {q} — поиск по названию, ИНН, адресу или руководителю (подсказки DaData)
 //   /auth/*, /api/me, /api/history, /api/watch, /api/calcs — необязательный вход и кабинет (server/accounts.mjs)
 //
 // Переменные окружения:
 //   DADATA_TOKEN      — ключ DaData (обязателен)
 //   GEMINI_API_KEY    — ключ Google Gemini (без него /api/org/ai отвечает «ИИ не подключён»)
 //   GEMINI_MODEL      — модель, по умолчанию gemini-3.8-flash
+//   YANDEX_AI_KEY, YANDEX_FOLDER_ID — разбор через Yandex AI Studio (Алиса AI); если заданы — вместо Gemini, прямо из России
+//   YANDEX_AI_MODEL   — модель, по умолчанию aliceai-llm (дешевле: aliceai-llm-flash)
 //   ALLOWED_ORIGINS   — адреса сайта через запятую (CORS), по умолчанию https://fin-check.shop,https://www.fin-check.shop
 //   AI_DAILY_LIMIT    — сколько ИИ-разборов в сутки максимум (защита бюджета), по умолчанию 300
 //   AI_PER_IP_HOUR    — сколько ИИ-разборов в час с одного адреса, по умолчанию 15
@@ -49,6 +52,7 @@ function loadOrgRules() {
 export const { innValid, advise } = loadOrgRules();
 
 const DADATA_URL = process.env.DADATA_API_URL || 'https://suggestions.dadata.ru/suggestions/api/4_1/rs/findById/party';
+const DADATA_SUGGEST_URL = process.env.DADATA_SUGGEST_URL || 'https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/party';
 const DAY = 864e5;
 
 export function config(env = process.env) {
@@ -56,6 +60,10 @@ export function config(env = process.env) {
     dadataToken: env.DADATA_TOKEN || '',
     geminiKey: env.GEMINI_API_KEY || '',
     geminiModel: env.GEMINI_MODEL || 'gemini-3.8-flash',
+    yandexKey: env.YANDEX_AI_KEY || '',
+    yandexFolder: env.YANDEX_FOLDER_ID || '',
+    yandexModel: env.YANDEX_AI_MODEL || 'aliceai-llm',
+    yandexBase: env.YANDEX_AI_URL || 'https://ai.api.cloud.yandex.net/v1',
     geminiBase: env.GEMINI_API_URL || 'https://generativelanguage.googleapis.com',
     origins: (env.ALLOWED_ORIGINS || 'https://fin-check.shop,https://www.fin-check.shop').split(',').map((s) => s.trim()).filter(Boolean),
     aiDailyLimit: Number(env.AI_DAILY_LIMIT || 300),
@@ -95,6 +103,28 @@ async function findParty(inn, cfg, fetchImpl) {
   const list = j.suggestions || [];
   if (!list.length) return null;
   return list.find((s) => s.data && s.data.branch_type === 'MAIN') || list[0];
+}
+
+/* ---------- поиск по названию: подсказки DaData ---------- */
+export async function suggestParty(q, cfg, fetchImpl) {
+  const res = await fetchImpl(DADATA_SUGGEST_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: 'Token ' + cfg.dadataToken },
+    body: JSON.stringify({ query: q, count: 8 }),
+    signal: AbortSignal.timeout(8000)
+  });
+  if (!res.ok) throw new Error('DaData suggest ' + res.status);
+  const j = await res.json();
+  return (j.suggestions || []).map((s) => {
+    const d = s.data || {};
+    const a = d.address?.data || {};
+    return {
+      name: s.value, inn: d.inn, kpp: d.kpp || null, type: d.type === 'INDIVIDUAL' ? 'ip' : 'ul',
+      status: d.state?.status || null, branch: d.branch_type === 'BRANCH',
+      place: a.city_with_type || a.settlement_with_type || a.region_with_type || null,
+      okved: d.okved || null
+    };
+  }).filter((x) => x.inn && !x.branch);
 }
 
 /* ---------- ИИ-разбор ---------- */
@@ -148,7 +178,7 @@ const mln = (n) => (n / 1e6).toLocaleString('ru-RU') + ' млн ₽';
 export const SYSTEM = `Ты — помощник сайта «Суть». Тебе дают сведения об организации или ИП из открытых реестров (через DaData). Твоя задача — дать читателю развёрнутый, содержательный разбор именно этой организации: не общие слова, а то, что конкретно следует из переданных полей. Читатель — предприниматель, бухгалтер или человек, который собирается заключить договор с этой организацией, и ему нужно понять детали, а не шаблон.
 
 ЖЁСТКИЕ ПРАВИЛА
-1. Опирайся только на переданные поля. Ничего не выдумывай: ни судов, ни долгов, ни новостей, ни репутации. Если поля нет или оно null — не делай по нему выводов; можешь сказать, что этих сведений в открытых данных нет.
+1. Опирайся только на переданные поля. В поле fns — официальные данные ФНС (налоговый режим, численность, уплаченные налоги, налоговый долг, отчётность по годам в рублях): используй их в первую очередь, называй год. Ничего не выдумывай: ни судов, ни долгов, ни новостей, ни репутации. Если поля нет или оно null — не делай по нему выводов; можешь сказать, что этих сведений в открытых данных нет.
 2. Не выноси вердиктов «надёжная/ненадёжная компания», «можно/нельзя доверять», не ставь оценок и баллов. Описывай наблюдения: что в данных и почему это стоит проверить.
 3. Не давай инвестиционных советов и не обещай доход. Не пиши «покупайте», «продавайте», «вкладывайте», «гарантированно», «без риска».
 4. Это не юридическая и не налоговая консультация.
@@ -224,6 +254,23 @@ function parseJsonLoose(text) {
   return JSON.parse(text.slice(a, b + 1));
 }
 
+async function callYandex(prompt, cfg, fetchImpl) {
+  const res = await fetchImpl(cfg.yandexBase + '/chat/completions', {
+    method: 'POST',
+    headers: { Authorization: 'Api-Key ' + cfg.yandexKey, 'OpenAI-Project': cfg.yandexFolder, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: `gpt://${cfg.yandexFolder}/${cfg.yandexModel}`,
+      messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: prompt }],
+      temperature: 0.2, max_tokens: 2500
+    }),
+    signal: AbortSignal.timeout(60000)
+  });
+  if (!res.ok) throw new Error(`Yandex AI ${res.status}`);
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content || '';
+}
+export const aiProvider = (cfg) => (cfg.yandexKey && cfg.yandexFolder ? 'yandex' : cfg.geminiKey ? 'gemini' : cfg.aiUpstream ? 'upstream' : null);
+
 async function callGemini(prompt, cfg, fetchImpl) {
   const models = [...new Set([cfg.geminiModel, 'gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.5-flash-lite'])];
   let last;
@@ -248,12 +295,30 @@ async function callGemini(prompt, cfg, fetchImpl) {
   throw last;
 }
 
-export async function analyze(suggestion, cfg, fetchImpl) {
+// Данные ФНС для ИИ — только сводные цифры компании, без людей
+export function fnsFactsForAi(f) {
+  if (!f || (!f.pb && !f.bo)) return null;
+  const p = f.pb || {};
+  return {
+    tax_regime: p.regime && p.regime.known ? (p.regime.names.length ? p.regime.names.join(', ') : 'общая система') : null,
+    employees: p.employees && p.employees[0] ? p.employees[0] : null,
+    taxes_paid: p.taxesPaid ? { year: p.taxesPaid.year, total: p.taxesPaid.total } : null,
+    tax_arrears: p.arrears ? { total: p.arrears.total, as_of: p.arrears.asOf } : null,
+    msp: p.msp ? p.msp.category : null,
+    mass_address: p.massAddress ?? null,
+    reports: f.bo ? f.bo.years.map((y) => ({ year: y.year, revenue: y.revenue, net_profit: y.profit, assets: y.assets, equity: y.equity })) : null
+  };
+}
+
+export async function analyze(suggestion, cfg, fetchImpl, fns = null) {
   const facts = factsForAi(suggestion);
+  const extra = fnsFactsForAi(fns);
+  if (extra) facts.fns = extra;         // режим, численность, налоги, долги и отчётность из данных ФНС
   const prompt = 'Сведения из реестра (JSON):\n' + JSON.stringify(facts, null, 1) + '\n\nСегодня: ' + new Date().toISOString().slice(0, 10);
   let lastErr;
   for (let attempt = 0; attempt < 2; attempt++) {
-    const text = await callGemini(attempt ? prompt + '\n\nПредыдущий ответ не прошёл проверку, строго соблюдай правила и формат.' : prompt, cfg, fetchImpl);
+    const call = aiProvider(cfg) === 'yandex' ? callYandex : callGemini;
+    const text = await call(attempt ? prompt + '\n\nПредыдущий ответ не прошёл проверку, строго соблюдай правила и формат.' : prompt, cfg, fetchImpl);
     try {
       const a = parseJsonLoose(text);
       const errs = validateAi(a);
@@ -279,6 +344,8 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
   const partyCache = makeCache(12 * 3600e3);
   const aiCache = makeCache(DAY);
   const fnsCache = makeCache(DAY);
+  const suggestCache = makeCache(3600e3, 20000);
+  const suggestHits = new Map();
   // база открытых данных ФНС открывается только на чтение; если её ещё нет — работаем без неё
   let fdb = fnsDb;
   if (fdb === undefined && env.FNS_DB) { try { fdb = new DatabaseSync(env.FNS_DB, { readOnly: true }); } catch (e) { console.error('FNS_DB:', e.message); fdb = null; } }
@@ -335,15 +402,29 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
     try {
       if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
       if (req.method === 'GET' && (url.pathname === '/health' || url.pathname === '/')) {
-        return send(res, 200, { ok: true, dadata: !!cfg.dadataToken, ai: !!cfg.geminiKey, accounts: !!accounts });
+        return send(res, 200, { ok: true, dadata: !!cfg.dadataToken, ai: aiProvider(cfg), accounts: !!accounts });
       }
       if (req.method !== 'GET' && req.headers.origin && !cfg.origins.includes(req.headers.origin)) return send(res, 403, { error: 'Запрос с чужого сайта' });
       if (accounts && await accounts.handle(req, res, url, { send, readBody, getParty, innValid, ip: ipOf(req) })) return;
-      if (req.method !== 'POST' || !['/api/org', '/api/org/ai', '/api/org/fns'].includes(url.pathname)) return send(res, 404, { error: 'Не найдено' });
+      if (req.method !== 'POST' || !['/api/org', '/api/org/ai', '/api/org/fns', '/api/org/suggest'].includes(url.pathname)) return send(res, 404, { error: 'Не найдено' });
       if (req.headers.origin && !cfg.origins.includes(req.headers.origin)) return send(res, 403, { error: 'Запрос с чужого сайта' });
       if (!cfg.dadataToken) return send(res, 503, { error: 'Проверка организаций не подключена.' });
 
       const body = await readBody(req);
+      if (url.pathname === '/api/org/suggest') {
+        const q = String(body.q || '').replace(/\s+/g, ' ').trim().slice(0, 100);
+        if (q.length < 3) return send(res, 200, { items: [] });
+        // лимит: 120 запросов за 10 минут с одного адреса — хватает для набора текста, но не для выкачивания базы
+        const ip = ipOf(req), t = now();
+        const hits = (suggestHits.get(ip) || []).filter((x) => t - x < 600e3);
+        if (hits.length >= 120) return send(res, 429, { error: 'Слишком много запросов. Подождите несколько минут.' });
+        hits.push(t); suggestHits.set(ip, hits);
+        if (suggestHits.size > 20000) suggestHits.clear();
+        const key = q.toLowerCase();
+        let items = suggestCache.get(key);
+        if (!items) { items = await suggestParty(q, cfg, fetchImpl); suggestCache.set(key, items); }
+        return send(res, 200, { items });
+      }
       const inn = String(body.inn || '').replace(/\s/g, '');
       if (!innValid(inn)) return send(res, 400, { error: 'Проверьте ИНН: у организации 10 цифр, у ИП 12, и контрольные цифры должны сходиться.' });
 
@@ -363,13 +444,14 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
       }
 
       // /api/org/ai
-      if (!cfg.geminiKey && !cfg.aiUpstream) return send(res, 200, { ai: null, reason: 'Экспресс-разбор пока не подключён.' });
+      const provider = aiProvider(cfg);
+      if (!provider) return send(res, 200, { ai: null, reason: 'Экспресс-разбор пока не подключён.' });
       const cached = aiCache.get(inn);
       if (cached) return send(res, 200, { ai: cached, cached: true });
       const limited = allowAi(ipOf(req));
       if (limited) return send(res, 200, { ai: null, reason: limited });
       let ai;
-      if (cfg.aiUpstream) {
+      if (provider === 'upstream') {
         // Пересылаем на сервер за рубежом: кеш и лимиты остаются здесь, туда уходит только ИНН
         const r = await fetchImpl(cfg.aiUpstream + '/api/org/ai', {
           method: 'POST',
@@ -381,7 +463,10 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
         if (!j.ai) return send(res, r.ok ? 200 : 502, { ai: null, reason: j.reason || j.error || 'Разбор сейчас недоступен. Попробуйте позже.' });
         ai = j.ai;
       } else {
-        ai = await analyze(s, cfg, fetchImpl);
+        // свой ИИ (Алиса или Gemini): добавляем данные ФНС, если они есть в кеше или быстро получаются
+        let f = fnsCache.get(inn);
+        if (!f) { try { f = await fnsData(inn, fetchImpl, fnsPause, fdb, now); if (f.pb || f.bo) fnsCache.set(inn, f); } catch { f = null; } }
+        ai = await analyze(s, cfg, fetchImpl, f);
       }
       aiCache.set(inn, ai);
       return send(res, 200, { ai });
@@ -404,7 +489,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const app = createApp({ db, mailer });
   // HOST=127.0.0.1 на своём сервере за Caddy; на Render и Timeweb Apps — 0.0.0.0
   http.createServer(app).listen(cfg.port, env.HOST || '0.0.0.0', () => {
-    console.log(`Суть API: порт ${cfg.port}, DaData ${cfg.dadataToken ? 'есть' : 'НЕТ'}, ИИ ${cfg.geminiKey ? cfg.geminiModel : 'выключен'}, аккаунты ${db ? env.ACCOUNTS_DB : 'выключены'}, сайты: ${cfg.origins.join(', ')}`);
+    console.log(`Суть API: порт ${cfg.port}, DaData ${cfg.dadataToken ? 'есть' : 'НЕТ'}, ИИ ${{ yandex: 'Алиса (' + cfg.yandexModel + ')', gemini: cfg.geminiModel, upstream: 'через ' + cfg.aiUpstream }[aiProvider(cfg)] || 'выключен'}, аккаунты ${db ? env.ACCOUNTS_DB : 'выключены'}, сайты: ${cfg.origins.join(', ')}`);
   });
   if (db) {
     // слежение: раз в сутки свежие данные из DaData (без кеша)
