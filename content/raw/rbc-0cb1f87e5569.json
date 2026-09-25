@@ -1,0 +1,15 @@
+{
+  "id": "rbc-0cb1f87e5569",
+  "sourceId": "rbc",
+  "sourceName": "РБК",
+  "kind": "Новости",
+  "official": false,
+  "category": "",
+  "title": "Концерты Мадонны",
+  "url": "https://www.rbc.ru/photoslider/6ab6b37b94feae98cad42f91",
+  "publishedAt": "2026-09-25T18:01:26.000Z",
+  "text": "Концерты Мадонны",
+  "fetchedAt": "2026-09-25T18:35:37.289Z",
+  "drafted": true,
+  "skipReason": "Новость не имеет отношения к экономике, личным финансам, налогам или малому бизнесу."
+}
