@@ -28,6 +28,9 @@ function str(v, name, max, errors, { required = true } = {}) {
   }
 }
 
+// Калькуляторы, которые можно показать под новостью (см. CALC_FN в src/build.mjs)
+export const CALCS = ['mortgage', 'prepay', 'deposit', 'depositTax', 'selfemployed'];
+
 export function validateCard(card, { forPublish = false } = {}) {
   const e = [];
   if (!card || typeof card !== 'object') return ['карточка не объект'];
@@ -60,7 +63,7 @@ export function validateCard(card, { forPublish = false } = {}) {
 
   if (!CONF.includes(card.confidence)) e.push('confidence: high, medium или low');
   str(card.confidenceNote, 'confidenceNote', 240, e, { required: false });
-  if (card.calc != null && !['mortgage', 'deposit'].includes(card.calc)) e.push('calc: mortgage, deposit или пусто');
+  if (card.calc != null && !CALCS.includes(card.calc)) e.push(`calc: ${CALCS.join(', ')} или пусто`);
   if (card.critical != null && typeof card.critical !== 'boolean') e.push('critical: true или false');
 
   if (forPublish || card.status === 'published') {

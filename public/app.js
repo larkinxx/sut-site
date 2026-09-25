@@ -135,6 +135,30 @@
     return r === 0 ? S / n : S * r / (1 - Math.pow(1 + r, -n));
   }
 
+  // Налоговые константы собирает build.mjs из config/finance.json
+  var FIN = {};
+  try { FIN = JSON.parse(($('#fin') || {}).textContent || '{}'); } catch (e) { FIN = {}; }
+  function latestYear() {
+    return Object.keys((FIN.depositTax && FIN.depositTax.freeLimit) || {}).sort().pop();
+  }
+  // НДФЛ с процентов за год: сверх лимита, 13% и 15% с части свыше порога
+  function depositTax(income, year) {
+    var t = FIN.depositTax, lim = t.freeLimit[year] || 0;
+    var base = Math.max(0, income - lim);
+    return base <= t.highFrom ? base * t.rate : t.highFrom * t.rate + (base - t.highFrom) * t.highRate;
+  }
+  function termRu(months) {
+    var m = Math.ceil(months - 1e-9), y = Math.floor(m / 12), r = m % 12;
+    return (y ? y + ' ' + plural(y, ['год', 'года', 'лет']) : '') + (y && r ? ' ' : '') + (r ? r + ' мес.' : '') || '0 мес.';
+  }
+  function row(label, value, cls) {
+    return '<div' + (cls ? ' class="' + cls + '"' : '') + '><span>' + label + '</span><strong>' + value + '</strong></div>';
+  }
+  function bind(root, run) {
+    $$('input, select', root).forEach(function (i) { i.addEventListener('input', run); i.addEventListener('change', run); });
+    run();
+  }
+
   $$('[data-calc=mortgage]').forEach(function (root) {
     var out = $('.result', root);
     var run = function () {
@@ -162,9 +186,90 @@
       out.innerHTML =
         '<div><span>Доход за срок</span><strong>' + rub(income) + '</strong></div>' +
         '<div><span>Сумма в конце</span><strong>' + rub(end) + '</strong></div>' +
-        '<div class="gain"><span>С поправкой на инфляцию</span><strong>' + rub(real) + '</strong></div>';
+        '<div class="gain"><span>С поправкой на инфляцию</span><strong>' + rub(real) + '</strong></div>' +
+        (m <= 12 && FIN.depositTax ? '<div><span>Налог, если других вкладов нет</span><strong>' + rub(depositTax(income, latestYear())) + '</strong></div>' : '');
     };
     $$('input', root).forEach(function (i) { i.addEventListener('input', run); });
     run();
+  });
+
+  $$('[data-calc=depositTax]').forEach(function (root) {
+    var out = $('.result', root);
+    var run = function () {
+      var S = num(root, 'sum'), rate = num(root, 'rate'), year = $('[name=year]', root).value;
+      if (!(S >= 0) || !(rate >= 0) || !FIN.depositTax) { out.innerHTML = ''; return; }
+      var income = S * rate / 100, lim = FIN.depositTax.freeLimit[year] || 0;
+      var tax = depositTax(income, year);
+      out.innerHTML =
+        row('Проценты за год, примерно', rub(income)) +
+        row('Не облагается в ' + year + ' году', rub(lim)) +
+        row('Облагается', rub(Math.max(0, income - lim))) +
+        row('Налог к уплате', rub(tax), tax > 0 ? 'warn' : 'gain') +
+        (rate > 0 ? row('Без налога при ставке ' + rate + '% можно держать до', rub(lim / (rate / 100))) : '');
+    };
+    bind(root, run);
+  });
+
+  $$('[data-calc=prepay]').forEach(function (root) {
+    var out = $('.result', root);
+    var run = function () {
+      var D = num(root, 'debt'), rate = num(root, 'rate'), y = num(root, 'years'), X = num(root, 'extra') || 0;
+      var n = y * 12, r = rate / 100 / 12, P = annuity(D, y, rate);
+      if (!isFinite(P) || X < 0) { out.innerHTML = ''; return; }
+      var interest0 = P * n - D, S2 = D - X;
+      var head = row('Платёж сейчас', rub(P) + ' / мес.') + row('Переплата по процентам сейчас', rub(interest0));
+      if (S2 <= 0) {
+        out.innerHTML = head + row('Этой суммы хватит, чтобы закрыть кредит', 'экономия ' + rub(interest0), 'gain');
+        return;
+      }
+      // Сократить срок: платёж прежний, считаем, за сколько месяцев выплатится остаток
+      var n2 = r === 0 ? S2 / P : -Math.log(1 - S2 * r / P) / Math.log(1 + r);
+      var savedA = interest0 - (P * n2 - S2);
+      // Уменьшить платёж: срок прежний
+      var P2 = annuity(S2, y, rate), savedB = interest0 - (P2 * n - S2);
+      var best = savedA >= savedB ? 'a' : 'b';
+      out.innerHTML = head +
+        '<div class="opt' + (best === 'a' ? ' best' : '') + '"><h3>Сократить срок</h3>' +
+          row('Платёж', rub(P) + ' / мес.') + row('Срок', termRu(n2) + ' вместо ' + termRu(n)) +
+          row('Экономия на процентах', rub(savedA), 'gain') + '</div>' +
+        '<div class="opt' + (best === 'b' ? ' best' : '') + '"><h3>Уменьшить платёж</h3>' +
+          row('Платёж', rub(P2) + ' / мес.') + row('Срок', 'прежний, ' + termRu(n)) +
+          row('Экономия на процентах', rub(savedB), 'gain') + '</div>' +
+        '<p class="verdict">Сокращение срока выгоднее на ' + rub(Math.abs(savedA - savedB)) + '. Уменьшение платежа имеет смысл, если нужен запас в месячном бюджете.</p>';
+    };
+    bind(root, run);
+  });
+
+  $$('[data-calc=selfemployed]').forEach(function (root) {
+    var out = $('.result', root);
+    var run = function () {
+      var monthly = num(root, 'income'), share = Math.min(100, Math.max(0, num(root, 'legal') || 0)) / 100;
+      var n = FIN.npd, ip = FIN.ip;
+      if (!(monthly >= 0) || !n || !ip) { out.innerHTML = ''; return; }
+      var inc = monthly * 12, fromPeople = inc * (1 - share), fromCompanies = inc * share;
+      // НПД: разовый вычет снижает ставку (4→3%, 6→4%), пока не израсходованы 10 000 ₽
+      var npd = fromPeople * n.rateIndividuals + fromCompanies * n.rateCompanies;
+      npd -= Math.min(n.deduction, fromPeople * n.deductionRateIndividuals + fromCompanies * n.deductionRateCompanies);
+      var npdOk = inc <= n.limit;
+      // ИП на УСН 6%: взносы обязательны, налог уменьшается на всю их сумму
+      var contrib = ip.fixed + Math.min(ip.extraMax, Math.max(0, inc - ip.extraFrom) * ip.extraRate);
+      var usn = Math.max(0, inc * ip.usnRate - contrib), ipTotal = contrib + usn;
+      var verdict = !npdOk
+        ? 'Доход больше ' + rub(n.limit) + ' в год: самозанятым оставаться нельзя, подходит только ИП.'
+        : npd < ipTotal
+          ? 'Самозанятость дешевле на ' + rub(ipTotal - npd) + ' в год. Но у самозанятого не идёт пенсионный стаж, а у ИП взносы его дают.'
+          : 'ИП на упрощёнке дешевле на ' + rub(npd - ipTotal) + ' в год, и взносы ИП идут в пенсионный стаж.';
+      out.innerHTML =
+        row('Доход за год', rub(inc)) +
+        '<div class="opt' + (npdOk && npd <= ipTotal ? ' best' : '') + (npdOk ? '' : ' off') + '"><h3>Самозанятый</h3>' +
+          row('Налог за год', npdOk ? rub(npd) : 'недоступно') + row('В среднем в месяц', npdOk ? rub(npd / 12) : '—') +
+          row('Взносы', 'не обязательны') + '</div>' +
+        '<div class="opt' + (!npdOk || ipTotal < npd ? ' best' : '') + '"><h3>ИП на УСН ' + ip.usnRate * 100 + '%</h3>' +
+          row('Страховые взносы', rub(contrib)) + row('Налог после вычета взносов', rub(usn)) +
+          row('Итого за год', rub(ipTotal)) + row('В среднем в месяц', rub(ipTotal / 12)) + '</div>' +
+        '<p class="verdict">' + verdict + '</p>' +
+        (inc > ip.ndsFrom ? '<p class="verdict warn">Доход больше ' + rub(ip.ndsFrom) + ' в год: на упрощёнке придётся платить ещё и НДС, он здесь не учтён.</p>' : '');
+    };
+    bind(root, run);
   });
 })();

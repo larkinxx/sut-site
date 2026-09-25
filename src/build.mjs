@@ -5,11 +5,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { ROOT, loadSite, loadCards, loadMaterials } from './lib/content.mjs';
+import { ROOT, loadSite, loadCards, loadMaterials, readJson } from './lib/content.mjs';
 import { AUDIENCES, AUDIENCE_TABS, esc, markTitle, dateRu, agoRu } from './lib/util.mjs';
 
 const withExamples = process.argv.includes('--examples');
 const site = loadSite();
+// Налоговые константы для калькуляторов: одно место, где их правят при изменении закона или ставки ЦБ
+const FIN = readJson('config/finance.json', {});
 // Адрес сайта можно задать снаружи (так делает автодеплой), не трогая config/site.json
 if (process.env.SITE_URL) site.siteUrl = process.env.SITE_URL.replace(/\/$/, '');
 if (process.env.BASE_PATH !== undefined) site.basePath = process.env.BASE_PATH;
@@ -113,7 +115,7 @@ ${body}
 <footer class="wrap">
   <p class="fine">${esc(site.disclaimer)} Как мы готовим новости: <a href="${url('/kak-my-rabotaem/')}">как мы работаем</a>. <a href="${url('/o-proekte/')}">О проекте</a>.${site.contactEmail ? ` Нашли ошибку? Напишите: <a href="mailto:${esc(site.contactEmail)}">${esc(site.contactEmail)}</a>.` : ''}</p>
 </footer>
-<script src="${url('/app.js')}?v=${jsV}" defer></script>
+${body.includes('data-calc=') ? `<script type="application/json" id="fin">${JSON.stringify(FIN).replace(/</g, '\\u003c')}</script>\n` : ''}<script src="${url('/app.js')}?v=${jsV}" defer></script>
 <script>
    (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
    m[i].l=1*new Date();
@@ -217,6 +219,46 @@ function calcDeposit(id = '') {
 </section>`;
 }
 
+const rubFmt = (n) => new Intl.NumberFormat('ru-RU').format(n) + ' ₽';
+const years = Object.keys((FIN.depositTax && FIN.depositTax.freeLimit) || {}).sort().reverse();
+function calcDepositTax(id = '') {
+  return `<section class="calc" data-calc="depositTax" aria-labelledby="ct${id}">
+  <h2 id="ct${id}">Налог на проценты по вкладам</h2>
+  <div class="fields">
+    <label class="f">Сумма на всех вкладах и счетах, ₽<input type="number" name="sum" value="2000000" min="0" step="50000" inputmode="numeric"></label>
+    <label class="f">Средняя ставка, % годовых<input type="number" name="rate" value="14" min="0" step="0.1" inputmode="decimal"></label>
+    <label class="f">Год, когда получены проценты<select name="year">${years.map((y, i) => `<option value="${y}"${i === 0 ? ' selected' : ''}>${y}</option>`).join('')}</select></label>
+  </div>
+  <div class="result" aria-live="polite"></div>
+  <p class="note-sm">Считаем проценты по всем банкам вместе: лимит без налога один на человека. Не облагается 1 млн ₽ × максимальная ключевая ставка на 1-е число месяцев года (${years.map((y) => `${y}: ${rubFmt(FIN.depositTax.freeLimit[y])}`).join(', ')}). Проценты по счетам со ставкой до 1% не учитываются. Налог приходит в уведомлении от ФНС и платится до 1 декабря следующего года.</p>
+</section>`;
+}
+function calcPrepay(id = '') {
+  return `<section class="calc" data-calc="prepay" aria-labelledby="cp${id}">
+  <h2 id="cp${id}">Сократить срок или платёж</h2>
+  <div class="fields">
+    <label class="f">Остаток долга, ₽<input type="number" name="debt" value="4000000" min="0" step="100000" inputmode="numeric"></label>
+    <label class="f">Ставка, %<input type="number" name="rate" value="16" min="0" step="0.1" inputmode="decimal"></label>
+    <label class="f">Осталось платить, лет<input type="number" name="years" value="18" min="1" max="40" step="1" inputmode="numeric"></label>
+    <label class="f">Досрочно вношу, ₽<input type="number" name="extra" value="300000" min="0" step="10000" inputmode="numeric"></label>
+  </div>
+  <div class="result cmp" aria-live="polite"></div>
+  <p class="note-sm">Расчёт для аннуитетного кредита: платёж одинаковый каждый месяц. Выбрать вариант можно в заявлении на досрочное погашение, банк обязан пересчитать график. Для ипотеки можно заявить налоговый вычет по уплаченным процентам, он не учтён.</p>
+</section>`;
+}
+function calcSelfEmployed(id = '') {
+  const n = FIN.npd || {}, ip = FIN.ip || {};
+  return `<section class="calc" data-calc="selfemployed" aria-labelledby="cs${id}">
+  <h2 id="cs${id}">Самозанятый или ИП на упрощёнке</h2>
+  <div class="fields">
+    <label class="f">Доход в месяц, ₽<input type="number" name="income" value="120000" min="0" step="5000" inputmode="numeric"></label>
+    <label class="f">Из них от компаний и ИП, %<input type="number" name="legal" value="50" min="0" max="100" step="5" inputmode="numeric"></label>
+  </div>
+  <div class="result cmp" aria-live="polite"></div>
+  <p class="note-sm">Самозанятый: ${n.rateIndividuals * 100}% с оплат от людей, ${n.rateCompanies * 100}% от компаний и ИП, разовый вычет ${rubFmt(n.deduction)} снижает ставку, пока не израсходован. Лимит дохода ${rubFmt(n.limit)} в год. Пенсионный стаж не идёт, если не платить взносы добровольно. ИП на УСН «Доходы» ${ip.usnRate * 100}%: фиксированные взносы ${rubFmt(ip.fixed)} за ${ip.year} год и ${ip.extraRate * 100}% с дохода сверх ${rubFmt(ip.extraFrom)} (не больше ${rubFmt(ip.extraMax)}). ИП без сотрудников уменьшает налог на всю сумму взносов. В некоторых регионах ставка УСН ниже. Расчёт на ${ip.year} год, без учёта сотрудников и НДС.</p>
+</section>`;
+}
+
 // ---------- страницы ----------
 // Главная: лента за 24 часа
 {
@@ -261,7 +303,8 @@ for (const c of cards) {
 </div>`;
   }).join('\n');
   const tabBtns = tabs.map((k) => `<button type="button" class="tab" data-a="${k}" aria-selected="false">${esc(AUDIENCES[k])}</button>`).join('');
-  const calc = c.calc === 'mortgage' ? calcMortgage(c.id.slice(-4)) : c.calc === 'deposit' ? calcDeposit(c.id.slice(-4)) : '';
+  const CALC_FN = { mortgage: calcMortgage, deposit: calcDeposit, depositTax: calcDepositTax, prepay: calcPrepay, selfemployed: calcSelfEmployed };
+  const calc = CALC_FN[c.calc] ? CALC_FN[c.calc](c.id.slice(-4)) : '';
   const conf = {
     high: ['lvl-h', 'Высокая', 'Факт подтверждён первоисточником, цифры сверены редактором.'],
     medium: ['lvl-m', 'Средняя', 'Факт подтверждён, но часть выводов зависит от условий конкретного договора или решения.'],
@@ -298,10 +341,36 @@ ${subscribeBlock()}`;
   write(`n/${c.id}/index.html`, layout({ title: c.title, desc: c.gloss, path: `/n/${c.id}/`, current: 'news', body, ld }));
 }
 
-// Калькуляторы
+// Калькуляторы: у каждого своя страница (её находят поиском), в разделе — список
+const CALCS = [
+  { slug: 'kredit', fn: calcMortgage, title: 'Калькулятор платежа по кредиту', short: 'Платёж по кредиту',
+    desc: 'Как изменится ежемесячный платёж по кредиту или ипотеке, если ставка вырастет или снизится.',
+    lede: 'Подставьте сумму, срок и две ставки: покажем платёж до и после и разницу за весь срок.' },
+  { slug: 'dosrochnoe-pogashenie', fn: calcPrepay, title: 'Досрочное погашение: сократить срок или платёж', short: 'Досрочное погашение',
+    desc: 'Калькулятор досрочного погашения кредита и ипотеки: сравнение сокращения срока и уменьшения платежа, экономия на процентах.',
+    lede: 'Введите остаток долга и сумму, которую хотите внести. Покажем оба варианта и сколько вы сэкономите на процентах.' },
+  { slug: 'vklad', fn: calcDeposit, title: 'Калькулятор доходности вклада', short: 'Доход по вкладу',
+    desc: 'Сколько принесёт вклад с учётом капитализации и сколько это в сегодняшних ценах при заданной инфляции.',
+    lede: 'Доход по вкладу с капитализацией и без, и что останется от него после инфляции.' },
+  { slug: 'nalog-na-vklady', fn: calcDepositTax, title: 'Калькулятор налога на проценты по вкладам', short: 'Налог на вклады',
+    desc: 'Сколько налога заплатить с процентов по вкладам: необлагаемый лимит, облагаемая часть и сумма НДФЛ.',
+    lede: 'Посчитаем, какая часть процентов не облагается, сколько налога придёт в уведомлении и при какой сумме вкладов налога не будет.' },
+  { slug: 'samozanyatyj-ili-ip', fn: calcSelfEmployed, title: 'Самозанятый или ИП: что выгоднее', short: 'Самозанятый или ИП',
+    desc: 'Сравнение налогов самозанятого (НПД) и ИП на УСН 6% с учётом страховых взносов при вашем доходе.',
+    lede: 'Введите доход в месяц и долю оплат от компаний: сравним налог самозанятого и ИП на упрощёнке со взносами.' }
+];
+for (const c of CALCS) {
+  write(`kalkulyatory/${c.slug}/index.html`, layout({
+    title: c.title, desc: c.desc, path: `/kalkulyatory/${c.slug}/`, current: 'calc',
+    body: `<a class="crumb" href="${url('/kalkulyatory/')}">${icon('arrowLeft')} Все калькуляторы</a>
+<h1 class="page">${esc(c.title)}</h1><p class="lede">${esc(c.lede)}</p>${c.fn('p')}
+<p class="note-sm">Расчёт идёт у вас в браузере, данные никуда не отправляются. Цифры в правилах сверены ${esc(new Date(FIN.checkedAt + 'T12:00:00+03:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Moscow' }))}</p>`
+  }));
+}
 write('kalkulyatory/index.html', layout({
-  title: 'Калькуляторы', desc: 'Платёж по кредиту и доход по вкладу.', path: '/kalkulyatory/', current: 'calc',
-  body: `<h1 class="page">Калькуляторы</h1><p class="lede">Подставьте свои цифры: расчёт происходит у вас в браузере, данные никуда не отправляются.</p>${calcMortgage('p')}${calcDeposit('p')}`
+  title: 'Калькуляторы', desc: 'Платёж по кредиту, досрочное погашение, доход и налог по вкладам, самозанятый или ИП.', path: '/kalkulyatory/', current: 'calc',
+  body: `<h1 class="page">Калькуляторы</h1><p class="lede">Подставьте свои цифры: расчёт происходит у вас в браузере, данные никуда не отправляются.</p>
+<ul class="calcs">${CALCS.map((c) => `<li><a href="${url(`/kalkulyatory/${c.slug}/`)}"><b>${esc(c.short)}</b><span>${esc(c.desc)}</span></a></li>`).join('')}</ul>`
 }));
 
 // Проверка организации по ИНН. Если задан ORG_API_URL — страница ходит на наш сервер (server/index.mjs): ключи не попадают
@@ -390,7 +459,7 @@ if (!site.siteUrl.includes('example')) {
   // lastmod: у ленты — время свежей новости, у карточки — время последней правки; у статичных страниц не ставим
   const fresh = cards.length ? cards[0].publishedAt : '';
   const urls = [
-    ['/', fresh], ['/arhiv/', fresh], ['/kalkulyatory/'], ['/organizacii/'], ['/fizlica/'], ['/kak-my-rabotaem/'], ['/o-proekte/'],
+    ['/', fresh], ['/arhiv/', fresh], ['/kalkulyatory/'], ...CALCS.map((c) => [`/kalkulyatory/${c.slug}/`]), ['/organizacii/'], ['/fizlica/'], ['/kak-my-rabotaem/'], ['/o-proekte/'],
     ...cards.map((c) => [`/n/${c.id}/`, (c.review && c.review.at) || c.publishedAt])
   ];
   write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(([u, m]) => `<url><loc>${site.siteUrl}${u}</loc>${m ? `<lastmod>${new Date(m).toISOString()}</lastmod>` : ''}</url>`).join('\n')}\n</urlset>\n`);
