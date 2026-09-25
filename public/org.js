@@ -393,6 +393,8 @@
   function postApi(path, inn) {
     return fetch(api + path, {
       method: 'POST',
+      // с сессией — только когда на сайте включён вход: проверка попадёт в историю вошедшего
+      credentials: document.documentElement.getAttribute('data-acct') ? 'include' : 'same-origin',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ inn: inn })
     }).then(function (r) {
@@ -405,6 +407,7 @@
       if (j.status !== 200 || !j.suggestion) { msg.textContent = j.error || 'Не получилось получить данные. Попробуйте позже.'; return; }
       msg.textContent = '';
       render(j.suggestion, j.advice);
+      accountActions(j.suggestion, j.signedIn);
       var box = document.getElementById('org-ai');
       if (!box) return;
       var pending = el('div', 'ai-pending');
@@ -418,6 +421,44 @@
     }).catch(function () {
       msg.textContent = 'Не получилось получить данные. Попробуйте позже.';
     });
+  }
+
+  /* ---------- кабинет: следить за компанией, «моя компания» ---------- */
+  var ACCT = (document.documentElement.getAttribute('data-acct') || '').replace(/\/$/, '');
+  function acctCall(method, path, body) {
+    return fetch(ACCT + path, {
+      method: method, credentials: 'include',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: body ? JSON.stringify(body) : undefined
+    }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { j.status = r.status; return j; }); });
+  }
+  function accountActions(s, signedIn) {
+    if (!ACCT || !s || !s.data) return;
+    var inn = s.data.inn;
+    var box = el('div', 'acct-actions');
+    if (!signedIn) {
+      var p = el('p', 'note-sm');
+      var a = el('a', null, 'Войдите');
+      a.href = '/vhod/?return=' + encodeURIComponent('/organizacii/#inn=' + inn);
+      p.appendChild(a);
+      p.appendChild(document.createTextNode(', чтобы следить за изменениями этой компании и сохранять историю проверок.'));
+      box.appendChild(p);
+    } else {
+      var note = el('span', 'note-sm');
+      var btn = function (label, fn) {
+        var b = el('button', 'share', label); b.type = 'button';
+        b.addEventListener('click', function () { b.disabled = true; fn().then(function (t) { note.textContent = t; }, function () { note.textContent = 'Не получилось, попробуйте позже.'; b.disabled = false; }); });
+        box.appendChild(b);
+      };
+      btn('Следить за изменениями', function () {
+        return acctCall('POST', '/api/watch', { inn: inn }).then(function (j) { return j.ok ? 'Добавлено в слежение: сообщим, если сменится статус, руководитель или появится долг.' : (j.error || 'Не получилось.'); });
+      });
+      btn('Это моя компания', function () {
+        return acctCall('PATCH', '/api/me', { company_inn: inn }).then(function (j) { return j.user ? 'Сохранено в кабинете как ваша компания.' : (j.error || 'Не получилось.'); });
+      });
+      box.appendChild(note);
+    }
+    out.insertBefore(box, out.children[2] || null);
   }
 
   form.addEventListener('submit', function (ev) {
@@ -447,4 +488,7 @@
       msg.textContent = 'Не получилось получить данные. Попробуйте позже.';
     });
   });
+
+  var m = /(?:^#|&)inn=(\d{10}|\d{12})/.exec(location.hash);
+  if (m) { input.value = m[1]; form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Event('submit')); }
 })();

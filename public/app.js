@@ -337,4 +337,35 @@
     bar.appendChild(note);
     res.parentNode.insertBefore(bar, res.nextSibling);
   });
+
+  /* ---------- Вход (необязательный): значок в шапке и «Сохранить расчёт» ---------- */
+  var ACCT = (document.documentElement.getAttribute('data-acct') || '').replace(/\/$/, '');
+  if (ACCT) {
+    fetch(ACCT + '/api/me', { credentials: 'include' }).then(function (r) { return r.json(); }).then(function (j) {
+      if (!j.user) return;
+      var b = $('#acct-btn');
+      if (b) { b.href = '/kabinet/'; b.title = 'Кабинет: ' + j.user.name; b.setAttribute('aria-label', 'Кабинет: ' + j.user.name); b.classList.add('on'); }
+      $$('.share-bar').forEach(function (bar) {
+        var root = bar.closest('[data-calc]');
+        var btn = document.createElement('button');
+        btn.type = 'button'; btn.className = 'share'; btn.textContent = 'Сохранить расчёт';
+        var note = $('.share-note', bar);
+        btn.addEventListener('click', function () {
+          var h = $('h2', root);
+          var vals = fieldsOf(root).filter(function (f) { return f.type !== 'checkbox'; }).slice(0, 2).map(function (f) {
+            return f.tagName === 'SELECT' ? f.value : new Intl.NumberFormat('ru-RU').format(Number(f.value) || 0);
+          });
+          btn.disabled = true;
+          fetch(ACCT + '/api/calcs', {
+            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ calc: root.getAttribute('data-calc'), title: (h ? h.textContent : 'Расчёт') + ' · ' + vals.join(', '), link: linkFor(root) })
+          }).then(function (r) { return r.json(); }).then(function (res) {
+            note.textContent = res.ok ? 'Сохранено в кабинете' : (res.error || 'Не получилось сохранить');
+            btn.disabled = false;
+          }, function () { note.textContent = 'Не получилось сохранить'; btn.disabled = false; });
+        });
+        bar.insertBefore(btn, note);
+      });
+    }).catch(function () { /* сервер входа недоступен — сайт работает как обычно */ });
+  }
 })();

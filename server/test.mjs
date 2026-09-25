@@ -61,7 +61,7 @@ try {
 
   await t('health', async () => {
     const j = await (await fetch(base + '/health')).json();
-    assert.deepEqual(j, { ok: true, dadata: true, ai: true });
+    assert.deepEqual(j, { ok: true, dadata: true, ai: true, accounts: false });
   });
 
   await t('/api/org: данные + памятка + CORS', async () => {

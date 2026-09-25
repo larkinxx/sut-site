@@ -1,0 +1,22 @@
+# systemd: сервер «Сути» (проверка организаций, разбор, аккаунты). Копия: /etc/systemd/system/sut-api.service
+[Unit]
+Description=Sut API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=sut
+WorkingDirectory=/opt/sut-site
+EnvironmentFile=/etc/sut/api.env
+ExecStart=/usr/bin/node server/index.mjs
+Restart=always
+RestartSec=3
+# защита: процесс видит систему только на чтение, писать может лишь в папку базы
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/sut
+
+[Install]
+WantedBy=multi-user.target

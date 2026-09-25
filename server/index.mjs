@@ -5,6 +5,7 @@
 //   GET  /health            — проверка, что сервер жив
 //   POST /api/org   {inn}   — данные из реестра (DaData) + памятка по правилам. Быстро.
 //   POST /api/org/ai {inn}  — ИИ-разбор этой организации простым языком. 5–15 секунд.
+//   /auth/*, /api/me, /api/history, /api/watch, /api/calcs — необязательный вход и кабинет (server/accounts.mjs)
 //
 // Переменные окружения:
 //   DADATA_TOKEN      — ключ DaData (обязателен)
@@ -14,14 +15,21 @@
 //   AI_DAILY_LIMIT    — сколько ИИ-разборов в сутки максимум (защита бюджета), по умолчанию 300
 //   AI_PER_IP_HOUR    — сколько ИИ-разборов в час с одного адреса, по умолчанию 15
 //   PORT              — порт, по умолчанию 3000
+// Аккаунты (включаются, только если задан ACCOUNTS_DB; по 152-ФЗ — только на сервере в России):
+//   ACCOUNTS_DB       — путь к файлу базы SQLite, например /var/lib/sut/sut.db
+//   SITE_URL, PUBLIC_API_URL, COOKIE_DOMAIN — https://fin-check.shop, https://api.fin-check.shop, .fin-check.shop
+//   YANDEX_CLIENT_ID, YANDEX_CLIENT_SECRET   — приложение на oauth.yandex.ru
+//   TELEGRAM_BOT_TOKEN, TELEGRAM_BOT_NAME    — бот для входа и уведомлений (домен задаётся в @BotFather: /setdomain)
+//   SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, MAIL_FROM — почта для кодов входа и уведомлений
 //
-// Запуск: node server/index.mjs   (зависимостей нет, нужен Node.js 20+)
+// Запуск: node server/index.mjs   (зависимостей нет, нужен Node.js 22.13+ — для встроенной SQLite)
 import http from 'node:http';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FORBIDDEN } from '../src/lib/schema.mjs';
+import { openDb, createAccounts, smtpMailer } from './accounts.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
@@ -247,7 +255,8 @@ export async function analyze(suggestion, cfg, fetchImpl) {
           summary: a.summary.trim(),
           signals: a.signals.map((s) => ({ level: s.level, text: s.text.trim() })),
           next_steps: a.next_steps.map((s) => s.trim()),
-          caveat: (a.caveat || '').trim()
+          caveat: (a.caveat || '').trim(),
+          tax_ideas: Array.isArray(a.tax_ideas) ? a.tax_ideas.map((t) => String(t).trim()).filter(Boolean) : []
         };
       }
       lastErr = new Error('проверка: ' + errs.join('; '));
@@ -257,8 +266,9 @@ export async function analyze(suggestion, cfg, fetchImpl) {
 }
 
 /* ---------- HTTP ---------- */
-export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now = () => Date.now() } = {}) {
+export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now = () => Date.now(), db = null, mailer = null } = {}) {
   const cfg = config(env);
+  const accounts = db ? createAccounts({ env, db, fetchImpl, mailer, now }) : null;
   const partyCache = makeCache(12 * 3600e3);
   const aiCache = makeCache(DAY);
   const ipHits = new Map();
@@ -269,7 +279,8 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
     if (o && cfg.origins.includes(o)) {
       res.setHeader('Access-Control-Allow-Origin', o);
       res.setHeader('Vary', 'Origin');
-      res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
       res.setHeader('Access-Control-Max-Age', '86400');
     }
@@ -278,10 +289,10 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
     res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
     res.end(JSON.stringify(obj));
   }
-  function readBody(req) {
+  function readBody(req, limit = 2048) {
     return new Promise((resolve, reject) => {
       let size = 0; const chunks = [];
-      req.on('data', (c) => { size += c.length; if (size > 2048) { reject(new Error('too big')); req.destroy(); } else chunks.push(c); });
+      req.on('data', (c) => { size += c.length; if (size > limit) { reject(new Error('too big')); req.destroy(); } else chunks.push(c); });
       req.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}')); } catch { reject(new Error('bad json')); } });
       req.on('error', reject);
     });
@@ -313,8 +324,10 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
     try {
       if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
       if (req.method === 'GET' && (url.pathname === '/health' || url.pathname === '/')) {
-        return send(res, 200, { ok: true, dadata: !!cfg.dadataToken, ai: !!cfg.geminiKey });
+        return send(res, 200, { ok: true, dadata: !!cfg.dadataToken, ai: !!cfg.geminiKey, accounts: !!accounts });
       }
+      if (req.method !== 'GET' && req.headers.origin && !cfg.origins.includes(req.headers.origin)) return send(res, 403, { error: 'Запрос с чужого сайта' });
+      if (accounts && await accounts.handle(req, res, url, { send, readBody, getParty, innValid, ip: ipOf(req) })) return;
       if (req.method !== 'POST' || !['/api/org', '/api/org/ai'].includes(url.pathname)) return send(res, 404, { error: 'Не найдено' });
       if (req.headers.origin && !cfg.origins.includes(req.headers.origin)) return send(res, 403, { error: 'Запрос с чужого сайта' });
       if (!cfg.dadataToken) return send(res, 503, { error: 'Проверка организаций не подключена.' });
@@ -327,7 +340,9 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
       if (!s) return send(res, 404, { error: 'По этому ИНН ничего не найдено.' });
 
       if (url.pathname === '/api/org') {
-        return send(res, 200, { suggestion: s, advice: advise(s.data || {}, now()) });
+        const u = accounts && accounts.userOf(req);
+        if (u) accounts.recordHistory(u, inn, s.data?.name?.short_with_opf || s.value);
+        return send(res, 200, { suggestion: s, advice: advise(s.data || {}, now()), signedIn: !!u });
       }
 
       // /api/org/ai
@@ -350,7 +365,19 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
 // Запуск как программы (а не импорт из тестов)
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const cfg = config();
-  http.createServer(createApp()).listen(cfg.port, '0.0.0.0', () => {
-    console.log(`Суть API: порт ${cfg.port}, DaData ${cfg.dadataToken ? 'есть' : 'НЕТ'}, ИИ ${cfg.geminiKey ? cfg.geminiModel : 'выключен'}, сайты: ${cfg.origins.join(', ')}`);
+  const env = process.env;
+  const db = env.ACCOUNTS_DB ? openDb(env.ACCOUNTS_DB) : null;
+  const mailer = env.SMTP_HOST ? smtpMailer({ host: env.SMTP_HOST, port: env.SMTP_PORT || 465, user: env.SMTP_USER, pass: env.SMTP_PASS, from: env.MAIL_FROM || env.SMTP_USER })
+    : env.MAIL_DEV_LOG === '1' ? async (m) => console.log(`[письмо для ${m.to}] ${m.subject}`)   // только для локальной разработки
+    : null;
+  const app = createApp({ db, mailer });
+  // HOST=127.0.0.1 на своём сервере за Caddy; на Render и Timeweb Apps — 0.0.0.0
+  http.createServer(app).listen(cfg.port, env.HOST || '0.0.0.0', () => {
+    console.log(`Суть API: порт ${cfg.port}, DaData ${cfg.dadataToken ? 'есть' : 'НЕТ'}, ИИ ${cfg.geminiKey ? cfg.geminiModel : 'выключен'}, аккаунты ${db ? env.ACCOUNTS_DB : 'выключены'}, сайты: ${cfg.origins.join(', ')}`);
   });
+  if (db) {
+    // слежение: раз в сутки свежие данные из DaData (без кеша)
+    const accounts = createAccounts({ env, db, fetchImpl: globalThis.fetch, mailer });
+    accounts.scheduleWatch((inn) => findParty(inn, cfg, globalThis.fetch));
+  }
 }

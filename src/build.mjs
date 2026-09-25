@@ -53,10 +53,16 @@ const PH = {
   arrowRight: 'M221.66,133.66l-72,72a8,8,0,0,1-11.32-11.32L196.69,136H40a8,8,0,0,1,0-16H196.69L138.34,61.66a8,8,0,0,1,11.32-11.32l72,72A8,8,0,0,1,221.66,133.66Z',
   arrowLeft: 'M224,128a8,8,0,0,1-8,8H59.31l58.35,58.34a8,8,0,0,1-11.32,11.32l-72-72a8,8,0,0,1,0-11.32l72-72a8,8,0,0,1,11.32,11.32L59.31,120H216A8,8,0,0,1,224,128Z'
 };
+const ICON_USER = '<svg viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="16" stroke-linecap="round" aria-hidden="true"><circle cx="128" cy="96" r="52"/><path d="M36 216c18-40 54-64 92-64s74 24 92 64"/></svg>';
 const icon = (name, cls = 'ph') => `<svg class="${cls}" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="${PH[name]}"/></svg>`;
 
 // ---------- шаблон страницы ----------
 const OG_IMAGE = site.siteUrl + '/og.png';
+// Необязательный вход: включается, только когда поднят сервер аккаунтов в России (ACCOUNT_API_URL, см. server/accounts.mjs)
+const ACCT = (process.env.ACCOUNT_API_URL || '').replace(/\/$/, '');
+// Политику публикуем, только когда указан оператор персональных данных (config/site.json → operator)
+const POLICY = !!(site.operator && site.operator.name && site.operator.inn);
+if (ACCT && !POLICY) { console.error('Вход включён (ACCOUNT_API_URL), но в config/site.json не заполнен operator — без политики конфиденциальности вход включать нельзя.'); process.exit(1); }
 const NAV = [
   ['/', 'Новости', 'news'],
   ['/kalkulyatory/', 'Калькуляторы', 'calc'],
@@ -66,18 +72,18 @@ const NAV = [
   // «Как мы работаем» и «О проекте» — в подвале каждой страницы
 ];
 
-function layout({ title, desc, path: pagePath, current, body, ld }) {
+function layout({ title, desc, path: pagePath, current, body, ld, noindex, scripts = '' }) {
   const full = title === site.name ? `${site.name}: ${site.tagline}` : `${title} — ${site.name}`;
   const canonical = site.siteUrl + pagePath;
   const nav = NAV.map(([href, label, id]) =>
     `<a href="${url(href)}"${id === current ? ' aria-current="page"' : ''}>${label}</a>`).join('\n      ');
   return `<!doctype html>
-<html lang="${site.lang}">
+<html lang="${site.lang}"${ACCT ? ` data-acct="${esc(ACCT)}"` : ''}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(full)}</title>
-<meta name="description" content="${esc(desc || site.tagline)}">
+<meta name="description" content="${esc(desc || site.tagline)}">${noindex ? '\n<meta name="robots" content="noindex">' : ''}
 <link rel="canonical" href="${esc(canonical)}">
 <meta property="og:title" content="${esc(full)}">
 <meta property="og:description" content="${esc(desc || site.tagline)}">
@@ -110,19 +116,22 @@ ${withExamples ? '<div class="wrap" style="padding:8px 16px 0;font:500 13px var(
     <nav aria-label="Основное меню">
       ${nav}
     </nav>
+    <div class="bar-btns">
+    ${ACCT ? `<a id="acct-btn" class="theme-btn acct-btn" href="${url('/vhod/')}" aria-label="Войти" title="Войти">${ICON_USER}</a>` : ''}
     <button id="theme-toggle" class="theme-btn" type="button" aria-label="Переключить тему оформления" title="Переключить тему">
       ${icon('sun', 'ic-sun')}
       ${icon('moon', 'ic-moon')}
     </button>
+    </div>
   </div>
 </header>
 <main class="wrap" id="main">
 ${body}
 </main>
 <footer class="wrap">
-  <p class="fine">${esc(site.disclaimer)} Как мы готовим новости: <a href="${url('/kak-my-rabotaem/')}">как мы работаем</a>. <a href="${url('/o-proekte/')}">О проекте</a>.${site.contactEmail ? ` Нашли ошибку? Напишите: <a href="mailto:${esc(site.contactEmail)}">${esc(site.contactEmail)}</a>.` : ''}</p>
+  <p class="fine">${esc(site.disclaimer)} Как мы готовим новости: <a href="${url('/kak-my-rabotaem/')}">как мы работаем</a>. <a href="${url('/o-proekte/')}">О проекте</a>.${POLICY ? ` <a href="${url('/politika/')}">Политика конфиденциальности</a>.` : ''}${site.contactEmail ? ` Нашли ошибку? Напишите: <a href="mailto:${esc(site.contactEmail)}">${esc(site.contactEmail)}</a>.` : ''}</p>
 </footer>
-${body.includes('data-calc=') || body.includes('id="org"') ? `<script type="application/json" id="fin">${JSON.stringify(FIN).replace(/</g, '\\u003c')}</script>\n` : ''}<script src="${url('/app.js')}?v=${jsV}" defer></script>
+${body.includes('data-calc=') || body.includes('id="org"') ? `<script type="application/json" id="fin">${JSON.stringify(FIN).replace(/</g, '\\u003c')}</script>\n` : ''}<script src="${url('/app.js')}?v=${jsV}" defer></script>${scripts}
 <script>
    (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
    m[i].l=1*new Date();
@@ -578,6 +587,66 @@ ${SCHEMES.map((x) => schemeBlock(x)).join('\n')}
 </div>`
 }));
 
+// ---------- вход, кабинет, политика ----------
+{
+  const op = site.operator || {};
+  const todo = (t) => `<mark class="todo">${esc(t)}</mark>`;
+  const opName = op.name ? esc(op.name) : todo('[ФИО или название оператора]');
+  const opInn = op.inn ? esc(op.inn) : todo('[ИНН]');
+  const mail = esc(site.contactEmail || '');
+  if (POLICY) write('politika/index.html', layout({
+    title: 'Политика конфиденциальности', path: '/politika/', current: '',
+    desc: 'Какие данные обрабатывает сайт «Суть», зачем, где они хранятся и как их удалить.',
+    body: `<h1 class="page">Политика конфиденциальности</h1>
+<div class="prose">
+<p>Оператор персональных данных — ${opName}, ИНН ${opInn}. Связаться: <a href="mailto:${mail}">${mail}</a>.</p>
+<h2>Без входа</h2>
+<p>Пользоваться сайтом можно без регистрации. Мы не собираем имя, почту или телефон. Для статистики посещений работает Яндекс Метрика: она использует файлы cookie и собирает обезличенные данные о визитах по правилам Яндекса. ИНН, который вы вводите в проверке организации, передаётся в сервис DaData для поиска по открытым реестрам; сведения об организации без ФИО руководителя и адреса — в сервис Google Gemini для экспресс-разбора. ФИО в проверке физлица никуда не отправляется.</p>
+<h2>Если вы вошли</h2>
+<p>Вход необязателен. Если вы входите, мы обрабатываем:</p>
+<ul>
+<li>идентификатор и имя из Яндекс ID или Telegram, либо адрес почты, если вы входите по коду;</li>
+<li>историю проверок, список компаний для слежения, сохранённые расчёты и ИНН вашей компании, если вы его указали;</li>
+<li>дату согласия, даты входа и технический файл cookie сессии.</li>
+</ul>
+<p>Цели: вход в кабинет, хранение истории и расчётов, уведомления об изменениях у компаний, за которыми вы следите. Основание — ваше согласие, которое вы даёте при входе.</p>
+<h2>Где и сколько хранятся данные</h2>
+<p>Данные вошедших пользователей хранятся на сервере в России. Код для входа по почте хранится 10 минут, сессия — 90 дней, остальные данные — пока у вас есть аккаунт. Мы не продаём и не передаём ваши данные третьим лицам, кроме случаев, которые нужны для работы сервиса: Яндекс и Telegram подтверждают вход, почтовый сервис доставляет коды и уведомления, Telegram доставляет уведомления, если вы вошли через него.</p>
+<h2>Ваши права</h2>
+<p>Вы можете в любой момент удалить аккаунт в кабинете: история, слежение, расчёты и сессии удаляются сразу и полностью. Отозвать согласие, уточнить или получить сведения о своих данных можно, написав на <a href="mailto:${mail}">${mail}</a>.</p>
+<p class="note-sm">Редакция от ${esc(new Date(FIN.checkedAt + 'T12:00:00+03:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Moscow' }))}.</p>
+</div>`
+  }));
+  if (ACCT) {
+    const accJs = `\n<script src="${url('/account.js')}?v=${hashOf('account.js')}" defer></script>`;
+    write('vhod/index.html', layout({
+      title: 'Вход', path: '/vhod/', current: '', noindex: true, scripts: accJs,
+      desc: 'Вход в кабинет «Сути»: история проверок, слежение за компаниями, сохранённые расчёты.',
+      body: `<h1 class="page">Вход</h1>
+<p class="lede">Вход необязателен: всё на сайте работает и без него. В кабинете сохраняется история проверок, можно следить за компаниями и хранить расчёты.</p>
+<section class="calc" id="login">
+  <p class="note-sm" id="login-err" role="alert" hidden></p>
+  <label class="consent"><input type="checkbox" id="consent"> Я соглашаюсь на обработку персональных данных по <a href="${url('/politika/')}">политике конфиденциальности</a></label>
+  <div class="login-ways">
+    <a class="btn login-yandex" id="login-yandex" href="#" hidden aria-disabled="true">Войти через Яндекс ID</a>
+    <div id="login-telegram" hidden><p class="note-sm">Отметьте согласие, чтобы появилась кнопка Telegram.</p></div>
+    <form id="login-email" hidden novalidate>
+      <label class="f">Или по коду на почту<input type="email" id="email" autocomplete="email" placeholder="you@example.ru"></label>
+      <label class="f" id="code-row" hidden>Код из письма<input type="text" id="code" inputmode="numeric" maxlength="6" autocomplete="one-time-code"></label>
+      <p><button class="btn" type="submit" id="email-btn">Получить код</button></p>
+    </form>
+  </div>
+  <p class="note-sm" id="login-msg" aria-live="polite"></p>
+</section>`
+    }));
+    write('kabinet/index.html', layout({
+      title: 'Кабинет', path: '/kabinet/', current: '', noindex: true, scripts: accJs,
+      body: `<h1 class="page">Кабинет</h1>
+<div id="cab"><p class="note-sm">Загружаем…</p></div>`
+    }));
+  }
+}
+
 // 404
 write('404.html', layout({
   title: 'Страница не найдена', path: '/404.html', current: '',
@@ -647,7 +716,7 @@ if (!site.siteUrl.includes('example')) {
   // lastmod: у ленты — время свежей новости, у карточки — время последней правки; у статичных страниц не ставим
   const fresh = cards.length ? cards[0].publishedAt : '';
   const urls = [
-    ['/', fresh], ['/arhiv/', fresh], ['/kalkulyatory/'], ...CALCS.map((c) => [`/kalkulyatory/${c.slug}/`]), ['/organizacii/'], ['/fizlica/'], ['/nalogi/'], ...TAX.map((t) => [`/nalogi/${t.slug}/`]), ['/nalogovye-shemy/'], ['/nalogi/blokirovka-scheta/'], ['/fizlica/dropy/'], ['/kak-my-rabotaem/'], ['/o-proekte/'],
+    ['/', fresh], ['/arhiv/', fresh], ['/kalkulyatory/'], ...CALCS.map((c) => [`/kalkulyatory/${c.slug}/`]), ['/organizacii/'], ['/fizlica/'], ['/nalogi/'], ...TAX.map((t) => [`/nalogi/${t.slug}/`]), ['/nalogovye-shemy/'], ['/nalogi/blokirovka-scheta/'], ['/fizlica/dropy/'], ['/kak-my-rabotaem/'], ['/o-proekte/'], ...(POLICY ? [['/politika/']] : []),
     ...cards.map((c) => [`/n/${c.id}/`, (c.review && c.review.at) || c.publishedAt])
   ];
   write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(([u, m]) => `<url><loc>${site.siteUrl}${u}</loc>${m ? `<lastmod>${new Date(m).toISOString()}</lastmod>` : ''}</url>`).join('\n')}\n</urlset>\n`);
