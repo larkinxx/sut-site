@@ -84,7 +84,7 @@ function layout({ title, desc, path: pagePath, current, body, ld, noindex, scrip
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(full)}</title>
 <meta name="description" content="${esc(desc || site.tagline)}">${noindex ? '\n<meta name="robots" content="noindex">' : ''}
-<link rel="canonical" href="${esc(canonical)}">
+<link rel="canonical" href="${esc(canonical)}">${(site.verification || {}).yandex ? `\n<meta name="yandex-verification" content="${esc(site.verification.yandex)}">` : ''}${(site.verification || {}).google ? `\n<meta name="google-site-verification" content="${esc(site.verification.google)}">` : ''}
 <meta property="og:title" content="${esc(full)}">
 <meta property="og:description" content="${esc(desc || site.tagline)}">
 <meta property="og:type" content="${ld ? 'article' : 'website'}">
