@@ -1,4 +1,9 @@
 /* Суть — палитра «газетная платина» (светлая по умолчанию) и «ночной океан» (тёмная, по кнопке) */
+/* PT Serif (SIL OFL, см. fonts/OFL.txt) раздаём сами: без запросов к Google и быстрее первая отрисовка */
+@font-face{font-family:"PT Serif";font-style:normal;font-weight:400;font-display:swap;src:url(fonts/pt-serif-400-cyrillic.woff2) format("woff2");unicode-range:U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116}
+@font-face{font-family:"PT Serif";font-style:normal;font-weight:400;font-display:swap;src:url(fonts/pt-serif-400-latin.woff2) format("woff2");unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+@font-face{font-family:"PT Serif";font-style:normal;font-weight:700;font-display:swap;src:url(fonts/pt-serif-700-cyrillic.woff2) format("woff2");unicode-range:U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116}
+@font-face{font-family:"PT Serif";font-style:normal;font-weight:700;font-display:swap;src:url(fonts/pt-serif-700-latin.woff2) format("woff2");unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
 :root{
   color-scheme:light;
   --r:3px;
@@ -59,8 +64,9 @@ h1.page{font:500 clamp(30px,5.6vw,42px)/1.15 var(--font-display);letter-spacing:
 .item.crit{border-left-color:var(--crit-line)}
 .item summary{list-style:none;cursor:pointer;display:flex;align-items:flex-start;gap:14px;position:relative;padding:20px 26px 20px 0}
 .item summary::-webkit-details-marker{display:none}
-.item summary::after{content:"";position:absolute;right:4px;top:29px;width:7px;height:7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);transition:transform .15s}
-.item[open] summary::after{transform:rotate(-135deg);top:32px}
+/* уголок раскрытия — Phosphor caret-down, цвет берётся из фона через маску */
+.item summary::after{content:"";position:absolute;right:0;top:25px;width:16px;height:16px;background:var(--muted);-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cpath d='M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cpath d='M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z'/%3E%3C/svg%3E") center/contain no-repeat;transition:transform .15s}
+.item[open] summary::after{transform:rotate(180deg)}
 .av{flex:none;width:30px;height:30px;margin-top:1px;border-radius:var(--r);background:transparent;border:1px solid var(--line);color:var(--accent);display:grid;place-items:center;font:700 14px/1 var(--font-display)}
 .tx{display:grid;gap:1px;min-width:0}
 .h{font:700 18px/1.28 var(--font-display);letter-spacing:-.003em;text-wrap:pretty}
@@ -159,6 +165,8 @@ footer .fine a{color:var(--accent)}
 .theme-btn{appearance:none;align-self:center;background:transparent;border:1px solid var(--line);color:var(--muted);width:36px;height:36px;border-radius:var(--r);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex:none}
 .theme-btn:hover{border-color:var(--accent);color:var(--accent)}
 .theme-btn svg{width:18px;height:18px}
+.ph{width:1.15em;height:1.15em;vertical-align:-.2em;flex:none}
+.crumb .ph{margin-right:2px}
 .theme-btn .ic-sun{display:none}
 :root[data-theme="dark"] .theme-btn .ic-sun{display:block}
 :root[data-theme="dark"] .theme-btn .ic-moon{display:none}

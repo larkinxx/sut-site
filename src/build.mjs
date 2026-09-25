@@ -39,11 +39,21 @@ const write = (rel, content) => {
 const hashOf = (f) => crypto.createHash('md5').update(fs.readFileSync(path.join(ROOT, 'public', f))).digest('hex').slice(0, 8);
 const cssV = hashOf('style.css');
 const jsV = hashOf('app.js');
-for (const f of fs.readdirSync(path.join(ROOT, 'public'))) {
-  fs.copyFileSync(path.join(ROOT, 'public', f), path.join(DIST, f));
-}
+fs.cpSync(path.join(ROOT, 'public'), DIST, { recursive: true });
+
+// ---------- иконки ----------
+// Phosphor Icons (regular, MIT, phosphoricons.com): встраиваем SVG прямо в страницу, без шрифта иконок и внешних запросов
+const PH = {
+  sun: 'M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm72,88a64,64,0,1,1-64-64A64.07,64.07,0,0,1,192,128Zm-16,0a48,48,0,1,0-48,48A48.05,48.05,0,0,0,176,128ZM58.34,69.66A8,8,0,0,0,69.66,58.34l-16-16A8,8,0,0,0,42.34,53.66Zm0,116.68-16,16a8,8,0,0,0,11.32,11.32l16-16a8,8,0,0,0-11.32-11.32ZM192,72a8,8,0,0,0,5.66-2.34l16-16a8,8,0,0,0-11.32-11.32l-16,16A8,8,0,0,0,192,72Zm5.66,114.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32-11.32ZM48,128a8,8,0,0,0-8-8H16a8,8,0,0,0,0,16H40A8,8,0,0,0,48,128Zm80,80a8,8,0,0,0-8,8v24a8,8,0,0,0,16,0V216A8,8,0,0,0,128,208Zm112-88H216a8,8,0,0,0,0,16h24a8,8,0,0,0,0-16Z',
+  moon: 'M233.54,142.23a8,8,0,0,0-8-2,88.08,88.08,0,0,1-109.8-109.8,8,8,0,0,0-10-10,104.84,104.84,0,0,0-52.91,37A104,104,0,0,0,136,224a103.09,103.09,0,0,0,62.52-20.88,104.84,104.84,0,0,0,37-52.91A8,8,0,0,0,233.54,142.23ZM188.9,190.34A88,88,0,0,1,65.66,67.11a89,89,0,0,1,31.4-26A106,106,0,0,0,96,56,104.11,104.11,0,0,0,200,160a106,106,0,0,0,14.92-1.06A89,89,0,0,1,188.9,190.34Z',
+  checkCircle: 'M173.66,98.34a8,8,0,0,1,0,11.32l-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35A8,8,0,0,1,173.66,98.34ZM232,128A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128Z',
+  arrowRight: 'M221.66,133.66l-72,72a8,8,0,0,1-11.32-11.32L196.69,136H40a8,8,0,0,1,0-16H196.69L138.34,61.66a8,8,0,0,1,11.32-11.32l72,72A8,8,0,0,1,221.66,133.66Z',
+  arrowLeft: 'M224,128a8,8,0,0,1-8,8H59.31l58.35,58.34a8,8,0,0,1-11.32,11.32l-72-72a8,8,0,0,1,0-11.32l72-72a8,8,0,0,1,11.32,11.32L59.31,120H216A8,8,0,0,1,224,128Z'
+};
+const icon = (name, cls = 'ph') => `<svg class="${cls}" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="${PH[name]}"/></svg>`;
 
 // ---------- шаблон страницы ----------
+const OG_IMAGE = site.siteUrl + '/og.png';
 const NAV = [
   ['/', 'Новости', 'news'],
   ['/kalkulyatory/', 'Калькуляторы', 'calc'],
@@ -69,11 +79,16 @@ function layout({ title, desc, path: pagePath, current, body, ld }) {
 <meta property="og:description" content="${esc(desc || site.tagline)}">
 <meta property="og:type" content="${ld ? 'article' : 'website'}">
 <meta property="og:locale" content="ru_RU">
+<meta property="og:site_name" content="${esc(site.name)}">
+<meta property="og:url" content="${esc(canonical)}">
+<meta property="og:image" content="${esc(OG_IMAGE)}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#F3EEE1" id="theme-color-meta">
 <script>(function(){try{if(localStorage.getItem('theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();</script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=PT+Serif:wght@400;700&display=swap">
+<link rel="preload" href="${url('/fonts/pt-serif-400-cyrillic.woff2')}" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="${url('/fonts/pt-serif-700-cyrillic.woff2')}" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="${url('/style.css')}?v=${cssV}">
 ${ld ? `<script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script>` : ''}
 </head>
@@ -87,8 +102,8 @@ ${withExamples ? '<div class="wrap" style="padding:8px 16px 0;font:500 13px var(
       ${nav}
     </nav>
     <button id="theme-toggle" class="theme-btn" type="button" aria-label="Переключить тему оформления" title="Переключить тему">
-      <svg class="ic-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
-      <svg class="ic-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>
+      ${icon('sun', 'ic-sun')}
+      ${icon('moon', 'ic-moon')}
     </button>
   </div>
 </header>
@@ -120,7 +135,7 @@ ${body}
 }
 
 // ---------- блоки ----------
-const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.7 2.7L16 9.8"/></svg>';
+const ICON_CHECK = icon('checkCircle');
 const cardUrl = (c) => url(`/n/${c.id}/`);
 const audNames = (c) => c.affects.map((a) => AUDIENCES[a].toLowerCase()).join(', ');
 
@@ -137,7 +152,7 @@ function feedItem(c) {
     <p class="gloss">${esc(c.gloss)}</p>
     <p class="tip"><b>Что делать:</b> ${esc(c.tip)}</p>
     <span class="isrc">${esc(c.source.name)} · ${esc(audNames(c))}${c.review && c.review.auto ? ' · подготовлено ИИ' : ''}</span>
-    <a class="full" href="${cardUrl(c)}">Полный разбор →</a>
+    <a class="full" href="${cardUrl(c)}">Полный разбор ${icon('arrowRight')}</a>
   </div>
 </details>`;
 }
@@ -152,7 +167,7 @@ function subscribeBlock() {
     <input type="email" name="email" required autocomplete="email" placeholder="Ваша почта" aria-label="Ваша почта">
     <button class="btn" type="submit">Подписаться</button>
   </form>` : ''}
-  ${site.telegramUrl ? `<div class="sublinks"><a class="full" href="${esc(site.telegramUrl)}" rel="noopener">Читать в Telegram →</a></div>` : ''}
+  ${site.telegramUrl ? `<div class="sublinks"><a class="full" href="${esc(site.telegramUrl)}" rel="noopener">Читать в Telegram ${icon('arrowRight')}</a></div>` : ''}
 </section>`;
 }
 
@@ -253,7 +268,7 @@ for (const c of cards) {
     low: ['lvl-l', 'Низкая', 'Первоисточник неполный или выводы предварительные: сверяйтесь с оригиналом.']
   }[c.confidence];
   const learn = materialsFor(c.topics || []);
-  const body = `<a class="crumb" href="${url('/')}">← Все новости</a>
+  const body = `<a class="crumb" href="${url('/')}">${icon('arrowLeft')} Все новости</a>
 <article>
   <div class="meta">${c.critical ? '<span class="lvl">Важно</span>' : ''}<span>Новость</span><time datetime="${esc(c.publishedAt)}">${esc(dateRu(c.publishedAt))}</time><span class="ago" data-ts="${ts}"></span></div>
   <h1 class="art">${markTitle(c.title, c.highlight)}</h1>
@@ -272,10 +287,13 @@ for (const c of cards) {
 ${learn.length ? `<section class="grp"><h2>Где подучиться</h2><div class="mats" style="margin-top:12px">${learn.map(materialRow).join('')}</div>
 <p class="note-sm">Метка «Партнёрская ссылка» значит, что сайт получает комиссию.</p></section>` : ''}
 ${subscribeBlock()}`;
+  const org = { '@type': 'Organization', name: site.name, url: site.siteUrl + '/', logo: { '@type': 'ImageObject', url: site.siteUrl + '/logo.png', width: 512, height: 512 } };
   const ld = {
     '@context': 'https://schema.org', '@type': 'NewsArticle', headline: c.title,
-    datePublished: c.publishedAt, inLanguage: 'ru', description: c.gloss,
-    publisher: { '@type': 'Organization', name: site.name }, isBasedOn: c.source.url
+    datePublished: c.publishedAt, dateModified: (c.review && c.review.at) || c.publishedAt,
+    inLanguage: 'ru', description: c.gloss, image: [OG_IMAGE],
+    mainEntityOfPage: { '@type': 'WebPage', '@id': site.siteUrl + `/n/${c.id}/` },
+    author: org, publisher: org, isBasedOn: c.source.url
   };
   write(`n/${c.id}/index.html`, layout({ title: c.title, desc: c.gloss, path: `/n/${c.id}/`, current: 'news', body, ld }));
 }
@@ -369,8 +387,13 @@ ${site.editorialContact || site.contactEmail ? `<h2>Контакты</h2><p>Во
 // robots и sitemap
 write('robots.txt', `User-agent: *\nAllow: /\n${site.siteUrl.includes('example') ? '' : `Sitemap: ${site.siteUrl}/sitemap.xml\n`}`);
 if (!site.siteUrl.includes('example')) {
-  const urls = ['/', '/arhiv/', '/kalkulyatory/', '/organizacii/', '/kak-my-rabotaem/', '/o-proekte/', ...cards.map((c) => `/n/${c.id}/`)];
-  write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map((u) => `<url><loc>${site.siteUrl}${u}</loc></url>`).join('\n')}\n</urlset>\n`);
+  // lastmod: у ленты — время свежей новости, у карточки — время последней правки; у статичных страниц не ставим
+  const fresh = cards.length ? cards[0].publishedAt : '';
+  const urls = [
+    ['/', fresh], ['/arhiv/', fresh], ['/kalkulyatory/'], ['/organizacii/'], ['/fizlica/'], ['/kak-my-rabotaem/'], ['/o-proekte/'],
+    ...cards.map((c) => [`/n/${c.id}/`, (c.review && c.review.at) || c.publishedAt])
+  ];
+  write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(([u, m]) => `<url><loc>${site.siteUrl}${u}</loc>${m ? `<lastmod>${new Date(m).toISOString()}</lastmod>` : ''}</url>`).join('\n')}\n</urlset>\n`);
 }
 
 console.log(`Сайт собран: ${cards.length} новостей, ${materials.length} материалов -> dist/`);
