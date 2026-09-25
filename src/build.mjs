@@ -406,10 +406,13 @@ write('kalkulyatory/index.html', layout({
 // в браузер, и есть ИИ-разбор. Иначе старый режим: ключ DADATA_TOKEN вшивается в страницу при сборке.
 write('organizacii/index.html', layout({
   title: 'Проверка организации по ИНН', desc: 'Проверка организации или ИП по ИНН: статус, реквизиты и руководитель из открытых реестров, памятка о налогах и сроках.', path: '/organizacii/', current: 'org',
-  body: `<h1 class="page">Проверка организации по ИНН</h1><p class="lede">Введите ИНН организации или ИП: покажем данные из открытых реестров и памятку, о чём стоит помнить.</p>
+  body: `<h1 class="page">Проверка организации по ИНН</h1><p class="lede">Введите ИНН${process.env.ORG_API_URL ? ' или название' : ''} организации или ИП: покажем данные из открытых реестров и памятку, о чём стоит помнить.</p>
 <section class="calc" id="org" data-api="${esc(process.env.ORG_API_URL || '')}" data-token="${esc(process.env.ORG_API_URL ? '' : (process.env.DADATA_TOKEN || ''))}">
   <form id="org-form" novalidate>
-    <label class="f">ИНН (10 или 12 цифр)<input type="text" id="org-inn" inputmode="numeric" maxlength="12" autocomplete="off" placeholder="7707083893"></label>
+    ${process.env.ORG_API_URL
+    ? `<label class="f" for="org-inn">ИНН или название</label>
+    <div class="sug-wrap"><input type="text" id="org-inn" maxlength="100" autocomplete="off" spellcheck="false" placeholder="7707083893 или Сбербанк" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="org-sug"><ul id="org-sug" class="sug" role="listbox" aria-label="Найденные организации" hidden></ul></div>`
+    : '<label class="f">ИНН (10 или 12 цифр)<input type="text" id="org-inn" inputmode="numeric" maxlength="12" autocomplete="off" placeholder="7707083893"></label>'}
     <p><button class="btn" type="submit">Проверить</button></p>
   </form>
   <p class="note-sm" id="org-msg" aria-live="polite"></p>

@@ -606,10 +606,94 @@
     out.insertBefore(box, out.children[2] || null);
   }
 
+  /* ---------- поиск по названию: подсказки под полем (сервер: /api/org/suggest) ---------- */
+  var sug = document.getElementById('org-sug');
+  var STATUS_SUG = { LIQUIDATING: 'ликвидируется', LIQUIDATED: 'ликвидирована', BANKRUPT: 'банкротство', REORGANIZING: 'реорганизация' };
+  var sugItems = [], sugActive = -1, sugTimer = null, sugSeq = 0;
+  function sugClose() {
+    if (!sug) return;
+    sug.hidden = true; sug.textContent = ''; sugItems = []; sugActive = -1;
+    input.setAttribute('aria-expanded', 'false'); input.removeAttribute('aria-activedescendant');
+  }
+  function sugMark(i) {
+    sugActive = i;
+    Array.prototype.forEach.call(sug.children, function (li, k) { li.setAttribute('aria-selected', String(k === i)); });
+    if (i >= 0) { input.setAttribute('aria-activedescendant', 'org-sug-' + i); sug.children[i].scrollIntoView({ block: 'nearest' }); }
+    else input.removeAttribute('aria-activedescendant');
+  }
+  function sugPick(i) {
+    var it = sugItems[i];
+    if (!it) return;
+    sugClose();
+    input.value = it.inn;
+    form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Event('submit'));
+  }
+  function sugShow(items, q) {
+    sugItems = items; sugActive = -1; sug.textContent = '';
+    if (!items.length) {
+      var none = el('li', null); none.setAttribute('role', 'option'); none.setAttribute('aria-disabled', 'true');
+      none.appendChild(el('span', null, 'Ничего не нашли по запросу «' + q + '». Попробуйте другое написание или ИНН.'));
+      sug.appendChild(none);
+    }
+    items.forEach(function (it, i) {
+      var li = el('li', it.status && it.status !== 'ACTIVE' ? 'off' : null);
+      li.id = 'org-sug-' + i; li.setAttribute('role', 'option'); li.setAttribute('aria-selected', 'false');
+      li.appendChild(el('b', null, it.name));
+      var meta = ['ИНН ' + it.inn + (it.type === 'ip' ? ' · ИП' : '')];
+      if (it.place) meta.push(it.place);
+      if (STATUS_SUG[it.status]) meta.push(STATUS_SUG[it.status]);
+      li.appendChild(el('span', null, meta.join(' · ')));
+      // mousedown, а не click: иначе поле теряет фокус раньше и список закрывается
+      li.addEventListener('mousedown', function (e) { e.preventDefault(); sugPick(i); });
+      sug.appendChild(li);
+    });
+    sug.hidden = false; input.setAttribute('aria-expanded', 'true');
+  }
+  function sugFetch(q, thenPickHint) {
+    var seq = ++sugSeq;
+    return fetch(api + '/api/org/suggest', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ q: q })
+    }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }).then(function (j) {
+      if (seq !== sugSeq || input.value.trim() !== q) return;      // пока ждали ответ, текст уже поменялся
+      sugShow(j.items || [], q);
+      if (thenPickHint) msg.textContent = (j.items || []).length ? 'Выберите организацию из списка.' : '';
+    });
+  }
+  var looksLikeInn = function (v) { return /^\d{10}$|^\d{12}$/.test(v.replace(/\s/g, '')); };
+  if (sug && api) {
+    input.addEventListener('input', function () {
+      clearTimeout(sugTimer);
+      var q = input.value.trim();
+      if (q.length < 3 || looksLikeInn(q)) { sugSeq++; sugClose(); return; }
+      sugTimer = setTimeout(function () { sugFetch(q).catch(function () { sugClose(); }); }, 300);
+    });
+    input.addEventListener('keydown', function (e) {
+      if (sug.hidden || !sugItems.length) { if (e.key === 'Escape') sugClose(); return; }
+      if (e.key === 'ArrowDown') { e.preventDefault(); sugMark((sugActive + 1) % sugItems.length); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); sugMark(sugActive <= 0 ? sugItems.length - 1 : sugActive - 1); }
+      else if (e.key === 'Enter' && sugActive >= 0) { e.preventDefault(); sugPick(sugActive); }
+      else if (e.key === 'Escape') { e.preventDefault(); sugClose(); }
+    });
+    input.addEventListener('blur', function () { setTimeout(sugClose, 150); });
+  }
+
   form.addEventListener('submit', function (ev) {
     ev.preventDefault();
     var inn = input.value.replace(/\s/g, '');
     out.textContent = '';
+    // в поле название, а не ИНН — ищем по названию и показываем список
+    if (sug && api && /[^\d]/.test(inn)) {
+      var q = input.value.trim();
+      if (q.length < 3) { msg.textContent = 'Введите ИНН или хотя бы 3 буквы названия.'; return; }
+      msg.textContent = 'Ищем по названию…';
+      clearTimeout(sugTimer);
+      sugFetch(q, true).catch(function () { msg.textContent = 'Поиск по названию сейчас недоступен. Введите ИНН — его можно найти в договоре или счёте.'; });
+      return;
+    }
+    sugClose();
     if (!innValid(inn)) {
       msg.textContent = 'Проверьте ИНН: у организации 10 цифр, у ИП 12, и контрольные цифры должны сходиться.';
       return;
