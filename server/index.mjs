@@ -20,6 +20,8 @@
 //   AI_PER_IP_HOUR    — сколько ИИ-разборов в час с одного адреса, по умолчанию 15
 //   AI_UPSTREAM_URL   — если задан, разбор делает другой наш сервер по этому адресу (например, https://sut-api.onrender.com):
 //                       Google не пускает к Gemini с российских адресов. Туда уходит только ИНН организации
+//   DATANEWTON_KEY    — ключ DataNewton: подробная карточка, суды, арбитраж, приставы (POST /api/org/more)
+//   DATANEWTON_DAILY  — сколько компаний в сутки проверять через DataNewton (по 4 единицы лимита), по умолчанию 150
 //   FNS_DB            — база открытых данных ФНС (scripts/fns-import.mjs), например /var/lib/sut/fns.db
 //   PORT              — порт, по умолчанию 3000
 // Аккаунты (включаются, только если задан ACCOUNTS_DB; по 152-ФЗ — только на сервере в России):
@@ -41,6 +43,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FORBIDDEN } from '../src/lib/schema.mjs';
 import { openDb, createAccounts, smtpMailer } from './accounts.mjs';
+import { dnData } from './datanewton.mjs';
+import { checkSite, siteNotes } from './site-check.mjs';
 import { fnsData } from './fns.mjs';
 import { DatabaseSync } from 'node:sqlite';
 
@@ -73,6 +77,8 @@ export function config(env = process.env) {
     aiDailyLimit: Number(env.AI_DAILY_LIMIT || 300),
     aiPerIpHour: Number(env.AI_PER_IP_HOUR || 15),
     aiUpstream: (env.AI_UPSTREAM_URL || '').replace(/\/$/, ''),
+    dnKey: env.DATANEWTON_KEY || '', dnUrl: (env.DATANEWTON_URL || 'https://api.datanewton.ru').replace(/\/$/, ''),
+    dnDaily: Number(env.DATANEWTON_DAILY || 150),
     port: Number(env.PORT || 3000)
   };
 }
@@ -350,6 +356,9 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
   const fnsCache = makeCache(DAY);
   const suggestCache = makeCache(3600e3, 20000);
   const suggestHits = new Map();
+  const moreCache = makeCache(DAY, 5000);
+  const moreHits = new Map();
+  let moreDay = { key: '', count: 0 };
   // база открытых данных ФНС открывается только на чтение; если её ещё нет — работаем без неё
   let fdb = fnsDb;
   if (fdb === undefined && env.FNS_DB) { try { fdb = new DatabaseSync(env.FNS_DB, { readOnly: true }); } catch (e) { console.error('FNS_DB:', e.message); fdb = null; } }
@@ -425,7 +434,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
     try {
       if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
       if (req.method === 'GET' && (url.pathname === '/health' || url.pathname === '/')) {
-        return send(res, 200, { ok: true, dadata: !!cfg.dadataToken, ai: aiProvider(cfg), accounts: !!accounts });
+        return send(res, 200, { ok: true, dadata: !!cfg.dadataToken, ai: aiProvider(cfg), accounts: !!accounts, datanewton: !!cfg.dnKey });
       }
       if (!accounts && url.pathname.startsWith('/tg/')) return relayTelegram(req, res, url);
       if (req.method !== 'GET' && req.headers.origin && !cfg.origins.includes(req.headers.origin)) return send(res, 403, { error: 'Запрос с чужого сайта' });
@@ -451,6 +460,25 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
       }
       const inn = String(body.inn || '').replace(/\s/g, '');
       if (!innValid(inn)) return send(res, 400, { error: 'Проверьте ИНН: у организации 10 цифр, у ИП 12, и контрольные цифры должны сходиться.' });
+
+      if (url.pathname === '/api/org/more') {
+        if (!cfg.dnKey) return send(res, 200, { available: false });
+        let m = moreCache.get(inn);
+        if (!m) {
+          const t = now(), key = new Date(t).toISOString().slice(0, 10), ip = ipOf(req);
+          if (moreDay.key !== key) moreDay = { key, count: 0 };
+          const hits = (moreHits.get(ip) || []).filter((x) => t - x < 3600e3);
+          if (moreDay.count >= cfg.dnDaily || hits.length >= 30) return send(res, 200, { available: true, limited: true });
+          hits.push(t); moreHits.set(ip, hits); moreDay.count++;
+          if (moreHits.size > 20000) moreHits.clear();
+          const d = await dnData(inn, cfg, fetchImpl);
+          const sites = (d.card?.contacts.sites || []).slice(0, 2).map((s) => s.value);
+          const checks = await Promise.all(sites.map((s) => checkSite(s, inn, { fetchImpl, now: now() }).catch(() => null)));
+          m = { available: true, ...d, sites: checks.filter(Boolean).map((c) => ({ ...c, notes: siteNotes(c) })) };
+          if (d.card || d.courts || d.arbitration) moreCache.set(inn, m);
+        }
+        return send(res, 200, m);
+      }
 
       if (url.pathname === '/api/org/fns') {
         let f = fnsCache.get(inn);

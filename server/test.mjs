@@ -2,6 +2,8 @@
 import http from 'node:http';
 import assert from 'node:assert/strict';
 import { createApp, innValid, validateAi, factsForAi } from './index.mjs';
+import { normCard, normArbitration, normCourts, normFssp } from './datanewton.mjs';
+import { checkSite, siteNotes } from './site-check.mjs';
 
 const PARTY = {
   value: 'ООО "РОМАШКА"',
@@ -61,7 +63,7 @@ try {
 
   await t('health', async () => {
     const j = await (await fetch(base + '/health')).json();
-    assert.deepEqual(j, { ok: true, dadata: true, ai: 'gemini', accounts: false });
+    assert.deepEqual(j, { ok: true, dadata: true, ai: 'gemini', accounts: false, datanewton: false });
   });
 
   await t('/api/org: данные + памятка + CORS', async () => {
@@ -236,6 +238,47 @@ try {
       assert.equal((await post('/tg/bot999:AAA/sendMessage')).status, 403, 'чужой бот');
       assert.equal(seen.length, 1);
     } finally { srv.close(); }
+  });
+
+  await t('DataNewton: карточка без ИНН физлиц и личных контактов, суды, арбитраж, приставы', () => {
+    const c = normCard({ inn: '7707083893', company: {
+      company_names: { short_name: 'ООО "РОМАШКА"' }, charter_capital: '10000', registration_date: '2010-05-01', years_from_registration: 16,
+      status: { active_status: true, status_rus_short: 'Действует' }, address: { line_address: 'г Москва', is_inaccuracy: true },
+      managers: [{ fio: 'Иванов Иван Иванович', innfl: '500100732259', position: 'Генеральный директор', date: '2020-01-01' }],
+      owners: { fl: [{ name: 'Иванов Иван Иванович', inn: '500100732259', share: '100' }], ul_rus: [{ name: 'АО "ПОЛЕ"', inn: '7700000000', share: '0' }] },
+      okveds: [{ code: '47.11', value: 'Торговля', main: false }, { code: '62.01', value: 'Разработка ПО', main: true }],
+      workers_count: { 2024: 5, 2025: 7 },
+      contacts: { phones: [{ value: '+7 495 000-00-00', weight: 5 }, { value: '+7 900 111-22-33', owner_position: 'Генеральный директор', weight: 9 }], websites: [{ value: 'romashka.ru' }] },
+      negative_lists: { address_false_info: { value: true }, in_sanctions_list: false, fssp_debt: true, fssp_debt_remaining_balance: 350000 }
+    } });
+    assert.equal(c.capital, 10000);
+    assert.equal(c.okveds[0].code, '62.01', 'основной ОКВЭД первым');
+    assert.deepEqual(c.workers, [{ year: 2024, n: 5 }, { year: 2025, n: 7 }]);
+    assert.ok(!JSON.stringify(c).includes('500100732259'), 'ИНН физлиц не отдаём');
+    assert.deepEqual(c.contacts.phones.map((x) => x.value), ['+7 495 000-00-00'], 'личный телефон директора не отдаём');
+    assert.deepEqual(c.flags.map((f) => f.key), ['address_false_info', 'fssp_debt']);
+    const a = normArbitration({ total_cases: 3, data: [
+      { first_number: 'А40-1/2025', status: 1, sum: 1000, year: 2025, respondents: [{ inn: '7707083893' }], party_result: 'LOST' },
+      { first_number: 'А40-2/2025', status: 0, sum: 500, year: 2025, plaintiffs: [{ inn: '7707083893' }], party_result: 'IN_PROGRESS' },
+      { first_number: 'А40-3/2023', status: 1, sum: 0, year: 2023, third_parties: [{ inn: '7707083893' }] }] }, '7707083893');
+    assert.deepEqual([a.defendant, a.plaintiff, a.other, a.sum, a.open], [1, 1, 1, 1500, 1]);
+    assert.deepEqual(a.outcomes, { LOST: 1, IN_PROGRESS: 1, THIRD: 1 });
+    assert.deepEqual(a.years['2025'], { n: 2, sum: 1500 });
+    const k = normCourts({ total: 2, data: [{ case_number: '2-1', category: 'Трудовые', participants: [{ inn: '7707083893', role: 'Ответчик' }] }, { case_number: '2-2', participants: [{ inn: '7707083893', role: 'Третье лицо' }] }] }, '7707083893');
+    assert.deepEqual([k.total, k.defendant, k.other], [2, 1, 1]);
+    const f = normFssp({ total: 2, data: [{ status: 'OPEN', debt_remaining_balance: 300, debtor_inn: '7707083893' }, { status: 'CLOSE', amount_due: 100, debtor_inn: '7707083893' }] }, '7707083893');
+    assert.deepEqual([f.total, f.open, f.openSum], [2, 1, 300]);
+  });
+
+  await t('проверка сайта: ИНН на странице, соцсети, возраст домена, внутренние адреса не открываем', async () => {
+    const html = '<title>Ромашка</title><p>ИНН 7707 083 893</p><a href="https://vk.com/romashka">vk</a><a href="https://t.me/romashka">tg</a>';
+    const fetchImpl = async (u) => ({ ok: true, url: String(u), text: async () => html });
+    const c = await checkSite('romashka.ru', '7707083893', { fetchImpl, lookup: async () => ({ address: '93.158.134.3' }), whois: async () => '2010-01-01', now: Date.UTC(2026, 0, 2) });
+    assert.deepEqual([c.opens, c.https, c.innFound, c.title, c.ageYears >= 16], [true, true, true, 'Ромашка', true]);
+    assert.deepEqual(c.socials.map((x) => x.name), ['ВКонтакте', 'Telegram']);
+    assert.match(siteNotes(c).map((n) => n.text).join(' '), /указан ИНН.*Домену 16 лет.*ВКонтакте, Telegram/);
+    const inner = await checkSite('intra.example', '7707083893', { fetchImpl, lookup: async () => ({ address: '10.0.0.5' }), whois: async () => null });
+    assert.equal(inner.opens, false, 'внутренняя сеть');
   });
 
   await t('в ИИ не уходят ФИО и адрес', () => {
