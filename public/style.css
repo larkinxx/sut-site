@@ -2,9 +2,9 @@
 :root{
   color-scheme:light;
   --r:3px;
-  --bg:#F7F4EC;--surface:#FFFFFF;--ink:#1B2130;--muted:#67707F;--line:#E2DCCB;
-  --accent:#8A6A34;--accent-ink:#FFFFFF;--accent-soft:#F0E8D4;
-  --bar:#FFFFFF;
+  --bg:#F3EEE1;--surface:#FBF7ED;--ink:#1B2130;--muted:#67707F;--line:#E2DCCB;
+  --accent:#8A6A34;--accent-ink:#FBF7ED;--accent-soft:#EFE6D2;
+  --bar:#FBF7ED;
   --crit:#8C2436;--crit-ink:#FBEFF1;--crit-line:#B03A4E;
   --pos:#227A4F;--mark:rgba(154,116,44,.28);--lvl-l:#B23A56;
   --video:#2F5F92;--course:#8A5A1E;

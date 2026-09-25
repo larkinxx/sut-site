@@ -69,7 +69,7 @@ function layout({ title, desc, path: pagePath, current, body, ld }) {
 <meta property="og:description" content="${esc(desc || site.tagline)}">
 <meta property="og:type" content="${ld ? 'article' : 'website'}">
 <meta property="og:locale" content="ru_RU">
-<meta name="theme-color" content="#F7F4EC" id="theme-color-meta">
+<meta name="theme-color" content="#F3EEE1" id="theme-color-meta">
 <script>(function(){try{if(localStorage.getItem('theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
