@@ -634,6 +634,11 @@
     });
   });
 
-  var m = /(?:^#|&)inn=(\d{10}|\d{12})/.exec(location.hash);
-  if (m) { input.value = m[1]; form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Event('submit')); }
+  // /organizacii/#inn=… — сразу проверяем; работает и при смене адреса без перезагрузки (ссылки из кабинета)
+  function fromHash() {
+    var m = /(?:^#|&)inn=(\d{10}|\d{12})/.exec(location.hash);
+    if (m && m[1] !== input.value.replace(/\s/g, '')) { input.value = m[1]; form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Event('submit')); }
+  }
+  window.addEventListener('hashchange', fromHash);
+  fromHash();
 })();
