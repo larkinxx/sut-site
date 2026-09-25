@@ -20,6 +20,7 @@ cp /opt/sut-site/deploy/sut-api.service /etc/systemd/system/sut-api.service
 cp /opt/sut-site/deploy/Caddyfile /etc/caddy/Caddyfile
 systemctl daemon-reload
 systemctl enable sut-api caddy
-( crontab -l 2>/dev/null | grep -v sut-site/deploy/backup.sh; echo '30 4 * * * /opt/sut-site/deploy/backup.sh' ) | crontab -
+# «|| true»: при первой установке заданий ещё нет, и grep без совпадений не должен прерывать скрипт
+( crontab -l 2>/dev/null | grep -v sut-site/deploy/backup.sh || true; echo '30 4 * * * /opt/sut-site/deploy/backup.sh' ) | crontab -
 echo
 echo 'Готово. Дальше: заполните /etc/sut/api.env (nano /etc/sut/api.env), затем: systemctl restart sut-api caddy'
