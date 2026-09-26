@@ -228,8 +228,86 @@
     return out;
   }
 
+  /* ---------- Индекс надёжности ИННфакт: 0–100 по открытым данным ----------
+     Это мнение, основанное на фактах, а не утверждение о компании. Каждая поправка видна пользователю,
+     методика опубликована на странице /indeks/ (строится из INDEX_RULES при сборке сайта).
+     Вход: x = { status, ageYears, invalid, disqualified, fns: {debt, taxes, staff, last, prev},
+                 flags: [ключи отметок DataNewton], fssp: {open, openSum}, arb: {lostDef, openDef}, courts: {defendant}, isIp } */
+  var INDEX_RULES = [
+    ['status', 'Компания ликвидирована или признана банкротом', 'итог 0–5'],
+    ['liquidating', 'Идёт ликвидация или реорганизация', -40],
+    ['young', 'Компания моложе года', -15], ['young3', 'Компании от года до трёх лет', -5],
+    ['old3', 'Работает от 3 до 10 лет', 5], ['old10', 'Работает 10 лет и дольше', 10],
+    ['invalid', 'Отметка ФНС о недостоверности сведений', -20], ['disq', 'Руководитель дисквалифицирован', -20],
+    ['taxes', 'Платит налоги (по данным ФНС за прошлый год)', 10], ['staff', 'В штате 5 и больше сотрудников', 5],
+    ['debt', 'Налоговая задолженность', '−5…−20 по сумме'],
+    ['loss', 'Убыток за последний год', -10], ['equity', 'Отрицательный капитал', -15],
+    ['drop', 'Выручка упала больше чем вдвое за год', -10], ['revenue', 'Есть выручка по отчётности', 5],
+    ['flag-severe', 'Банкротство, блокировка счетов ФНС, подана ликвидация, признаки нелегальной деятельности (ЦБ), высокий риск по ЦБ', '−25…−50'],
+    ['flag', 'Недостоверный адрес или руководитель, реестр недобросовестных поставщиков, долги у приставов больше 300 тыс. ₽', -15],
+    ['flag-mild', 'Налоговые нарушения, связь с офшорами, санкционные списки, реестр иноагентов', '−5…−10'],
+    ['fssp', 'Открытые исполнительные производства', '−3…−15 по сумме'],
+    ['arb', 'Проигранные арбитражные дела, полностью или частично (3 и больше)', -10], ['arbopen', 'Идущие иски к компании в арбитраже (3 и больше)', -5],
+    ['courts', 'Ответчик в судах общей юрисдикции (5 дел и больше)', -5]
+  ];
+  var FLAG_POINTS = { in_bankruptcy: -40, fns_accounts_blocked: -25, has_liquidation_docs: -25, fin_illegal: -40, zsk_high_risk: -30, in_terrorists_extremists: -50,
+    false_info: -15, address_false_info: -15, managers_false_info: -15, owner_false_info: -10, disqualified_managers: -20, disqualified_owners: -10, disqualified_individual: -20,
+    unscrupulous_supplier44: -15, unscrupulous_supplier223: -15, fssp_debt: -15, has_bankruptcy_messages: -15,
+    tax_offences: -5, has_fines_debts: -5, owners_offshore: -5, in_sanctions_list: -10, foreigner_agent: -10 };
+  function innfactIndex(x) {
+    var f = [], score = 60, rub = function (n) { return Math.round(n).toLocaleString('ru-RU') + ' ₽'; };
+    var add = function (pts, text) { if (pts) { f.push({ pts: pts, text: text }); score += pts; } };
+    if (x.status === 'LIQUIDATED' || x.status === 'BANKRUPT') {
+      return { score: 3, level: 'закрыта', cls: 'bad', partial: false, factors: [{ pts: 0, text: x.status === 'BANKRUPT' ? 'Компания признана банкротом' : 'Компания ликвидирована' }] };
+    }
+    if (x.status === 'LIQUIDATING' || x.status === 'REORGANIZING') add(-40, x.status === 'LIQUIDATING' ? 'Идёт ликвидация' : 'Идёт реорганизация');
+    if (x.ageYears != null) {
+      var y = Math.floor(x.ageYears);
+      var yw = function (n) { var m = n % 10, h = n % 100; return n + ' ' + (m === 1 && h !== 11 ? 'год' : m >= 2 && m <= 4 && (h < 12 || h > 14) ? 'года' : 'лет'); };
+      if (x.ageYears < 1) add(-15, 'Компания моложе года');
+      else if (x.ageYears < 3) add(-5, 'Работает ' + yw(y));
+      else if (x.ageYears < 10) add(5, 'Работает ' + yw(y));
+      else add(10, 'Работает ' + yw(y));
+    }
+    var flags = x.flags || [];
+    if (x.invalid && flags.indexOf('false_info') < 0) add(-20, 'Отметка ФНС о недостоверности сведений');
+    if (x.disqualified && flags.indexOf('disqualified_managers') < 0) add(-20, 'Руководитель дисквалифицирован');
+    var fn = x.fns || {};
+    if (fn.taxes > 0) add(10, 'Платит налоги: ' + rub(fn.taxes) + ' за год');
+    if (fn.staff >= 5) add(5, 'Сотрудников: ' + fn.staff);
+    if (fn.debt > 0) add(fn.debt > 1e6 ? -20 : fn.debt > 1e5 ? -10 : -5, 'Налоговая задолженность ' + rub(fn.debt));
+    var L = fn.last, P = fn.prev;
+    if (L) {
+      if (L.revenue > 0) add(5, 'Есть выручка: ' + rub(L.revenue) + ' за ' + L.year);
+      if (L.profit < 0) add(-10, 'Убыток за ' + L.year + ': ' + rub(L.profit));
+      if (L.equity < 0) add(-15, 'Отрицательный капитал');
+      if (P && P.revenue > 0 && L.revenue != null && L.revenue < P.revenue * 0.5) add(-10, 'Выручка упала больше чем вдвое');
+    }
+    var FL = { in_bankruptcy: 'Идёт банкротство', fns_accounts_blocked: 'ФНС приостановила операции по счетам', has_liquidation_docs: 'Поданы документы на ликвидацию или реорганизацию',
+      fin_illegal: 'Признаки нелегальной деятельности на финрынке (ЦБ)', zsk_high_risk: 'Высокий риск по платформе ЦБ «Знай своего клиента»', in_terrorists_extremists: 'В перечне Росфинмониторинга',
+      false_info: 'Недостоверные сведения в ЕГРЮЛ', address_false_info: 'Недостоверный адрес', managers_false_info: 'Недостоверные сведения о руководителе', owner_false_info: 'Недостоверные сведения об участнике',
+      disqualified_managers: 'Руководитель дисквалифицирован', disqualified_owners: 'Участник дисквалифицирован', disqualified_individual: 'Предприниматель дисквалифицирован',
+      unscrupulous_supplier44: 'В реестре недобросовестных поставщиков', unscrupulous_supplier223: 'В реестре недобросовестных поставщиков (223-ФЗ)', fssp_debt: 'Долги у приставов больше 300 тыс. ₽',
+      has_bankruptcy_messages: 'Сообщения о банкротстве на Федресурсе', tax_offences: 'Налоговые нарушения', has_fines_debts: 'Налоговая задолженность больше 1 000 ₽',
+      owners_offshore: 'Связь с офшорами', in_sanctions_list: 'В санкционных списках', foreigner_agent: 'В реестре иностранных агентов' };
+    flags.forEach(function (k) {
+      if (!FLAG_POINTS[k]) return;
+      if (k === 'has_fines_debts' && fn.debt > 0) return;          // уже учли по данным ФНС
+      add(FLAG_POINTS[k], FL[k] || k);
+    });
+    if (x.fssp && x.fssp.open > 0 && flags.indexOf('fssp_debt') < 0) add(x.fssp.openSum > 1e6 ? -15 : x.fssp.openSum > 1e5 ? -10 : -3, 'Открытые исполнительные производства: ' + x.fssp.open + (x.fssp.openSum ? ' на ' + rub(x.fssp.openSum) : ''));
+    if (x.arb) {
+      if (x.arb.lostDef >= 3) add(-10, 'Проиграно арбитражных дел: ' + x.arb.lostDef);
+      if (x.arb.openDef >= 3) add(-5, 'Идёт исков к компании: ' + x.arb.openDef);
+    }
+    if (x.courts && x.courts.defendant >= 5) add(-5, 'Ответчик в судах общей юрисдикции: ' + x.courts.defendant + ' дел');
+    score = Math.max(0, Math.min(100, score));
+    var level = score >= 75 ? 'высокая' : score >= 55 ? 'средняя' : score >= 35 ? 'низкая' : 'очень низкая';
+    return { score: score, level: level, cls: score >= 75 ? 'ok' : score >= 55 ? 'mid' : 'bad', partial: !x.fns || !x.flags || !x.arb, factors: f.sort(function (a, b) { return a.pts - b.pts; }) };
+  }
+
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { innValid: innValid, advise: advise, taxIdeas: taxIdeas };
+    module.exports = { innValid: innValid, advise: advise, taxIdeas: taxIdeas, innfactIndex: innfactIndex, INDEX_RULES: INDEX_RULES };
     return;
   }
 
@@ -337,8 +415,51 @@
     return bar;
   }
 
+  // Индекс надёжности в шапке: пересчитывается по мере прихода данных (ФНС, карточка DataNewton, суды)
+  var IDX = null;
+  function indexInput() {
+    var d = IDX.d, p = IDX.fns && IDX.fns.pb, b = IDX.fns && IDX.fns.bo, c = IDX.more && IDX.more.card, k = IDX.courts;
+    var ys = (b && b.years) || [], st = d.state || {};
+    var x = { status: st.status, ageYears: st.registration_date ? (Date.now() - st.registration_date) / (365.25 * 864e5) : null,
+      invalid: !!d.invalid, disqualified: !!(d.management && d.management.disqualified), isIp: d.type === 'INDIVIDUAL' };
+    if (p || b) x.fns = { taxes: p && p.taxesPaid ? p.taxesPaid.total : null, staff: p && p.employees && p.employees[0] ? p.employees[0].n : null,
+      debt: p && p.arrears ? p.arrears.total : null, last: ys[ys.length - 1] || null, prev: ys[ys.length - 2] || null };
+    if (c) {
+      x.flags = c.flags.map(function (f) { return f.key; });
+      if (x.fns && x.fns.staff == null && c.workers.length) x.fns.staff = c.workers[c.workers.length - 1].n;
+    }
+    if (k) {
+      if (k.fssp) x.fssp = { open: k.fssp.open, openSum: k.fssp.openSum };
+      if (k.arbitration) x.arb = { lostDef: (k.arbitration.outcomes.LOST || 0) + (k.arbitration.outcomes.LOST_PARTIAL || 0), openDef: k.arbitration.openDefendant };
+      if (k.courts) x.courts = { defendant: k.courts.defendant };
+    }
+    return x;
+  }
+  function updateIndex() {
+    var box = document.getElementById('idx-box');
+    if (!box || !IDX) return;
+    var r = innfactIndex(indexInput());
+    box.textContent = '';
+    box.className = 'idx idx-' + r.cls;
+    var num = el('div', 'idx-num'); num.appendChild(el('b', null, String(r.score))); num.appendChild(el('span', null, '/100'));
+    box.appendChild(num);
+    var t = el('div', 'idx-text');
+    t.appendChild(el('div', 'idx-t', 'Индекс надёжности ИННфакт: ' + r.level));
+    var note = el('div', 'note-sm', (r.partial ? 'Предварительная оценка: ' + (!IDX.fns ? 'данные ФНС ещё загружаются. ' : !IDX.courts ? 'суды не загружены — откройте их ниже, и оценка уточнится. ' : 'часть данных недоступна. ') : '') + 'Это мнение по открытым данным, а не гарантия. ');
+    var how = el('a', null, 'Как считаем'); how.href = '/indeks/'; note.appendChild(how);
+    t.appendChild(note);
+    if (r.factors.length) {
+      var dt = el('details', 'fns-more'); dt.appendChild(el('summary', null, 'Из чего сложилась оценка'));
+      var ul = el('ul', 'idx-factors');
+      r.factors.forEach(function (f) { var li = el('li', f.pts < 0 ? 'minus' : 'plus'); li.appendChild(el('b', null, (f.pts > 0 ? '+' : '−') + Math.abs(f.pts))); li.appendChild(document.createTextNode(' ' + f.text)); ul.appendChild(li); });
+      dt.appendChild(ul); t.appendChild(dt);
+    }
+    box.appendChild(t);
+  }
+
   function render(s, advice) {
     var d = s.data || {};
+    IDX = { d: d };
     out.textContent = '';
     out.className = 'dash';
     var head = card('card-head', null, 'span head');
@@ -348,6 +469,7 @@
     if (st) top.appendChild(el('span', 'badge ' + (st === 'ACTIVE' ? 'ok' : 'bad'), STATUS[st] || st));
     head.appendChild(top);
     if (d.name && d.name.full_with_opf) head.appendChild(el('p', 'note-sm', d.name.full_with_opf));
+    var ib = el('div'); ib.id = 'idx-box'; head.appendChild(ib); updateIndex();
     var box = el('div', 'result cols');
     box.id = 'head-rows';
     row(box, 'ИНН', d.inn);
@@ -577,6 +699,7 @@
     postApi('/api/org/fns', inn).then(function (j) {
       if (j.status !== 200) throw new Error();
       renderFns(box, j);
+      if (IDX) { IDX.fns = j; updateIndex(); }
       if (j.pb || j.bo) { var e = enrich(d, j); renderMemo(e, null); renderTax(e); }
     }).catch(function () { renderFns(box, {}); });
   }
@@ -644,6 +767,7 @@
 
   // Суды, арбитраж, приставы — отдельными карточками перед элементом before
   function renderCourts(j, before) {
+    if (IDX) { IDX.courts = j; updateIndex(); }
     var add = function (title, cls) { return card(null, title, cls, before); };
     // арбитраж
     var a = j.arbitration;
@@ -735,6 +859,7 @@
     var anchor = document.getElementById('org-more');
     if (!anchor) return;
     if (!j || !j.available) { anchor.remove(); return; }
+    if (IDX) { IDX.more = j; updateIndex(); }
     if (j.limited && !j.card) {
       if (j.courts || j.arbitration || j.fssp) renderCourts(j, anchor);
       anchor.className = 'dcard'; anchor.textContent = '';

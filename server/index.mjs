@@ -65,7 +65,7 @@ function loadOrgRules() {
   vm.runInNewContext(code, sandbox);
   return sandbox.module.exports;
 }
-export const { innValid, advise } = loadOrgRules();
+export const { innValid, advise, innfactIndex } = loadOrgRules();
 
 const DADATA_URL = process.env.DADATA_API_URL || 'https://suggestions.dadata.ru/suggestions/api/4_1/rs/findById/party';
 const DADATA_SUGGEST_URL = process.env.DADATA_SUGGEST_URL || 'https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/party';
@@ -198,7 +198,7 @@ export const SYSTEM = `Ты — помощник сайта ИННфакт. Те
 
 ЖЁСТКИЕ ПРАВИЛА
 1. Опирайся только на переданные поля. В поле fns — официальные данные ФНС (налоговый режим, численность, уплаченные налоги, налоговый долг, отчётность по годам в рублях): используй их в первую очередь, называй год. В поле details — данные ЕГРЮЛ и судов: уставный капитал, численность по годам, отметки в реестрах (flags), суды общей юрисдикции (courts), арбитраж (arbitration: роли, суммы, исходы), исполнительные производства (fssp), проверка сайтов компании (sites) и число её контактов. Ничего не выдумывай сверх переданного: ни судов, ни долгов, ни новостей, ни репутации. Если поля нет или оно null — не делай по нему выводов; можешь сказать, что этих сведений в открытых данных нет.
-2. Не выноси вердиктов «надёжная/ненадёжная компания», «можно/нельзя доверять», не ставь оценок и баллов. Описывай наблюдения: что в данных и почему это стоит проверить.
+2. В поле index — индекс надёжности ИННфакт (0–100), уровень и факторы, из которых он сложился. Обязательно дай общий вывод о надёжности по этому индексу: назови уровень и 2–3 главных фактора с цифрами. Формулируй как оценку по открытым данным («по открытым данным надёжность высокая: …»), а не как гарантию. Если index.partial — отметь, что оценка предварительная. Не называй компанию мошеннической или однодневкой и не обвиняй в преступлениях: только факты и вывод из них.
 3. Не давай инвестиционных советов и не обещай доход. Не пиши «покупайте», «продавайте», «вкладывайте», «гарантированно», «без риска».
 4. Это не юридическая и не налоговая консультация.
 5. Суммы, коды ОКВЭД, регион, дату регистрации, ИНН/ОГРН и другие числа бери из данных как есть и используй их в тексте (не пересказывай абстрактно, а называй конкретные значения: сумму долга, код и название вида деятельности, регион, возраст компании в годах). Если данные о финансах за старый год — отметь это явно и укажи год.
@@ -249,7 +249,7 @@ export function validateAi(a) {
     if (typeof v !== 'string' || !v.trim()) return e.push(name + ': пусто');
     if (v.length > max) e.push(name + ': длиннее ' + max);
     for (const f of FORBIDDEN) if (f.re.test(v)) e.push(name + ': ' + f.why);
-    if (/(надёжн|надежн)\p{L}*\s+(компани|организаци|контрагент|партн)/iu.test(v)) e.push(name + ': вердикт о надёжности');
+    if (/мошенни|однодневк|преступ/iu.test(v)) e.push(name + ': обвинение, а не оценка по данным');
   };
   if (!a || typeof a !== 'object') return ['ответ не объект'];
   txt(a.summary, 'summary', 700);
@@ -356,12 +356,28 @@ export function moreFactsForAi(m) {
   return Object.keys(out).length ? out : null;
 }
 
+// Вход для индекса надёжности из данных сервера — так же, как на странице (public/org.js → indexInput)
+export function indexInputFor(s, f, more) {
+  const d = s.data || {}, st = d.state || {}, p = f && f.pb, ys = (f && f.bo && f.bo.years) || [];
+  const x = { status: st.status, ageYears: st.registration_date ? (Date.now() - st.registration_date) / (365.25 * DAY) : null,
+    invalid: !!d.invalid, disqualified: !!(d.management && d.management.disqualified), isIp: d.type === 'INDIVIDUAL' };
+  if (p || ys.length) x.fns = { taxes: p?.taxesPaid?.total ?? null, staff: p?.employees?.[0]?.n ?? null, debt: p?.arrears?.total ?? null, last: ys[ys.length - 1] || null, prev: ys[ys.length - 2] || null };
+  const c = more && more.card;
+  if (c) x.flags = c.flags.map((q) => q.key);
+  if (more?.fssp) x.fssp = { open: more.fssp.open, openSum: more.fssp.openSum };
+  if (more?.arbitration) x.arb = { lostDef: (more.arbitration.outcomes.LOST || 0) + (more.arbitration.outcomes.LOST_PARTIAL || 0), openDef: more.arbitration.openDefendant };
+  if (more?.courts) x.courts = { defendant: more.courts.defendant };
+  return x;
+}
+
 export async function analyze(suggestion, cfg, fetchImpl, fns = null, more = null) {
   const facts = factsForAi(suggestion);
   const extra = fnsFactsForAi(fns);
   if (extra) facts.fns = extra;         // режим, численность, налоги, долги и отчётность из данных ФНС
   const details = moreFactsForAi(more);
   if (details) facts.details = details; // ЕГРЮЛ, суды, арбитраж, приставы, сайты (DataNewton и своя проверка сайтов)
+  const ix = innfactIndex(indexInputFor(suggestion, fns, more));
+  facts.index = { score: ix.score, level: ix.level, partial: ix.partial, factors: ix.factors.map((q) => (q.pts > 0 ? '+' : '') + q.pts + ' ' + q.text) };
   const prompt = 'Сведения из реестра (JSON):\n' + JSON.stringify(facts, null, 1) + '\n\nСегодня: ' + new Date().toISOString().slice(0, 10);
   let lastErr;
   for (let attempt = 0; attempt < 2; attempt++) {

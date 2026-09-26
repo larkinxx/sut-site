@@ -5,6 +5,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import vm from 'node:vm';
 import { ROOT, loadSite, loadCards, loadMaterials, readJson } from './lib/content.mjs';
 import { AUDIENCES, AUDIENCE_TABS, esc, markTitle, dateRu, agoRu } from './lib/util.mjs';
 import { SCHEMES, taxSections, personalSections } from './lib/taxes.mjs';
@@ -711,6 +712,38 @@ ${mail ? `<h2>Обратная связь</h2><p>Вопросы, в том чи�
 }
 
 // О проекте: кто делает сайт и как связаться
+// Методика индекса надёжности: правила берём из того же кода, что считает индекс на странице (public/org.js)
+{
+  const sb = { module: { exports: {} }, Intl, Date, Math, Number, String };
+  vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'public/org.js'), 'utf8'), sb);
+  const RULES = sb.module.exports.INDEX_RULES;
+  const pts = (v) => (typeof v === 'number' ? (v > 0 ? '+' : '−') + Math.abs(v) : v);
+  const mail = site.contactEmail || '';
+  write('indeks/index.html', layout({
+    title: 'Индекс надёжности ИННфакт: как мы считаем', path: '/indeks/', current: 'org',
+    desc: 'Методика индекса надёжности ИННфакт: из каких открытых данных складывается оценка компании от 0 до 100 и как оспорить оценку.',
+    body: `<h1 class="page">Индекс надёжности ИННфакт</h1>
+<p class="lede">Оценка компании от 0 до 100 по открытым данным. Это наше мнение, основанное на фактах из реестров, а не гарантия надёжности и не обвинение. Каждая поправка к оценке видна на странице проверки.</p>
+<div class="prose">
+<h2>Как считается</h2>
+<p>Каждая компания начинает с 60 баллов. Дальше мы прибавляем и вычитаем баллы по фактам из открытых источников: ЕГРЮЛ и ЕГРИП, открытые данные ФНС, бухгалтерская отчётность (ГИР БО), картотека арбитражных дел, суды общей юрисдикции, банк данных исполнительных производств, Федресурс, списки Банка России и Росфинмониторинга. Итог ограничен диапазоном от 0 до 100.</p>
+<table class="fns-table idx-rules"><tr><th>Факт</th><th>Баллы</th></tr>
+${RULES.map(([, text, v]) => `<tr><td>${esc(text)}</td><td>${esc(pts(v))}</td></tr>`).join('\n')}
+</table>
+<h2>Уровни</h2>
+<ul><li><b>75–100 — высокая:</b> серьёзных отрицательных фактов в открытых данных нет.</li>
+<li><b>55–74 — средняя:</b> есть факты, которые стоит уточнить у компании.</li>
+<li><b>35–54 — низкая:</b> несколько отрицательных фактов; перед сделкой проверьте документы и попросите объяснений.</li>
+<li><b>0–34 — очень низкая:</b> серьёзные отрицательные факты: долги, отметки ФНС, банкротство или ликвидация.</li></ul>
+<p>Если суды и исполнительные производства ещё не загружены, оценка помечена как предварительная.</p>
+<h2>Чего индекс не знает</h2>
+<p>Индекс не учитывает то, чего нет в открытых данных: реальное качество работы, отзывы клиентов, договорённости сторон. Данные в реестрах обновляются с задержкой. Перед крупной сделкой запросите у компании документы и выписки.</p>
+<h2>Если вы представитель компании</h2>
+<p>Если считаете, что оценка основана на устаревших или ошибочных данных, напишите нам${mail ? ` на <a href="mailto:${esc(mail)}">${esc(mail)}</a>` : ''} с ИНН компании и подтверждающими документами. Мы проверим и ответим в течение 10 рабочих дней. Если ошибка в самом реестре, её исправляет ведомство, которое ведёт этот реестр.</p>
+</div>`
+  }));
+}
+
 write('o-proekte/index.html', layout({
   title: 'О проекте', desc: 'Что такое ИННфакт, для кого этот сайт и как связаться с редакцией.', path: '/o-proekte/', current: '',
   body: `<h1 class="page">О проекте</h1>
@@ -773,7 +806,7 @@ if (!site.siteUrl.includes('example')) {
   // lastmod: у ленты — время свежей новости, у карточки — время последней правки; у статичных страниц не ставим
   const fresh = cards.length ? cards[0].publishedAt : '';
   const urls = [
-    ['/', fresh], ['/arhiv/', fresh], ['/kalkulyatory/'], ...CALCS.map((c) => [`/kalkulyatory/${c.slug}/`]), ['/organizacii/'], ['/fizlica/'], ['/nalogi/'], ...[...TAX, ...TAX_P].map((t) => [`/nalogi/${t.slug}/`]), ['/nalogovye-shemy/'], ['/nalogi/blokirovka-scheta/'], ['/fizlica/dropy/'], ['/kak-my-rabotaem/'], ['/o-proekte/'], ['/pravovaya-informaciya/'], ...(POLICY ? [['/politika/']] : []),
+    ['/', fresh], ['/arhiv/', fresh], ['/kalkulyatory/'], ...CALCS.map((c) => [`/kalkulyatory/${c.slug}/`]), ['/organizacii/'], ['/indeks/'], ['/fizlica/'], ['/nalogi/'], ...[...TAX, ...TAX_P].map((t) => [`/nalogi/${t.slug}/`]), ['/nalogovye-shemy/'], ['/nalogi/blokirovka-scheta/'], ['/fizlica/dropy/'], ['/kak-my-rabotaem/'], ['/o-proekte/'], ['/pravovaya-informaciya/'], ...(POLICY ? [['/politika/']] : []),
     ...cards.map((c) => [`/n/${c.id}/`, (c.review && c.review.at) || c.publishedAt])
   ];
   write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(([u, m]) => `<url><loc>${site.siteUrl}${u}</loc>${m ? `<lastmod>${new Date(m).toISOString()}</lastmod>` : ''}</url>`).join('\n')}\n</urlset>\n`);

@@ -332,3 +332,13 @@ mark.todo{background:var(--crit);color:var(--crit-ink);padding:0 4px}
 #org-ai .tip,#org-ai li{break-inside:avoid}
 .share-row{flex-wrap:wrap;gap:8px;margin-top:14px}
 a.share{text-decoration:none;display:inline-flex;align-items:center}
+.idx{display:flex;gap:16px;align-items:flex-start;margin:14px 0 6px;padding:14px 16px;border-radius:var(--r);border:1px solid var(--line);background:var(--bg)}
+.idx-num{flex:none;display:flex;align-items:baseline;gap:2px;font-family:var(--font-display)}
+.idx-num b{font-size:44px;line-height:1;font-weight:700}.idx-num span{font:400 14px var(--font-ui);color:var(--muted)}
+.idx-ok{border-color:var(--pos)}.idx-ok .idx-num b,.idx-ok .idx-t{color:var(--pos)}
+.idx-mid{border-color:var(--accent)}.idx-mid .idx-num b,.idx-mid .idx-t{color:var(--accent)}
+.idx-bad{border-color:var(--crit-line)}.idx-bad .idx-num b,.idx-bad .idx-t{color:var(--crit-line)}
+.idx-t{font:600 17px/1.3 var(--font-display);margin-bottom:2px}
+.idx-factors{list-style:none;padding:0;margin:6px 0 0;font:400 14px/1.6 var(--font-ui)}
+.idx-factors b{display:inline-block;min-width:34px;font-variant-numeric:tabular-nums}
+.idx-factors .plus b{color:var(--pos)}.idx-factors .minus b{color:var(--crit-line)}

@@ -1,7 +1,7 @@
 // Тесты сервера без сети: DaData и Gemini подменены заглушками.  Запуск: node server/test.mjs
 import http from 'node:http';
 import assert from 'node:assert/strict';
-import { createApp, innValid, validateAi, factsForAi, moreFactsForAi } from './index.mjs';
+import { createApp, innValid, validateAi, factsForAi, moreFactsForAi, innfactIndex } from './index.mjs';
 import { normCard, normArbitration, normCourts, normFssp } from './datanewton.mjs';
 import { checkSite, siteNotes } from './site-check.mjs';
 
@@ -101,8 +101,9 @@ try {
     assert.equal(calls.gemini, before);
   });
 
-  await t('ответ с вердиктом «надёжная компания» отклоняется, вторая попытка проходит', async () => {
-    assert.ok(validateAi({ ...GOOD_AI, summary: 'Это надёжная компания, покупайте её услуги.' }).length > 0);
+  await t('оценка надёжности по данным разрешена, обвинения («мошенники») — нет; вторая попытка проходит', async () => {
+    assert.deepEqual(validateAi({ ...GOOD_AI, summary: GOOD_AI.summary + ' По открытым данным надёжность компании высокая.' }), [], 'вывод по индексу можно');
+    assert.ok(validateAi({ ...GOOD_AI, summary: 'Похоже на мошенническую фирму-однодневку.' }).length > 0);
     assert.deepEqual(validateAi({ ...GOOD_AI, tax_ideas: ['Доход за 2025 год 5 млн ₽ — проверьте пониженную ставку УСН в регионе на nalog.gov.ru и посчитайте с бухгалтером.'] }), []);
     assert.ok(validateAi({ ...GOOD_AI, tax_ideas: ['Можно сэкономить через дробление бизнеса на два ИП.'] }).length > 0);
     assert.ok(validateAi({ ...GOOD_AI, tax_ideas: ['a', 'b', 'c', 'd'] }).length > 0);
@@ -315,6 +316,17 @@ try {
     assert.match(siteNotes(c).map((n) => n.text).join(' '), /указан ИНН.*Домену 16 лет.*ВКонтакте, Telegram/);
     const inner = await checkSite('intra.example', '7707083893', { fetchImpl, lookup: async () => ({ address: '10.0.0.5' }), whois: async () => null });
     assert.equal(inner.opens, false, 'внутренняя сеть');
+  });
+
+  await t('индекс надёжности: плюсы и минусы, ликвидация, пределы 0–100, предварительная оценка', () => {
+    const good = innfactIndex({ status: 'ACTIVE', ageYears: 23, fns: { taxes: 6e6, staff: 7, debt: 0, last: { year: 2025, revenue: 54e6, profit: 1e6, equity: 2e6 } }, flags: [], fssp: { open: 0 }, arb: { lostDef: 0, openDef: 0 }, courts: { defendant: 0 } });
+    assert.deepEqual([good.score, good.level, good.partial], [90, 'высокая', false]);
+    assert.ok(good.factors.some((f) => f.text === 'Работает 23 года'));
+    const bad = innfactIndex({ status: 'ACTIVE', ageYears: 0.5, invalid: true, fns: { debt: 2e6 }, flags: ['fssp_debt', 'fns_accounts_blocked'] });
+    assert.equal(bad.score, 0, 'не ниже нуля');
+    assert.equal(bad.partial, true, 'суды не загружены');
+    assert.equal(bad.factors[0].pts < 0, true, 'сначала самые тяжёлые');
+    assert.equal(innfactIndex({ status: 'LIQUIDATED' }).level, 'закрыта');
   });
 
   await t('в ИИ не уходят ФИО и адрес', () => {
