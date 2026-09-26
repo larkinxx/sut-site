@@ -1,6 +1,8 @@
-# Сайт fin-check.shop на этом сервере: статические страницы из /var/www/fin-check.shop,
-# страницы компаний и карта сайта компаний — от server/index.mjs. Подключается командой deploy/site-setup.sh.
-fin-check.shop {
+# Сайт innfact.ru на этом сервере: статические страницы из /var/www/fin-check.shop (имя папки осталось от старого адреса),
+# страницы компаний, их картинки и карта сайта компаний — от server/index.mjs. Старый адрес fin-check.shop
+# навсегда перенаправляется на innfact.ru (адрес api.fin-check.shop продолжает работать — блок в Caddyfile).
+# Подключается командой deploy/move-domain.sh.
+innfact.ru {
 	encode zstd gzip
 	@company path_regexp company ^/(organizacii/[0-9]{10,12}(/|/og\.png)?|sitemap-companies(-[0-9]+)?\.xml)$
 	handle @company {
@@ -22,6 +24,13 @@ fin-check.shop {
 		}
 	}
 }
-www.fin-check.shop {
-	redir https://fin-check.shop{uri} permanent
+www.innfact.ru {
+	redir https://innfact.ru{uri} permanent
+}
+api.innfact.ru {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:3000
+}
+fin-check.shop, www.fin-check.shop {
+	redir https://innfact.ru{uri} permanent
 }

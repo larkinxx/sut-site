@@ -121,7 +121,7 @@ await t('/api/org/fns: ответ и кеш', async () => {
 await t('страницы компаний: название из ФНС, налоги, мета-теги, JSON-LD, карта сайта, 404 для неизвестных', async () => {
   const dist = fs.mkdtempSync(path.join(os.tmpdir(), 'sut-dist-'));
   fs.mkdirSync(path.join(dist, 'organizacii'));
-  fs.writeFileSync(path.join(dist, 'organizacii', 'index.html'), '<html><head><title>Проверка</title><meta name="description" content="x"><link rel="canonical" href="https://fin-check.shop/organizacii/"><meta property="og:title" content="x"><meta property="og:url" content="x"><meta property="og:image" content="x"></head><body><!--ssr:intro--><h1 class="page">Проверка организации по ИНН</h1><!--/ssr:intro--><section class="calc" id="org" data-pages="1"></section><div id="org-out" aria-live="polite"></div></body></html>');
+  fs.writeFileSync(path.join(dist, 'organizacii', 'index.html'), '<html><head><title>Проверка</title><meta name="description" content="x"><link rel="canonical" href="https://innfact.ru/organizacii/"><meta property="og:title" content="x"><meta property="og:url" content="x"><meta property="og:image" content="x"></head><body><!--ssr:intro--><h1 class="page">Проверка организации по ИНН</h1><!--/ssr:intro--><section class="calc" id="org" data-pages="1"></section><div id="org-out" aria-live="polite"></div></body></html>');
   const srv = http.createServer(createApp({ env: { DADATA_TOKEN: 't', SITE_DIST: dist, SSR_DADATA_DAILY: '0' }, fetchImpl: fake, fnsPause: 0, fnsDb: db }));
   await new Promise((r) => srv.listen(0, r));
   const get = (p) => fetch(`http://127.0.0.1:${srv.address().port}${p}`, { redirect: 'manual' });
@@ -131,11 +131,11 @@ await t('страницы компаний: название из ФНС, нал
     const h = await r.text();
     assert.match(h, /<title>ООО &quot;ПЕКАРНЯ&quot; — ИНН 2804011398: проверка, налоги, суды — Суть<\/title>/);
     assert.match(h, /<h1 class="page">ООО &quot;ПЕКАРНЯ&quot;<\/h1>/);
-    assert.match(h, /<link rel="canonical" href="https:\/\/fin-check.shop\/organizacii\/2804011398\/">/);
+    assert.match(h, /<link rel="canonical" href="https:\/\/innfact.ru\/organizacii\/2804011398\/">/);
     assert.match(h, /data-inn="2804011398"/);
     assert.match(h, /Уплачено налогов и взносов<\/span><strong>552 тыс. ₽ за 2025 год/);
     assert.match(h, /"@type":"Organization"/);
-    assert.match(h, /<meta property="og:image" content="https:\/\/fin-check.shop\/organizacii\/2804011398\/og.png"/);
+    assert.match(h, /<meta property="og:image" content="https:\/\/innfact.ru\/organizacii\/2804011398\/og.png"/);
     assert.equal((await get('/organizacii/2804011398')).headers.get('location'), '/organizacii/2804011398/');
     const og = await get('/organizacii/2804011398/og.png');
     assert.ok(og.status === 200 ? og.headers.get('content-type') === 'image/png' : og.headers.get('location') === '/og.png', 'PNG или общая картинка, если нет rsvg-convert');
@@ -148,7 +148,7 @@ await t('страницы компаний: название из ФНС, нал
     const idx = await (await get('/sitemap-companies.xml')).text();
     assert.match(idx, /sitemap-companies-1\.xml/);
     const sm = await (await get('/sitemap-companies-1.xml')).text();
-    assert.deepEqual([...sm.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]), ['https://fin-check.shop/organizacii/2804011398/', 'https://fin-check.shop/organizacii/7700000000/']);
+    assert.deepEqual([...sm.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]), ['https://innfact.ru/organizacii/2804011398/', 'https://innfact.ru/organizacii/7700000000/']);
   } finally { srv.close(); fs.rmSync(dist, { recursive: true }); }
 });
 

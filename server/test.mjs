@@ -158,7 +158,7 @@ try {
       assert.equal(seen.length, 1, 'второй раз — из кеша');
       assert.deepEqual(seen[0].body, { inn: '7707083893' });
       assert.equal(seen[0].url, 'https://up.example/api/org/ai');
-      assert.equal(seen[0].origin, 'https://fin-check.shop');
+      assert.equal(seen[0].origin, 'https://innfact.ru');
     } finally { srv.close(); }
   });
 

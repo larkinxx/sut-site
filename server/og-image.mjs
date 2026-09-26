@@ -21,7 +21,7 @@ function wrap(text, maxChars) {
 }
 
 // facts: [[подпись, значение, 'bad'?], ...] — до четырёх
-export function ogSvg({ name, inn, status, active, facts }) {
+export function ogSvg({ name, inn, status, active, facts, host = 'innfact.ru' }) {
   // заглавные буквы жирного шрифта шире строчных: ширину символа считаем с запасом
   const size = name.length > 50 ? 42 : name.length > 28 ? 50 : 62;
   const lines = wrap(name, Math.floor(1080 / (size * 0.68)));
@@ -50,7 +50,7 @@ text{font-family:'PT Serif','DejaVu Serif',serif;fill:#1B2130}
 ${lines.map((l, i) => `<text x="60" y="${nameY + i * size * 1.12}" class="name" font-size="${size}">${esc(l)}</text>`).join('\n')}
 <text x="60" y="${infoY}" class="info">ИНН ${esc(inn)}${status ? ` · <tspan class="${active ? 'ok' : 'badst'}">${esc(status)}</tspan>` : ''}</text>
 ${cells}
-<text x="60" y="578" class="foot">fin-check.shop — бесплатная проверка контрагентов</text>
+<text x="60" y="578" class="foot">${esc(host)} — бесплатная проверка контрагентов</text>
 </svg>`;
 }
 

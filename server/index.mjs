@@ -15,7 +15,7 @@
 //   GEMINI_MODEL      — модель, по умолчанию gemini-3.8-flash
 //   YANDEX_AI_KEY, YANDEX_FOLDER_ID — разбор через Yandex AI Studio (Алиса AI); если заданы — вместо Gemini, прямо из России
 //   YANDEX_AI_MODEL   — модель, по умолчанию aliceai-llm (дешевле: aliceai-llm-flash)
-//   ALLOWED_ORIGINS   — адреса сайта через запятую (CORS), по умолчанию https://fin-check.shop,https://www.fin-check.shop
+//   ALLOWED_ORIGINS   — адреса сайта через запятую (CORS), по умолчанию innfact.ru и старый fin-check.shop с www
 //   AI_DAILY_LIMIT    — сколько ИИ-разборов в сутки максимум (защита бюджета), по умолчанию 300
 //   AI_PER_IP_HOUR    — сколько ИИ-разборов в час с одного адреса, по умолчанию 15
 //   AI_UPSTREAM_URL   — если задан, разбор делает другой наш сервер по этому адресу (например, https://sut-api.onrender.com):
@@ -29,7 +29,7 @@
 //   PORT              — порт, по умолчанию 3000
 // Аккаунты (включаются, только если задан ACCOUNTS_DB; по 152-ФЗ — только на сервере в России):
 //   ACCOUNTS_DB       — путь к файлу базы SQLite, например /var/lib/sut/sut.db
-//   SITE_URL, PUBLIC_API_URL, COOKIE_DOMAIN — https://fin-check.shop, https://api.fin-check.shop, .fin-check.shop
+//   SITE_URL, PUBLIC_API_URL, COOKIE_DOMAIN — https://innfact.ru, https://api.innfact.ru, .innfact.ru
 //   YANDEX_CLIENT_ID, YANDEX_CLIENT_SECRET   — приложение на oauth.yandex.ru
 //   TELEGRAM_BOT_TOKEN, TELEGRAM_BOT_NAME    — бот для входа и уведомлений
 //   TELEGRAM_API_URL  — через что ходить к Telegram. Timeweb не пускает к api.telegram.org, поэтому по умолчанию
@@ -77,7 +77,7 @@ export function config(env = process.env) {
     yandexModel: env.YANDEX_AI_MODEL || 'aliceai-llm',
     yandexBase: env.YANDEX_AI_URL || 'https://ai.api.cloud.yandex.net/v1',
     geminiBase: env.GEMINI_API_URL || 'https://generativelanguage.googleapis.com',
-    origins: (env.ALLOWED_ORIGINS || 'https://fin-check.shop,https://www.fin-check.shop').split(',').map((s) => s.trim()).filter(Boolean),
+    origins: (env.ALLOWED_ORIGINS || 'https://innfact.ru,https://www.innfact.ru,https://fin-check.shop,https://www.fin-check.shop').split(',').map((s) => s.trim()).filter(Boolean),
     aiDailyLimit: Number(env.AI_DAILY_LIMIT || 300),
     aiPerIpHour: Number(env.AI_PER_IP_HOUR || 15),
     aiUpstream: (env.AI_UPSTREAM_URL || '').replace(/\/$/, ''),

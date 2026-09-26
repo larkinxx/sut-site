@@ -6,7 +6,7 @@
 // Сервисы ФНС работают с российских адресов — поэтому это делает сервер в России.
 // Персональные данные (ФИО и ИНН руководителей и учредителей) наружу не отдаём — только количество.
 
-const UA = 'Mozilla/5.0 (compatible; fin-check.shop)';
+const UA = 'Mozilla/5.0 (compatible; innfact.ru)';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const num = (v) => (v == null || v === '' || Number.isNaN(Number(v)) ? null : Number(v));
 

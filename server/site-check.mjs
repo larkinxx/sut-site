@@ -49,7 +49,7 @@ export async function checkSite(site, inn, { fetchImpl = globalThis.fetch, looku
       if (privateIp(address)) throw new Error('внутренний адрес');
       for (const proto of ['https:', 'http:']) {
         try {
-          const r = await fetchImpl(`${proto}//${u.hostname}/`, { redirect: 'follow', headers: { 'User-Agent': 'Mozilla/5.0 (compatible; fin-check.shop)' }, signal: AbortSignal.timeout(8000) });
+          const r = await fetchImpl(`${proto}//${u.hostname}/`, { redirect: 'follow', headers: { 'User-Agent': 'Mozilla/5.0 (compatible; innfact.ru)' }, signal: AbortSignal.timeout(8000) });
           if (!r.ok) continue;
           const html = (await r.text()).slice(0, 1_500_000);
           return { url: r.url || `${proto}//${u.hostname}/`, html };

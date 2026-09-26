@@ -1,4 +1,4 @@
-// Страницы компаний для поисковиков: fin-check.shop/organizacii/<ИНН>/ и карта сайта со всеми организациями.
+// Страницы компаний для поисковиков: <сайт>/organizacii/<ИНН>/ и карта сайта со всеми организациями.
 // Страница собирается на сервере из шаблона сайта (dist/organizacii/index.html) и бесплатных данных:
 // открытых данных ФНС (fns.db: название, режим, численность, налоги, долги) и DaData, если есть в кеше или
 // не исчерпан дневной лимит. Для человека страница затем сама запускает полную проверку (суды, учредители и т. д.).
@@ -86,7 +86,7 @@ ${f && f.tax && f.tax.items.length ? `<p class="fns-sub">Крупнейшие н
 
 export function createCompanyPages({ env, fdb, getParty, cachedParty, getMore = () => null, toPng = svgToPng, now = () => Date.now() }) {
   const dist = env.SITE_DIST || '/var/www/fin-check.shop';
-  const siteUrl = (env.SITE_URL || 'https://fin-check.shop').replace(/\/$/, '');
+  const siteUrl = (env.SITE_URL || 'https://innfact.ru').replace(/\/$/, '');
   const dadataDaily = Number(env.SSR_DADATA_DAILY || 2000);   // DaData на бесплатном тарифе — 10 000 запросов в сутки на всё
   let tpl = null, tplMtime = 0, day = { key: '', n: 0 };
   let sitemapCount = null, sitemapAt = 0;
@@ -123,7 +123,7 @@ export function createCompanyPages({ env, fdb, getParty, cachedParty, getMore = 
       const d = (party && party.data) || {};
       const name = (d.name && d.name.short_with_opf) || (f && f.name) || `Организация ИНН ${inn}`;
       const st = d.state && d.state.status;
-      const svg = ogSvg({ name, inn, status: STATUS[st] || null, active: st === 'ACTIVE', facts: ogFacts(f, more, money) });
+      const svg = ogSvg({ name, inn, status: STATUS[st] || null, active: st === 'ACTIVE', facts: ogFacts(f, more, money), host: new URL(siteUrl).host });
       const key = inn + ':' + svg.length + ':' + svg.slice(-400);
       let png = ogCache.get(key);
       if (!png) {

@@ -135,7 +135,7 @@ export function smtpMailer({ host, port = 465, user, pass, from }) {
       ].join('\r\n');
       (async () => {
         await expect(220);
-        await cmd('EHLO fin-check.shop', 250);
+        await cmd('EHLO ' + (String(from || '').split('@')[1] || 'localhost').replace(/>.*$/, ''), 250);
         await cmd('AUTH LOGIN', 334); await cmd(b64(user), 334); await cmd(b64(pass), 235);
         await cmd(`MAIL FROM:<${from}>`, 250); await cmd(`RCPT TO:<${to}>`, 250);
         await cmd('DATA', 354); await cmd(msg + '\r\n.', 250);
@@ -148,15 +148,16 @@ export function smtpMailer({ host, port = 465, user, pass, from }) {
 /* ---------- модуль аккаунтов ---------- */
 export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.now() }) {
   const cfg = {
-    site: (env.SITE_URL || 'https://fin-check.shop').replace(/\/$/, ''),
-    api: (env.PUBLIC_API_URL || 'https://api.fin-check.shop').replace(/\/$/, ''),
-    cookieDomain: env.COOKIE_DOMAIN || '',              // .fin-check.shop — чтобы сессия была общей для сайта и api
+    site: (env.SITE_URL || 'https://innfact.ru').replace(/\/$/, ''),
+    api: (env.PUBLIC_API_URL || 'https://api.innfact.ru').replace(/\/$/, ''),
+    cookieDomain: env.COOKIE_DOMAIN || '',              // .innfact.ru — чтобы сессия была общей для сайта и api
     yandexId: env.YANDEX_CLIENT_ID || '', yandexSecret: env.YANDEX_CLIENT_SECRET || '',
     tgToken: env.TELEGRAM_BOT_TOKEN || '', tgBot: env.TELEGRAM_BOT_NAME || '',
     // Timeweb не пускает сервер к api.telegram.org — ходим через наш сервер на Render (маршрут /tg/ в index.mjs)
     tgApi: (env.TELEGRAM_API_URL || (env.AI_UPSTREAM_URL ? env.AI_UPSTREAM_URL.replace(/\/$/, '') + '/tg' : 'https://api.telegram.org')).replace(/\/$/, ''),
     mailOn: !!mailer
   };
+  const host = new URL(cfg.site).host;   // адрес сайта для текстов писем и сообщений бота
   const q = (sql) => db.prepare(sql);
   const secure = cfg.site.startsWith('https');
 
@@ -236,14 +237,14 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
       const L = m && m[1] && tgLogins.get(m[1]);
       if (!L || L.state === 'ok') {
         return tgCall('sendMessage', { chat_id: msg.chat.id, text: m && m[1]
-          ? 'Ссылка для входа устарела. Нажмите «Войти через Telegram» на сайте fin-check.shop ещё раз.'
-          : 'Это бот сайта «Суть» (fin-check.shop): через него входят в кабинет и получают уведомления об изменениях у компаний.' });
+          ? `Ссылка для входа устарела. Нажмите «Войти через Telegram» на сайте ${host} ещё раз.`
+          : `Это бот сайта ${host}: через него входят в кабинет и получают уведомления об изменениях у компаний.` });
       }
       L.from = String(msg.from.id);
       return tgCall('sendMessage', {
         chat_id: msg.chat.id,
-        text: 'Вход на сайт fin-check.shop («Суть»).\n\nНажмите кнопку, если это вы сейчас входите на сайт. Если вы ничего не нажимали на сайте — просто закройте это сообщение.',
-        reply_markup: { inline_keyboard: [[{ text: 'Войти на fin-check.shop', callback_data: 'login:' + m[1] }]] }
+        text: `Вход на сайт ${host}.\n\nНажмите кнопку, если это вы сейчас входите на сайт. Если вы ничего не нажимали на сайте — просто закройте это сообщение.`,
+        reply_markup: { inline_keyboard: [[{ text: `Войти на ${host}`, callback_data: 'login:' + m[1] }]] }
       });
     }
     const cb = up.callback_query;
@@ -450,7 +451,7 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
          ON CONFLICT(email) DO UPDATE SET code_hash = excluded.code_hash, expires_at = excluded.expires_at, attempts = 0, sent_at = excluded.sent_at, sent_count = excluded.sent_count`)
         .run(email, sha(email + ':' + code), now() + 10 * 60e3, now(), count);
       try {
-        await mailer({ to: email, subject: `Код для входа: ${code}`, text: `Ваш код для входа на fin-check.shop: ${code}\n\nКод действует 10 минут. Если вы не запрашивали вход, просто проигнорируйте это письмо.\n\n— Суть` });
+        await mailer({ to: email, subject: `Код для входа: ${code}`, text: `Ваш код для входа на ${host}: ${code}\n\nКод действует 10 минут. Если вы не запрашивали вход, просто проигнорируйте это письмо.\n\n— Суть` });
       } catch (e) {
         log('почта — письмо с кодом не отправлено:', e.message);
         return send(res, 502, { error: 'Не получилось отправить письмо. Попробуйте позже или войдите другим способом.' }), true;

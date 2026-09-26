@@ -27,7 +27,7 @@ export function message(c, siteUrl) {
 
 async function main() {
   const token = process.env.TELEGRAM_BOT_TOKEN, chat = process.env.TELEGRAM_CHAT_ID;
-  const siteUrl = (process.env.SITE_URL || 'https://fin-check.shop').replace(/\/$/, '');
+  const siteUrl = (process.env.SITE_URL || 'https://innfact.ru').replace(/\/$/, '');
   if (!token || !chat) { console.log('TELEGRAM_BOT_TOKEN или TELEGRAM_CHAT_ID не заданы — пропускаю.'); return; }
   const { cards } = loadCards();
   const save = (posted) => fs.writeFileSync(STATE, JSON.stringify({ posted: posted.slice(-500) }, null, 2) + '\n');

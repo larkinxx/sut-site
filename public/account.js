@@ -51,7 +51,7 @@
           if (!r.url) { if (win) win.close(); msgEl.textContent = r.error || 'Не получилось начать вход.'; return; }
           if (win) { win.opener = null; win.location.href = r.url; }
           msgEl.textContent = '';
-          msgEl.appendChild(document.createTextNode('В Telegram нажмите «Запустить», а затем «Войти на fin-check.shop». Эта страница обновится сама. Telegram не открылся? '));
+          msgEl.appendChild(document.createTextNode('В Telegram нажмите «Запустить», а затем «Войти на ' + location.host + '». Эта страница обновится сама. Telegram не открылся? '));
           var a = el('a', null, 'Открыть бота'); a.href = r.url; a.target = '_blank'; a.rel = 'noopener';
           msgEl.appendChild(a);
           clearInterval(polling);

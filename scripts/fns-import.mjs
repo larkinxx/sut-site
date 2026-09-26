@@ -15,7 +15,7 @@ import { DatabaseSync } from 'node:sqlite';
 
 const DB = process.argv[2] || '/var/lib/sut/fns.db';
 const DIR = process.env.FNS_OPENDATA_DIR || path.join(path.dirname(DB), 'opendata');
-const UA = { 'User-Agent': 'Mozilla/5.0 (fin-check.shop opendata import)' };
+const UA = { 'User-Agent': 'Mozilla/5.0 (innfact.ru opendata import)' };
 const ENT = { quot: '"', amp: '&', lt: '<', gt: '>', apos: "'" };
 const unxml = (s) => s.replace(/&(quot|amp|lt|gt|apos);/g, (_, e) => ENT[e]);
 const attrs = (tag) => Object.fromEntries([...tag.matchAll(/([\p{L}\d_]+)="([^"]*)"/gu)].map((m) => [m[1], unxml(m[2])]));
