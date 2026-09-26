@@ -1,0 +1,15 @@
+{
+  "id": "rbc-cb2fea95467a",
+  "sourceId": "rbc",
+  "sourceName": "РБК",
+  "kind": "Новости",
+  "official": false,
+  "category": "",
+  "title": "Фото старта ракеты",
+  "url": "https://www.rbc.ru/photoslider/6ab7b4199a794793bb09bd6e",
+  "publishedAt": "2026-09-26T12:02:31.000Z",
+  "text": "Фото старта ракеты",
+  "fetchedAt": "2026-09-26T13:05:05.150Z",
+  "drafted": true,
+  "skipReason": "Новость не содержит экономической или финансовой информации и не имеет практической пользы для граждан и бизнеса."
+}
