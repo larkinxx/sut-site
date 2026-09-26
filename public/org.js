@@ -309,6 +309,34 @@
   function plural(n, a, b, c) { var m = n % 10, h = n % 100; return m === 1 && h !== 11 ? a : m >= 2 && m <= 4 && (h < 12 || h > 14) ? b : c; }
   function yearsAgo(ms) { var y = Math.floor((Date.now() - ms) / (365.25 * 864e5)); return y + ' ' + plural(y, 'год', 'года', 'лет'); }
 
+  // Поделиться: Telegram, WhatsApp, копия ссылки; на телефоне — системное меню «Поделиться»
+  function companyUrl(inn) {
+    return root.getAttribute('data-pages') ? location.origin + '/organizacii/' + inn + '/' : location.origin + '/organizacii/#inn=' + inn;
+  }
+  function shareRow(parent, label, text, link) {
+    var bar = el('div', 'share-bar share-row');
+    bar.appendChild(el('span', 'note-sm', label));
+    var note = el('span', 'share-note'); note.setAttribute('aria-live', 'polite');
+    var mk = function (title, href) { var a = el('a', 'share', title); a.href = href; a.target = '_blank'; a.rel = 'noopener'; bar.appendChild(a); };
+    if (navigator.share && /Mobi|Android/i.test(navigator.userAgent)) {
+      var b = el('button', 'share', 'Поделиться'); b.type = 'button';
+      b.addEventListener('click', function () { navigator.share({ title: document.title, text: text, url: link }).catch(function () {}); });
+      bar.appendChild(b);
+    }
+    mk('Telegram', 'https://t.me/share/url?' + new URLSearchParams({ url: link, text: text }));
+    mk('WhatsApp', 'https://wa.me/?text=' + encodeURIComponent(text + ' ' + link));
+    var c = el('button', 'share', 'Скопировать'); c.type = 'button';
+    c.addEventListener('click', function () {
+      var all = text + ' ' + link;
+      var ok = function () { note.textContent = 'Скопировано'; setTimeout(function () { note.textContent = ''; }, 3000); };
+      if (navigator.clipboard) navigator.clipboard.writeText(all).then(ok, function () { window.prompt('Скопируйте:', all); });
+      else window.prompt('Скопируйте:', all);
+    });
+    bar.appendChild(c); bar.appendChild(note);
+    parent.appendChild(bar);
+    return bar;
+  }
+
   function render(s, advice) {
     var d = s.data || {};
     out.textContent = '';
@@ -331,6 +359,8 @@
     row(box, 'Работников', d.employee_count != null ? String(d.employee_count) : '');
     row(box, 'Адрес', d.address && d.address.value);
     head.appendChild(box);
+    var nm = (d.name && d.name.short_with_opf) || s.value;
+    if (d.inn) shareRow(head, 'Поделиться проверкой:', nm + ' — проверка по ИНН ' + d.inn + ': статус, налоги, суды и учредители.', companyUrl(d.inn));
 
     if (api) card('org-ai', null, 'span');
     flow = el('div', 'cols-flow');
@@ -383,6 +413,11 @@
         p.style.margin = '10px 0';
         out.appendChild(p);
       });
+      if (d.inn) {
+        var nm = (d.name && d.name.short_with_opf) || ('ИНН ' + d.inn);
+        var titles = ideas.filter(function (a) { return a.level !== 'warn'; }).map(function (a) { return a.title; }).slice(0, 4);
+        shareRow(out, 'Отправить бухгалтеру:', 'Посмотри, пожалуйста, подходят ли нам эти способы законно снизить налоги (' + nm + '): ' + titles.join('; ') + '. Расчёт и подробности:', companyUrl(d.inn));
+      }
     }
   }
 

@@ -329,3 +329,5 @@ mark.todo{background:var(--crit);color:var(--crit-ink);padding:0 4px}
 #org-ai{columns:2 380px;column-gap:32px}
 #org-ai>h2,#org-ai>.note-sm:first-of-type{column-span:all}
 #org-ai .tip,#org-ai li{break-inside:avoid}
+.share-row{flex-wrap:wrap;gap:8px;margin-top:14px}
+a.share{text-decoration:none;display:inline-flex;align-items:center}

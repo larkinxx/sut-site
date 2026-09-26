@@ -4,6 +4,7 @@
 // не исчерпан дневной лимит. Для человека страница затем сама запускает полную проверку (суды, учредители и т. д.).
 import fs from 'node:fs';
 import path from 'node:path';
+import { ogSvg, ogFacts, svgToPng } from './og-image.mjs';
 
 const PER_SITEMAP = 50000;
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -40,7 +41,7 @@ export function fnsRow(db, inn) {
 }
 
 // Собираем страницу из шаблона сайта: заголовок, описание, канонический адрес, краткая сводка и JSON-LD
-export function renderCompany(tpl, { inn, siteUrl, f, party }) {
+export function renderCompany(tpl, { inn, siteUrl, f, party, more = null }) {
   const d = (party && party.data) || {};
   const name = (d.name && d.name.short_with_opf) || (f && f.name) || `Организация ИНН ${inn}`;
   const url = `${siteUrl}/organizacii/${inn}/`;
@@ -57,7 +58,8 @@ export function renderCompany(tpl, { inn, siteUrl, f, party }) {
     ['Налоговая задолженность', f ? (f.debt > 0 ? money(f.debt) : 'нет') : null]
   ].filter(([, v]) => v);
   const descParts = [`${name}: ИНН ${inn}`, d.ogrn ? `ОГРН ${d.ogrn}` : '', d.address ? d.address.value : '',
-    f && f.tax ? `налоги за ${f.tax.year} год — ${money(f.tax.total)}` : '', f && f.staff ? `сотрудников: ${f.staff.n}` : ''].filter(Boolean);
+    f && f.tax ? `налоги за ${f.tax.year} год — ${money(f.tax.total)}` : '', f && f.staff ? `сотрудников: ${f.staff.n}` : '',
+    more && more.arbitration ? `арбитражных дел: ${more.arbitration.total}` : '', more && more.card ? (more.card.flags.length ? `отметок в реестрах: ${more.card.flags.length}` : 'отметок в реестрах нет') : ''].filter(Boolean);
   const desc = (descParts.join(', ') + '. Суды, арбитраж, учредители, финансы и советы — бесплатная проверка.').slice(0, 300);
   const title = `${name} — ИНН ${inn}: проверка, налоги, суды`;
   const ld = { '@context': 'https://schema.org', '@type': 'Organization', name, taxID: inn, url,
@@ -74,6 +76,7 @@ ${f && f.tax && f.tax.items.length ? `<p class="fns-sub">Крупнейшие н
     .replace(/(<meta property="og:title" content=")[^"]*"/, `$1${esc(title)}"`)
     .replace(/(<link rel="canonical" href=")[^"]*"/, `$1${esc(url)}"`)
     .replace(/(<meta property="og:url" content=")[^"]*"/, `$1${esc(url)}"`)
+    .replace(/(<meta property="og:image" content=")[^"]*"/, `$1${esc(url)}og.png"`)
     .replace(/<!--ssr:intro-->[\s\S]*?<!--\/ssr:intro-->/, `<h1 class="page">${esc(name)}</h1><p class="lede">Проверка по ИНН ${esc(inn)}: реквизиты, налоги, суды и учредители. Проверить другую организацию можно в форме ниже.</p>`)
     .replace('<div id="org-out" aria-live="polite"></div>', `<div id="org-out" aria-live="polite" class="dash">${summary}</div>`)
     .replace('<section class="calc" id="org"', `<section class="calc" id="org" data-inn="${esc(inn)}"`)
@@ -81,12 +84,13 @@ ${f && f.tax && f.tax.items.length ? `<p class="fns-sub">Крупнейшие н
   return h;
 }
 
-export function createCompanyPages({ env, fdb, getParty, cachedParty, now = () => Date.now() }) {
+export function createCompanyPages({ env, fdb, getParty, cachedParty, getMore = () => null, toPng = svgToPng, now = () => Date.now() }) {
   const dist = env.SITE_DIST || '/var/www/fin-check.shop';
   const siteUrl = (env.SITE_URL || 'https://fin-check.shop').replace(/\/$/, '');
   const dadataDaily = Number(env.SSR_DADATA_DAILY || 2000);   // DaData на бесплатном тарифе — 10 000 запросов в сутки на всё
   let tpl = null, tplMtime = 0, day = { key: '', n: 0 };
   let sitemapCount = null, sitemapAt = 0;
+  const ogCache = new Map();   // ИНН+содержимое → PNG, не больше 500 штук
   const template = () => {
     const file = path.join(dist, 'organizacii', 'index.html');
     const m = fs.statSync(file).mtimeMs;
@@ -110,7 +114,28 @@ export function createCompanyPages({ env, fdb, getParty, cachedParty, now = () =
     const p = url.pathname;
     if (!/^\/(organizacii\/\d|sitemap-companies)/.test(p)) return false;
     if (!fs.existsSync(path.join(dist, 'organizacii', 'index.html'))) return false;   // сайт ещё не собран на этом сервере
-    let m = /^\/organizacii\/(\d{10}|\d{12})\/?$/.exec(p);
+    // картинка-превью для мессенджеров
+    let m = /^\/organizacii\/(\d{10}|\d{12})\/og\.png$/.exec(p);
+    if (m) {
+      const inn = m[1];
+      if (!innValid(inn)) { res.writeHead(404); res.end(); return true; }
+      const f = fnsRow(fdb, inn), party = cachedParty(inn) || null, more = getMore(inn);
+      const d = (party && party.data) || {};
+      const name = (d.name && d.name.short_with_opf) || (f && f.name) || `Организация ИНН ${inn}`;
+      const st = d.state && d.state.status;
+      const svg = ogSvg({ name, inn, status: STATUS[st] || null, active: st === 'ACTIVE', facts: ogFacts(f, more, money) });
+      const key = inn + ':' + svg.length + ':' + svg.slice(-400);
+      let png = ogCache.get(key);
+      if (!png) {
+        try { png = await toPng(svg); } catch (e) { res.writeHead(302, { Location: '/og.png' }); res.end(); return true; }
+        if (ogCache.size >= 500) ogCache.delete(ogCache.keys().next().value);
+        ogCache.set(key, png);
+      }
+      res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400' });
+      res.end(png);
+      return true;
+    }
+    m = /^\/organizacii\/(\d{10}|\d{12})\/?$/.exec(p);
     if (m) {
       const inn = m[1];
       if (!p.endsWith('/')) { res.writeHead(301, { Location: `/organizacii/${inn}/` }); res.end(); return true; }
@@ -123,7 +148,7 @@ export function createCompanyPages({ env, fdb, getParty, cachedParty, now = () =
         if (day.n < dadataDaily) { day.n++; party = await getParty(inn).catch(() => null); } else party = null;
       }
       if (!f && !party) { html(res, 404, renderCompany(template(), { inn, siteUrl, f: null, party: null }).replace('</head>', '<meta name="robots" content="noindex">\n</head>')); return true; }
-      html(res, 200, renderCompany(template(), { inn, siteUrl, f, party }));
+      html(res, 200, renderCompany(template(), { inn, siteUrl, f, party, more: getMore(inn) }));
       return true;
     }
     if (p === '/sitemap-companies.xml') {

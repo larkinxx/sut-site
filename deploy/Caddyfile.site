@@ -2,7 +2,7 @@
 # страницы компаний и карта сайта компаний — от server/index.mjs. Подключается командой deploy/site-setup.sh.
 fin-check.shop {
 	encode zstd gzip
-	@company path_regexp company ^/(organizacii/[0-9]{10,12}/?|sitemap-companies(-[0-9]+)?\.xml)$
+	@company path_regexp company ^/(organizacii/[0-9]{10,12}(/|/og\.png)?|sitemap-companies(-[0-9]+)?\.xml)$
 	handle @company {
 		reverse_proxy 127.0.0.1:3000
 	}

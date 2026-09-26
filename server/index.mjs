@@ -442,7 +442,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
     if (s === undefined) { s = await findParty(inn, cfg, fetchImpl); partyCache.set(inn, s); }
     return s;
   }
-  const companyPages = createCompanyPages({ env, fdb, getParty, cachedParty: (inn) => partyCache.get(inn), now });
+  const companyPages = createCompanyPages({ env, fdb, getParty, cachedParty: (inn) => partyCache.get(inn), getMore: (inn) => moreCache.get(inn), now });
 
   // Пересылка к api.telegram.org для нашего сервера в России. Секретов не хранит: токен приходит в адресе и дальше не пишется
   async function relayTelegram(req, res, url) {

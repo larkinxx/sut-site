@@ -8,6 +8,7 @@ import { Readable } from 'node:stream';
 import { createApp } from './index.mjs';
 import { openFnsDb, importStream } from '../scripts/fns-import.mjs';
 import { openData, fnsData, pbSummary } from './fns.mjs';
+import { ogSvg } from './og-image.mjs';
 
 const doc = (asof, inn, inner) => `<Документ ИдДок="x" ДатаДок="25.09.2026" ДатаСост="${asof}"><СведНП НаимОрг="ООО &quot;ПЕКАРНЯ&quot;" ИННЮЛ="${inn}"/>${inner}</Документ>`;
 const file = (docs) => `<?xml version="1.0" encoding="UTF-8"?><Файл ИдФайл="f"><ИдОтпр/>${docs.join('')}</Файл>`;
@@ -120,7 +121,7 @@ await t('/api/org/fns: ответ и кеш', async () => {
 await t('страницы компаний: название из ФНС, налоги, мета-теги, JSON-LD, карта сайта, 404 для неизвестных', async () => {
   const dist = fs.mkdtempSync(path.join(os.tmpdir(), 'sut-dist-'));
   fs.mkdirSync(path.join(dist, 'organizacii'));
-  fs.writeFileSync(path.join(dist, 'organizacii', 'index.html'), '<html><head><title>Проверка</title><meta name="description" content="x"><link rel="canonical" href="https://fin-check.shop/organizacii/"><meta property="og:title" content="x"><meta property="og:url" content="x"></head><body><!--ssr:intro--><h1 class="page">Проверка организации по ИНН</h1><!--/ssr:intro--><section class="calc" id="org" data-pages="1"></section><div id="org-out" aria-live="polite"></div></body></html>');
+  fs.writeFileSync(path.join(dist, 'organizacii', 'index.html'), '<html><head><title>Проверка</title><meta name="description" content="x"><link rel="canonical" href="https://fin-check.shop/organizacii/"><meta property="og:title" content="x"><meta property="og:url" content="x"><meta property="og:image" content="x"></head><body><!--ssr:intro--><h1 class="page">Проверка организации по ИНН</h1><!--/ssr:intro--><section class="calc" id="org" data-pages="1"></section><div id="org-out" aria-live="polite"></div></body></html>');
   const srv = http.createServer(createApp({ env: { DADATA_TOKEN: 't', SITE_DIST: dist, SSR_DADATA_DAILY: '0' }, fetchImpl: fake, fnsPause: 0, fnsDb: db }));
   await new Promise((r) => srv.listen(0, r));
   const get = (p) => fetch(`http://127.0.0.1:${srv.address().port}${p}`, { redirect: 'manual' });
@@ -134,7 +135,13 @@ await t('страницы компаний: название из ФНС, нал
     assert.match(h, /data-inn="2804011398"/);
     assert.match(h, /Уплачено налогов и взносов<\/span><strong>552 тыс. ₽ за 2025 год/);
     assert.match(h, /"@type":"Organization"/);
+    assert.match(h, /<meta property="og:image" content="https:\/\/fin-check.shop\/organizacii\/2804011398\/og.png"/);
     assert.equal((await get('/organizacii/2804011398')).headers.get('location'), '/organizacii/2804011398/');
+    const og = await get('/organizacii/2804011398/og.png');
+    assert.ok(og.status === 200 ? og.headers.get('content-type') === 'image/png' : og.headers.get('location') === '/og.png', 'PNG или общая картинка, если нет rsvg-convert');
+    const svg = ogSvg({ name: 'ООО "<script>" ОЧЕНЬ ДЛИННОЕ НАЗВАНИЕ КОМПАНИИ, КОТОРОЕ НЕ ПОМЕЩАЕТСЯ В ДВЕ СТРОКИ НИКАК ВООБЩЕ СОВСЕМ', inn: '2804011398', status: 'Действует', active: true, facts: [['Сотрудников', '7']] });
+    assert.ok(!svg.includes('<script>'), 'название экранировано');
+    assert.equal((svg.match(/class="name"/g) || []).length, 2, 'не больше двух строк');
     const nf = await get('/organizacii/7707083893/');
     assert.equal(nf.status, 404, 'нет ни в ФНС, ни в DaData');
     assert.match(await nf.text(), /noindex/);
