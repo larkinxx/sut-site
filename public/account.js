@@ -1,4 +1,4 @@
-/* Суть: страницы «Вход» и «Кабинет». Сервер аккаунтов — server/accounts.mjs (адрес в <html data-acct>).
+/* ИННфакт: страницы «Вход» и «Кабинет». Сервер аккаунтов — server/accounts.mjs (адрес в <html data-acct>).
    Сессия — cookie на общем домене, поэтому все запросы идут с credentials: 'include'. */
 (function () {
   'use strict';

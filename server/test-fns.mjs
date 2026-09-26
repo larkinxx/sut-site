@@ -129,7 +129,7 @@ await t('страницы компаний: название из ФНС, нал
     const r = await get('/organizacii/2804011398/');
     assert.equal(r.status, 200);
     const h = await r.text();
-    assert.match(h, /<title>ООО &quot;ПЕКАРНЯ&quot; — ИНН 2804011398: проверка, налоги, суды — Суть<\/title>/);
+    assert.match(h, /<title>ООО &quot;ПЕКАРНЯ&quot; — ИНН 2804011398: проверка, налоги, суды — ИННфакт<\/title>/);
     assert.match(h, /<h1 class="page">ООО &quot;ПЕКАРНЯ&quot;<\/h1>/);
     assert.match(h, /<link rel="canonical" href="https:\/\/innfact.ru\/organizacii\/2804011398\/">/);
     assert.match(h, /data-inn="2804011398"/);

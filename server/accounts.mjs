@@ -1,4 +1,4 @@
-// Аккаунты «Сути»: необязательный вход (Яндекс ID, Telegram, код на почту), кабинет и слежение за компаниями.
+// Аккаунты ИННфакт: необязательный вход (Яндекс ID, Telegram, код на почту), кабинет и слежение за компаниями.
 // Почта, Яндекс ID и Telegram ID — персональные данные: по 152-ФЗ храним их только на сервере в России
 // (Timeweb), поэтому модуль включается переменной ACCOUNTS_DB и не работает на Render.
 //
@@ -129,7 +129,7 @@ export function smtpMailer({ host, port = 465, user, pass, from }) {
       const b64 = (s) => Buffer.from(s, 'utf8').toString('base64');
       const body = b64(text).replace(/.{1,76}/g, '$&\r\n');
       const msg = [
-        `From: =?UTF-8?B?${b64('Суть')}?= <${from}>`, `To: <${to}>`, `Subject: =?UTF-8?B?${b64(subject)}?=`,
+        `From: =?UTF-8?B?${b64('ИННфакт')}?= <${from}>`, `To: <${to}>`, `Subject: =?UTF-8?B?${b64(subject)}?=`,
         `Date: ${new Date().toUTCString()}`, `Message-ID: <${crypto.randomUUID()}@${from.split('@')[1]}>`,
         'MIME-Version: 1.0', 'Content-Type: text/plain; charset=utf-8', 'Content-Transfer-Encoding: base64', '', body
       ].join('\r\n');
@@ -280,7 +280,7 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
     if (ch === 'telegram' && cfg.tgToken) {
       await tgCall('sendMessage', { chat_id: u.telegram_id, text, link_preview_options: { is_disabled: true } });
     } else if (ch === 'email' && mailer) {
-      await mailer({ to: u.email, subject: 'Суть: изменения у компаний, за которыми вы следите', text });
+      await mailer({ to: u.email, subject: 'ИННфакт: изменения у компаний, за которыми вы следите', text });
     }
   }
 
@@ -451,7 +451,7 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
          ON CONFLICT(email) DO UPDATE SET code_hash = excluded.code_hash, expires_at = excluded.expires_at, attempts = 0, sent_at = excluded.sent_at, sent_count = excluded.sent_count`)
         .run(email, sha(email + ':' + code), now() + 10 * 60e3, now(), count);
       try {
-        await mailer({ to: email, subject: `Код для входа: ${code}`, text: `Ваш код для входа на ${host}: ${code}\n\nКод действует 10 минут. Если вы не запрашивали вход, просто проигнорируйте это письмо.\n\n— Суть` });
+        await mailer({ to: email, subject: `Код для входа: ${code}`, text: `Ваш код для входа на ${host}: ${code}\n\nКод действует 10 минут. Если вы не запрашивали вход, просто проигнорируйте это письмо.\n\n— ИННфакт` });
       } catch (e) {
         log('почта — письмо с кодом не отправлено:', e.message);
         return send(res, 502, { error: 'Не получилось отправить письмо. Попробуйте позже или войдите другим способом.' }), true;

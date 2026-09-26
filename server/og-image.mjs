@@ -34,7 +34,7 @@ export function ogSvg({ name, inn, status, active, facts, host = 'innfact.ru' })
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
 <style>
 text{font-family:'PT Serif','DejaVu Serif',serif;fill:#1B2130}
-.logo{font-size:44px;font-weight:700}.dot{fill:#8A6A34}
+.logo{font-size:44px;font-weight:700}.lt{font-weight:400}.dot{fill:#8A6A34}
 .kicker{font-family:'PT Sans','DejaVu Sans',sans-serif;font-size:22px;letter-spacing:4px;fill:#67707F}
 .name{font-weight:700}
 .info{font-family:'PT Sans','DejaVu Sans',sans-serif;font-size:28px;fill:#67707F}
@@ -45,7 +45,7 @@ text{font-family:'PT Serif','DejaVu Serif',serif;fill:#1B2130}
 </style>
 <rect width="1200" height="630" fill="#F3EEE1"/>
 <rect x="24" y="24" width="1152" height="582" rx="10" fill="#FBF7ED" stroke="#E2DCCB" stroke-width="2"/>
-<text x="60" y="100" class="logo">Суть<tspan class="dot">.</tspan></text>
+<text x="60" y="100" class="logo">ИНН<tspan class="lt">факт</tspan><tspan class="dot">.</tspan></text>
 <text x="1140" y="96" text-anchor="end" class="kicker">ПРОВЕРКА КОМПАНИИ</text>
 ${lines.map((l, i) => `<text x="60" y="${nameY + i * size * 1.12}" class="name" font-size="${size}">${esc(l)}</text>`).join('\n')}
 <text x="60" y="${infoY}" class="info">ИНН ${esc(inn)}${status ? ` · <tspan class="${active ? 'ok' : 'badst'}">${esc(status)}</tspan>` : ''}</text>

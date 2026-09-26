@@ -70,7 +70,7 @@ ${f && f.tax && f.tax.items.length ? `<p class="fns-sub">Крупнейшие н
 <p class="note-sm">Сведения из открытых данных ФНС${party ? ' и ЕГРЮЛ' : ''}. Суды, арбитраж, приставы, учредители, отчётность и советы загружаются ниже.</p></section>`;
 
   let h = tpl
-    .replace(/<title>[^<]*<\/title>/, `<title>${esc(title)} — Суть</title>`)
+    .replace(/<title>[^<]*<\/title>/, `<title>${esc(title)} — ИННфакт</title>`)
     .replace(/(<meta name="description" content=")[^"]*"/, `$1${esc(desc)}"`)
     .replace(/(<meta property="og:description" content=")[^"]*"/, `$1${esc(desc)}"`)
     .replace(/(<meta property="og:title" content=")[^"]*"/, `$1${esc(title)}"`)
