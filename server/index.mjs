@@ -20,8 +20,11 @@
 //   AI_PER_IP_HOUR    — сколько ИИ-разборов в час с одного адреса, по умолчанию 15
 //   AI_UPSTREAM_URL   — если задан, разбор делает другой наш сервер по этому адресу (например, https://sut-api.onrender.com):
 //                       Google не пускает к Gemini с российских адресов. Туда уходит только ИНН организации
-//   DATANEWTON_KEY    — ключ DataNewton: подробная карточка, суды, арбитраж, приставы (POST /api/org/more)
-//   DATANEWTON_DAILY  — сколько компаний в сутки проверять через DataNewton (по 4 единицы лимита), по умолчанию 150
+//   DATANEWTON_KEY    — ключ DataNewton: подробная карточка (POST /api/org/more, 1 единица), суды, арбитраж и приставы
+//                       по кнопке (POST /api/org/courts, 3 единицы)
+//   DATANEWTON_DAILY_UNITS — сколько единиц DataNewton тратить в сутки, по умолчанию 100 (пакет 3 000 в месяц)
+//   DATANEWTON_CACHE_DAYS  — сколько дней хранить ответы (по умолчанию 7); DATANEWTON_CACHE_DB — файл кеша,
+//                       по умолчанию dn-cache.db рядом с FNS_DB (без FNS_DB — в памяти)
 //   SITE_DIST         — где лежит собранный сайт (deploy/site-build.sh), по умолчанию /var/www/fin-check.shop:
 //                       из него берётся шаблон страниц компаний GET /organizacii/<ИНН>/ и карты сайта /sitemap-companies.xml
 //   SSR_DADATA_DAILY  — сколько раз в сутки страницы компаний могут спросить DaData (по умолчанию 2000)
@@ -46,7 +49,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FORBIDDEN } from '../src/lib/schema.mjs';
 import { openDb, createAccounts, smtpMailer } from './accounts.mjs';
-import { dnData } from './datanewton.mjs';
+import { dnCard, dnCourts } from './datanewton.mjs';
+import { createDnStore } from './dn-store.mjs';
 import { checkSite, siteNotes } from './site-check.mjs';
 import { createCompanyPages } from './company-page.mjs';
 import { fnsData } from './fns.mjs';
@@ -82,7 +86,8 @@ export function config(env = process.env) {
     aiPerIpHour: Number(env.AI_PER_IP_HOUR || 15),
     aiUpstream: (env.AI_UPSTREAM_URL || '').replace(/\/$/, ''),
     dnKey: env.DATANEWTON_KEY || '', dnUrl: (env.DATANEWTON_URL || 'https://api.datanewton.ru').replace(/\/$/, ''),
-    dnDaily: Number(env.DATANEWTON_DAILY || 150),
+    dnDailyUnits: Number(env.DATANEWTON_DAILY_UNITS || 100), dnCacheDays: Number(env.DATANEWTON_CACHE_DAYS || 7),
+    dnCacheDb: env.DATANEWTON_CACHE_DB || (env.FNS_DB ? path.join(path.dirname(env.FNS_DB), 'dn-cache.db') : null),
     port: Number(env.PORT || 3000)
   };
 }
@@ -381,7 +386,7 @@ export async function analyze(suggestion, cfg, fetchImpl, fns = null, more = nul
 }
 
 /* ---------- HTTP ---------- */
-export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now = () => Date.now(), db = null, mailer = null, fnsPause = 700, fnsDb = undefined } = {}) {
+export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now = () => Date.now(), db = null, mailer = null, fnsPause = 700, fnsDb = undefined, dnStore = undefined } = {}) {
   const cfg = config(env);
   const accounts = db ? createAccounts({ env, db, fetchImpl, mailer, now }) : null;
   const partyCache = makeCache(12 * 3600e3);
@@ -389,9 +394,22 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
   const fnsCache = makeCache(DAY);
   const suggestCache = makeCache(3600e3, 20000);
   const suggestHits = new Map();
-  const moreCache = makeCache(DAY, 5000);
-  const moreHits = new Map();
-  let moreDay = { key: '', count: 0 };
+  const dn = dnStore || createDnStore(cfg.dnCacheDb, { ttlDays: cfg.dnCacheDays, dailyUnits: cfg.dnDailyUnits, now });
+  const dnHits = new Map();
+  setInterval(() => dn.prune(), DAY).unref();
+  // всё, что уже есть о компании из DataNewton (для разбора и страницы компании) — без новых запросов
+  const dnCached = (inn) => {
+    const c = dn.get('card:' + inn), k = dn.get('courts:' + inn);
+    return c || k ? { available: true, ...(c || {}), ...(k || {}) } : null;
+  };
+  const dnAllow = (ip, units) => {
+    const t = now(), hits = (dnHits.get(ip) || []).filter((x) => t - x < 3600e3);
+    if (hits.length >= 40) return false;
+    if (!dn.take(units)) return false;
+    hits.push(t); dnHits.set(ip, hits);
+    if (dnHits.size > 20000) dnHits.clear();
+    return true;
+  };
   // база открытых данных ФНС открывается только на чтение; если её ещё нет — работаем без неё
   let fdb = fnsDb;
   if (fdb === undefined && env.FNS_DB) { try { fdb = new DatabaseSync(env.FNS_DB, { readOnly: true }); } catch (e) { console.error('FNS_DB:', e.message); fdb = null; } }
@@ -442,7 +460,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
     if (s === undefined) { s = await findParty(inn, cfg, fetchImpl); partyCache.set(inn, s); }
     return s;
   }
-  const companyPages = createCompanyPages({ env, fdb, getParty, cachedParty: (inn) => partyCache.get(inn), getMore: (inn) => moreCache.get(inn), now });
+  const companyPages = createCompanyPages({ env, fdb, getParty, cachedParty: (inn) => partyCache.get(inn), getMore: dnCached, now });
 
   // Пересылка к api.telegram.org для нашего сервера в России. Секретов не хранит: токен приходит в адресе и дальше не пишется
   async function relayTelegram(req, res, url) {
@@ -474,7 +492,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
       if (await companyPages(req, res, url, innValid)) return;
       if (req.method !== 'GET' && req.headers.origin && !cfg.origins.includes(req.headers.origin)) return send(res, 403, { error: 'Запрос с чужого сайта' });
       if (accounts && await accounts.handle(req, res, url, { send, readBody, getParty, innValid, ip: ipOf(req) })) return;
-      if (req.method !== 'POST' || !['/api/org', '/api/org/ai', '/api/org/fns', '/api/org/more', '/api/org/suggest'].includes(url.pathname)) return send(res, 404, { error: 'Не найдено' });
+      if (req.method !== 'POST' || !['/api/org', '/api/org/ai', '/api/org/fns', '/api/org/more', '/api/org/courts', '/api/org/suggest'].includes(url.pathname)) return send(res, 404, { error: 'Не найдено' });
       if (req.headers.origin && !cfg.origins.includes(req.headers.origin)) return send(res, 403, { error: 'Запрос с чужого сайта' });
       if (!cfg.dadataToken) return send(res, 503, { error: 'Проверка организаций не подключена.' });
 
@@ -498,21 +516,26 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
 
       if (url.pathname === '/api/org/more') {
         if (!cfg.dnKey) return send(res, 200, { available: false });
-        let m = moreCache.get(inn);
+        let m = dn.get('card:' + inn);
         if (!m) {
-          const t = now(), key = new Date(t).toISOString().slice(0, 10), ip = ipOf(req);
-          if (moreDay.key !== key) moreDay = { key, count: 0 };
-          const hits = (moreHits.get(ip) || []).filter((x) => t - x < 3600e3);
-          if (moreDay.count >= cfg.dnDaily || hits.length >= 30) return send(res, 200, { available: true, limited: true });
-          hits.push(t); moreHits.set(ip, hits); moreDay.count++;
-          if (moreHits.size > 20000) moreHits.clear();
-          const d = await dnData(inn, cfg, fetchImpl);
-          const sites = (d.card?.contacts.sites || []).slice(0, 2).map((s) => s.value);
-          const checks = await Promise.all(sites.map((s) => checkSite(s, inn, { fetchImpl, now: now() }).catch(() => null)));
-          m = { available: true, ...d, sites: checks.filter(Boolean).map((c) => ({ ...c, notes: siteNotes(c) })) };
-          if (d.card || d.courts || d.arbitration) moreCache.set(inn, m);
+          if (!dnAllow(ipOf(req), 1)) return send(res, 200, { available: true, limited: true, ...(dn.get('courts:' + inn) || {}) });
+          const d = await dnCard(inn, cfg, fetchImpl);
+          const sites = (d.card?.contacts.sites || []).slice(0, 2).map((x) => x.value);
+          const checks = await Promise.all(sites.map((x) => checkSite(x, inn, { fetchImpl, now: now() }).catch(() => null)));
+          m = { card: d.card, left: d.left, sites: checks.filter(Boolean).map((c) => ({ ...c, notes: siteNotes(c) })) };
+          if (d.card) dn.set('card:' + inn, m);
         }
-        return send(res, 200, m);
+        return send(res, 200, { available: true, ...m, ...(dn.get('courts:' + inn) || {}) });   // суды — если уже загружены
+      }
+      if (url.pathname === '/api/org/courts') {
+        if (!cfg.dnKey) return send(res, 200, { available: false });
+        let k = dn.get('courts:' + inn);
+        if (!k) {
+          if (!dnAllow(ipOf(req), inn.length === 10 ? 3 : 2)) return send(res, 200, { available: true, limited: true });
+          k = await dnCourts(inn, cfg, fetchImpl);
+          if (k.courts || k.arbitration || k.fssp) dn.set('courts:' + inn, k);
+        }
+        return send(res, 200, { available: true, ...k });
       }
 
       if (url.pathname === '/api/org/fns') {
@@ -553,7 +576,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
         // свой ИИ (Алиса или Gemini): добавляем данные ФНС, если они есть в кеше или быстро получаются
         let f = fnsCache.get(inn);
         if (!f) { try { f = await fnsData(inn, fetchImpl, fnsPause, fdb, now); if (f.pb || f.bo) fnsCache.set(inn, f); } catch { f = null; } }
-        ai = await analyze(s, cfg, fetchImpl, f, moreCache.get(inn));   // сайт запрашивает разбор после /api/org/more
+        ai = await analyze(s, cfg, fetchImpl, f, dnCached(inn));   // сайт запрашивает разбор после /api/org/more
       }
       aiCache.set(inn, ai);
       return send(res, 200, { ai });

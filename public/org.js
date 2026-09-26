@@ -642,43 +642,9 @@
     return wrap;
   }
 
-  function renderMore(j, inn) {
-    var anchor = document.getElementById('org-more');
-    if (!anchor) return;
-    if (!j || !j.available) { anchor.remove(); return; }
-    if (j.limited) { anchor.className = 'dcard'; anchor.textContent = ''; anchor.appendChild(el('p', 'note-sm', 'Суды, учредители и контакты сейчас недоступны: исчерпан лимит запросов на сегодня. Попробуйте позже или посмотрите сами по ссылкам внизу страницы.')); return; }
-    var c = j.card;
-    var add = function (title, cls) { return card(null, title, cls, anchor); };
-
-    // шапка: то, чего нет в DaData
-    var hr = document.getElementById('head-rows');
-    if (c && hr) {
-      if (c.capital != null) row(hr, 'Уставный капитал', money(c.capital));
-      if (c.workers.length) row(hr, 'Сотрудников', c.workers[c.workers.length - 1].n + ' в ' + c.workers[c.workers.length - 1].year);
-      if (c.msp) row(hr, 'Реестр МСП', c.msp.category);
-      if (c.regime) row(hr, 'Налоговый режим', c.regime.names.join(', '));
-      if (c.taxOffice) row(hr, 'Налоговая', c.taxOffice);
-      if (c.branches) row(hr, 'Филиалы и представительства', String(c.branches));
-    }
-
-    // численность по годам — в карточку «Налоги и сотрудники» (или отдельной карточкой)
-    var wk = c ? c.workers.slice(-8) : [];
-    if (wk.length >= 2) {
-      var wc = add('Численность сотрудников');
-      wc.appendChild(el('p', 'note-sm', 'Среднесписочная численность по данным ФНС.'));
-      var chw = barChart(wk.map(function (w) { return { x: w.year, v: w.n }; }), 'Среднесписочная численность по годам');
-      wc.appendChild(chw);
-    }
-
-    // отметки в реестрах
-    if (c) {
-      var fl = add('Отметки в реестрах');
-      if (!c.flags.length) fl.appendChild(tip('ok', 'Нет отметок о недостоверности сведений, дисквалификации, банкротстве, санкциях, блокировке счетов и долгах у приставов больше 300 тыс. ₽.'));
-      c.flags.forEach(function (f) { fl.appendChild(tip('warn', f.text + (f.key === 'fssp_debt' && c.fsspDebt ? ': ' + money(c.fsspDebt) : '') + '.')); });
-      c.bankruptcy.filter(function (b) { return b.active; }).forEach(function (b) { fl.appendChild(tip('warn', 'Дело о банкротстве' + (b.case ? ' № ' + b.case : '') + (b.start ? ' с ' + dateShort(b.start) : '') + '.')); });
-      fl.appendChild(el('p', 'note-sm', 'По данным ЕГРЮЛ, ФНС, ФССП, Федресурса, ЦБ и Росфинмониторинга через сервис DataNewton.'));
-    }
-
+  // Суды, арбитраж, приставы — отдельными карточками перед элементом before
+  function renderCourts(j, before) {
+    var add = function (title, cls) { return card(null, title, cls, before); };
     // арбитраж
     var a = j.arbitration;
     if (a) {
@@ -746,6 +712,69 @@
       }
       var fp = el('p', 'note-sm'); fp.appendChild(linkTo('Банк данных ФССП', 'https://fssp.gov.ru/iss/ip')); fc.appendChild(fp);
     }
+
+  }
+  // Кнопка «Показать суды…»: суды тратят 3 единицы лимита DataNewton, поэтому грузим их только по желанию
+  function courtsButton(inn, before) {
+    var bc = card(null, 'Суды, арбитраж и приставы', null, before);
+    bc.appendChild(el('p', 'note-sm', 'Дела в судах общей юрисдикции и арбитраже, исходы и суммы, открытые исполнительные производства.'));
+    var b = el('button', 'btn', 'Показать суды и долги'); b.type = 'button';
+    var msgc = el('p', 'note-sm');
+    b.addEventListener('click', function () {
+      b.disabled = true; msgc.textContent = 'Загружаем — обычно несколько секунд…';
+      postApi('/api/org/courts', inn).then(function (k) {
+        if (!k || k.status !== 200 || !k.available) throw new Error();
+        if (k.limited) { b.disabled = false; msgc.textContent = 'Сегодня лимит запросов к судам исчерпан. Попробуйте завтра или посмотрите сами: kad.arbitr.ru и fssp.gov.ru.'; return; }
+        renderCourts(k, bc); bc.remove();
+      }).catch(function () { b.disabled = false; msgc.textContent = 'Не получилось загрузить. Попробуйте ещё раз.'; });
+    });
+    bc.appendChild(b); bc.appendChild(msgc);
+  }
+
+  function renderMore(j, inn) {
+    var anchor = document.getElementById('org-more');
+    if (!anchor) return;
+    if (!j || !j.available) { anchor.remove(); return; }
+    if (j.limited && !j.card) {
+      if (j.courts || j.arbitration || j.fssp) renderCourts(j, anchor);
+      anchor.className = 'dcard'; anchor.textContent = '';
+      anchor.appendChild(el('p', 'note-sm', 'Учредители, контакты и суды сейчас недоступны: исчерпан дневной лимит запросов. Попробуйте завтра или посмотрите сами по ссылкам внизу страницы.'));
+      return;
+    }
+    var c = j.card;
+    var add = function (title, cls) { return card(null, title, cls, anchor); };
+
+    // шапка: то, чего нет в DaData
+    var hr = document.getElementById('head-rows');
+    if (c && hr) {
+      if (c.capital != null) row(hr, 'Уставный капитал', money(c.capital));
+      if (c.workers.length) row(hr, 'Сотрудников', c.workers[c.workers.length - 1].n + ' в ' + c.workers[c.workers.length - 1].year);
+      if (c.msp) row(hr, 'Реестр МСП', c.msp.category);
+      if (c.regime) row(hr, 'Налоговый режим', c.regime.names.join(', '));
+      if (c.taxOffice) row(hr, 'Налоговая', c.taxOffice);
+      if (c.branches) row(hr, 'Филиалы и представительства', String(c.branches));
+    }
+
+    // численность по годам — в карточку «Налоги и сотрудники» (или отдельной карточкой)
+    var wk = c ? c.workers.slice(-8) : [];
+    if (wk.length >= 2) {
+      var wc = add('Численность сотрудников');
+      wc.appendChild(el('p', 'note-sm', 'Среднесписочная численность по данным ФНС.'));
+      var chw = barChart(wk.map(function (w) { return { x: w.year, v: w.n }; }), 'Среднесписочная численность по годам');
+      wc.appendChild(chw);
+    }
+
+    // отметки в реестрах
+    if (c) {
+      var fl = add('Отметки в реестрах');
+      if (!c.flags.length) fl.appendChild(tip('ok', 'Нет отметок о недостоверности сведений, дисквалификации, банкротстве, санкциях, блокировке счетов и долгах у приставов больше 300 тыс. ₽.'));
+      c.flags.forEach(function (f) { fl.appendChild(tip('warn', f.text + (f.key === 'fssp_debt' && c.fsspDebt ? ': ' + money(c.fsspDebt) : '') + '.')); });
+      c.bankruptcy.filter(function (b) { return b.active; }).forEach(function (b) { fl.appendChild(tip('warn', 'Дело о банкротстве' + (b.case ? ' № ' + b.case : '') + (b.start ? ' с ' + dateShort(b.start) : '') + '.')); });
+      fl.appendChild(el('p', 'note-sm', 'По данным ЕГРЮЛ, ФНС, ФССП, Федресурса, ЦБ и Росфинмониторинга через сервис DataNewton.'));
+    }
+
+    // суды — если уже загружены (кто-то недавно смотрел), иначе кнопка
+    if (j.courts || j.arbitration || j.fssp) renderCourts(j, anchor); else if (!j.limited) courtsButton(inn, anchor);
 
     // руководство и учредители
     if (c && (c.managers.length || c.owners.length || c.managementCompany)) {

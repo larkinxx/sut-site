@@ -163,21 +163,29 @@ export function normFssp(j, inn) {
   };
 }
 
-export async function dnData(inn, cfg, fetchImpl) {
+const log = (n, inn, r) => { if (r.status === 'rejected') console.error('DataNewton', n, inn, r.reason?.message); };
+const ok = (r) => (r.status === 'fulfilled' ? r.value : null);
+
+// Подробная карточка: 1 единица лимита
+export async function dnCard(inn, cfg, fetchImpl) {
   const filters = 'ADDRESS_BLOCK,MANAGER_BLOCK,OWNER_BLOCK,OKVED_BLOCK,NEGATIVE_LISTS_BLOCK,WORKERS_COUNT_BLOCK,CONTACT_BLOCK,MSP_BLOCK,BRANCHES_BLOCK';
-  const [card, courts, arb, fssp] = await Promise.allSettled([
-    call(cfg, fetchImpl, 'GET', '/v1/counterparty', { inn, filters }),
+  const [card] = await Promise.allSettled([call(cfg, fetchImpl, 'GET', '/v1/counterparty', { inn, filters })]);
+  log('карточка', inn, card);
+  const j = ok(card);
+  return { card: j ? normCard(j) : null, left: j ? (j.available_count || 0) + (j.demo_available_count || 0) : null };
+}
+
+// Суды общей юрисдикции, арбитраж, приставы (у ИП приставов по ИНН нет): 3 единицы (у ИП — 2)
+export async function dnCourts(inn, cfg, fetchImpl) {
+  const [courts, arb, fssp] = await Promise.allSettled([
     call(cfg, fetchImpl, 'POST', '/v1/courtCases', { inn, limit: 50, sort: 'entry_date', order: 'desc' }),
     call(cfg, fetchImpl, 'GET', '/v1/arbitration-cases', { inn, limit: 100, company_role: 'ALL' }),
     inn.length === 10 ? call(cfg, fetchImpl, 'POST', '/v1/fssp', { inn, limit: 100, sort: 'date', order: 'desc' }) : Promise.resolve(null)
   ]);
-  for (const [n, r] of [['карточка', card], ['суды', courts], ['арбитраж', arb], ['ФССП', fssp]]) if (r.status === 'rejected') console.error('DataNewton', n, inn, r.reason?.message);
-  const ok = (r) => (r.status === 'fulfilled' ? r.value : null);
+  log('суды', inn, courts); log('арбитраж', inn, arb); log('ФССП', inn, fssp);
   return {
-    card: ok(card) ? normCard(ok(card)) : null,
     courts: ok(courts) ? normCourts(ok(courts), inn) : null,
     arbitration: ok(arb) ? normArbitration(ok(arb), inn) : null,
-    fssp: ok(fssp) ? normFssp(ok(fssp), inn) : null,
-    left: ok(card) ? (ok(card).available_count || 0) + (ok(card).demo_available_count || 0) : null
+    fssp: ok(fssp) ? normFssp(ok(fssp), inn) : null
   };
 }

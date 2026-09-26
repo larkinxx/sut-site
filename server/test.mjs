@@ -275,28 +275,32 @@ try {
     assert.deepEqual([f.total, f.open, f.openSum], [2, 1, 300]);
   });
 
-  await t('/api/org/more: DataNewton через сервер, кеш на сутки, без ключа — недоступно', async () => {
-    let calls = 0;
+  await t('DataNewton: карточка — 1 единица, суды по кнопке — 3, кеш, дневной лимит, без ключа — недоступно', async () => {
+    const calls = [];
     const dnFetch = async (url) => {
       const u = new URL(String(url));
       if (u.hostname !== 'api.datanewton.ru') return fakeFetch(url);
-      calls++;
+      calls.push(u.pathname);
       assert.equal(u.searchParams.get('key'), 'dn');
       if (u.pathname === '/v1/counterparty') return new Response(JSON.stringify({ inn: '7707083893', company: { company_names: { short_name: 'ООО "РОМАШКА"' }, charter_capital: '10000' }, available_count: 190 }));
-      if (u.pathname === '/v1/arbitration-cases') return new Response(JSON.stringify({ total_cases: 0, data: [] }));
+      if (u.pathname === '/v1/arbitration-cases') return new Response(JSON.stringify({ total_cases: 2, data: [] }));
       return new Response(JSON.stringify({ total: 0, data: [] }));
     };
-    const srv = http.createServer(createApp({ env: { DADATA_TOKEN: 't', DATANEWTON_KEY: 'dn' }, fetchImpl: dnFetch }));
+    const srv = http.createServer(createApp({ env: { DADATA_TOKEN: 't', DATANEWTON_KEY: 'dn', DATANEWTON_DAILY_UNITS: '4' }, fetchImpl: dnFetch }));
     await new Promise((r) => srv.listen(0, r));
-    const post = () => fetch('http://127.0.0.1:' + srv.address().port + '/api/org/more', { method: 'POST', headers: { 'content-type': 'application/json', origin: 'https://fin-check.shop' }, body: JSON.stringify({ inn: '7707083893' }) }).then((r) => r.json());
+    const post = (p, inn = '7707083893') => fetch('http://127.0.0.1:' + srv.address().port + p, { method: 'POST', headers: { 'content-type': 'application/json', origin: 'https://fin-check.shop' }, body: JSON.stringify({ inn }) }).then((r) => r.json());
     try {
-      const j = await post();
-      assert.equal(j.available, true);
+      const j = await post('/api/org/more');
       assert.equal(j.card.capital, 10000);
-      assert.equal(j.left, 190);
-      assert.equal(calls, 4, 'карточка, суды, арбитраж, приставы');
-      await post();
-      assert.equal(calls, 4, 'второй раз из кеша');
+      assert.equal(j.arbitration, undefined, 'суды сами не грузятся');
+      assert.deepEqual(calls, ['/v1/counterparty']);
+      const k = await post('/api/org/courts');
+      assert.equal(k.arbitration.total, 2);
+      assert.equal(calls.length, 4, 'суды, арбитраж, приставы');
+      await post('/api/org/courts'); await post('/api/org/more');
+      assert.equal(calls.length, 4, 'повтор — из кеша');
+      assert.equal((await post('/api/org/more')).arbitration.total, 2, 'карточка отдаёт уже загруженные суды');
+      assert.equal((await post('/api/org/more', '7736207543')).limited, true, 'дневной лимит 4 единицы: 1 + 3 израсходованы');
     } finally { srv.close(); }
     const r = await fetch(base + '/api/org/more', { method: 'POST', headers: { 'content-type': 'application/json', origin: 'https://fin-check.shop' }, body: JSON.stringify({ inn: '7707083893' }) });
     assert.deepEqual(await r.json(), { available: false });
