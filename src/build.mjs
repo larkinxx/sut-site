@@ -131,7 +131,7 @@ ${withExamples ? '<div class="wrap" style="padding:8px 16px 0;font:500 13px var(
 ${body}
 </main>
 <footer class="wrap">
-  <p class="fine">${esc(site.disclaimer)} Как мы готовим новости: <a href="${url('/kak-my-rabotaem/')}">как мы работаем</a>. <a href="${url('/o-proekte/')}">О проекте</a>.${POLICY ? ` <a href="${url('/politika/')}">Политика конфиденциальности</a>.` : ''}${site.contactEmail ? ` Нашли ошибку? Напишите: <a href="mailto:${esc(site.contactEmail)}">${esc(site.contactEmail)}</a>.` : ''}</p>
+  <p class="fine">${esc(site.disclaimer)} Как мы готовим новости: <a href="${url('/kak-my-rabotaem/')}">как мы работаем</a>. <a href="${url('/o-proekte/')}">О проекте</a>. <a href="${url('/pravovaya-informaciya/')}">Правовая информация</a>.${POLICY ? ` <a href="${url('/politika/')}">Политика конфиденциальности</a>.` : ''}${site.contactEmail ? ` Нашли ошибку? Напишите: <a href="mailto:${esc(site.contactEmail)}">${esc(site.contactEmail)}</a>.` : ''}</p>
 </footer>
 ${body.includes('data-calc=') || body.includes('id="org"') ? `<script type="application/json" id="fin">${JSON.stringify(FIN).replace(/</g, '\\u003c')}</script>\n` : ''}<script src="${url('/app.js')}?v=${jsV}" defer></script>${scripts}
 <script>
@@ -673,6 +673,43 @@ write('404.html', layout({
   body: `<h1 class="page">Страница не найдена</h1><p class="lede">Возможно, адрес изменился. <a href="${url('/')}" style="color:var(--accent)">Вернуться к новостям</a>.</p>`
 }));
 
+// Правовая информация: на каком основании работает сайт, какие законы и открытые данные
+{
+  const op = site.operator || {};
+  const opLine = op.name && op.inn
+    ? `Оператор персональных данных — ${esc(op.name)}, ИНН ${esc(op.inn)}.`
+    : '';
+  const mail = esc(site.contactEmail || '');
+  write('pravovaya-informaciya/index.html', layout({
+    title: 'Правовая информация', path: '/pravovaya-informaciya/', current: '',
+    desc: 'На каком основании работает сайт «Суть», какие законы мы соблюдаем и откуда берём данные об организациях.',
+    body: `<h1 class="page">Правовая информация</h1>
+<div class="prose">
+<p>«Суть» — информационный сайт. Материалы носят справочный характер и не являются индивидуальной финансовой, налоговой или юридической рекомендацией. Решения по своим делам вы принимаете сами; при необходимости обращайтесь к профильному специалисту.</p>
+
+<h2>Персональные данные</h2>
+<p>${opLine ? opLine + ' ' : ''}Обработка персональных данных пользователей ведётся по Федеральному закону от 27.07.2006 № 152-ФЗ «О персональных данных». Пользоваться сайтом можно без регистрации и без передачи персональных данных. Если вы входите в кабинет, данные обрабатываются на основании вашего согласия и хранятся на сервере в России. Что именно мы обрабатываем, зачем и как это удалить — на странице <a href="${url('/politika/')}">«Политика конфиденциальности»</a>.</p>
+
+<h2>Откуда данные об организациях</h2>
+<p>Сведения о компаниях и ИП мы показываем только из открытых официальных источников:</p>
+<ul>
+<li><a href="https://egrul.nalog.ru/" target="_blank" rel="noopener">ЕГРЮЛ/ЕГРИП</a> и открытые данные ФНС России;</li>
+<li>государственный информационный ресурс бухгалтерской отчётности (<a href="https://bo.nalog.gov.ru/" target="_blank" rel="noopener">ГИР БО</a>);</li>
+<li>сервис «<a href="https://pb.nalog.ru/" target="_blank" rel="noopener">Прозрачный бизнес</a>» ФНС России.</li>
+</ul>
+<p>Эти данные публикуются в открытом доступе на условиях самих ведомств. Сведения о конкретных физических лицах (ФИО руководителей и учредителей, адреса) наружу мы не отдаём — показываем только обобщённые сведения об организации. ИНН, введённый в проверке, передаётся сервису DaData для поиска по реестрам и не сохраняется.</p>
+
+<h2>Новости</h2>
+<p>Новости готовятся по открытым публикациям официальных источников и деловых СМИ со ссылкой на первоисточник. Как именно — на странице <a href="${url('/kak-my-rabotaem/')}">«Как мы работаем»</a>.</p>
+
+<h2>Авторские права</h2>
+<p>Тексты и оформление сайта «Суть» — объекты авторского права. При цитировании указывайте источник и ставьте ссылку на страницу. Логотипы и данные ведомств принадлежат их правообладателям.</p>
+
+${mail ? `<h2>Обратная связь</h2><p>Вопросы, в том числе по обработке персональных данных: <a href="mailto:${mail}">${mail}</a>.</p>` : ''}
+</div>`
+  }));
+}
+
 // О проекте: кто делает сайт и как связаться
 write('o-proekte/index.html', layout({
   title: 'О проекте', desc: 'Что такое «Суть», для кого этот сайт и как связаться с редакцией.', path: '/o-proekte/', current: '',
@@ -736,7 +773,7 @@ if (!site.siteUrl.includes('example')) {
   // lastmod: у ленты — время свежей новости, у карточки — время последней правки; у статичных страниц не ставим
   const fresh = cards.length ? cards[0].publishedAt : '';
   const urls = [
-    ['/', fresh], ['/arhiv/', fresh], ['/kalkulyatory/'], ...CALCS.map((c) => [`/kalkulyatory/${c.slug}/`]), ['/organizacii/'], ['/fizlica/'], ['/nalogi/'], ...[...TAX, ...TAX_P].map((t) => [`/nalogi/${t.slug}/`]), ['/nalogovye-shemy/'], ['/nalogi/blokirovka-scheta/'], ['/fizlica/dropy/'], ['/kak-my-rabotaem/'], ['/o-proekte/'], ...(POLICY ? [['/politika/']] : []),
+    ['/', fresh], ['/arhiv/', fresh], ['/kalkulyatory/'], ...CALCS.map((c) => [`/kalkulyatory/${c.slug}/`]), ['/organizacii/'], ['/fizlica/'], ['/nalogi/'], ...[...TAX, ...TAX_P].map((t) => [`/nalogi/${t.slug}/`]), ['/nalogovye-shemy/'], ['/nalogi/blokirovka-scheta/'], ['/fizlica/dropy/'], ['/kak-my-rabotaem/'], ['/o-proekte/'], ['/pravovaya-informaciya/'], ...(POLICY ? [['/politika/']] : []),
     ...cards.map((c) => [`/n/${c.id}/`, (c.review && c.review.at) || c.publishedAt])
   ];
   write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(([u, m]) => `<url><loc>${site.siteUrl}${u}</loc>${m ? `<lastmod>${new Date(m).toISOString()}</lastmod>` : ''}</url>`).join('\n')}\n</urlset>\n`);
