@@ -36,8 +36,8 @@ export function createDnStore(file, { ttlDays = 7, dailyUnits = 100, now = () =>
       return day.key === today() ? day.used : 0;
     },
     // списать единицы, если дневной лимит позволяет
-    take(units) {
-      if (this.used() + units > dailyUnits) return false;
+    take(units, limit = dailyUnits) {
+      if (this.used() + units > limit) return false;
       if (db) db.prepare('INSERT INTO dn_usage (day, units) VALUES (?, ?) ON CONFLICT(day) DO UPDATE SET units = units + excluded.units').run(today(), units);
       else { if (day.key !== today()) day = { key: today(), used: 0 }; day.used += units; }
       return true;

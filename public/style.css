@@ -342,3 +342,19 @@ a.share{text-decoration:none;display:inline-flex;align-items:center}
 .idx-factors{list-style:none;padding:0;margin:6px 0 0;font:400 14px/1.6 var(--font-ui)}
 .idx-factors b{display:inline-block;min-width:34px;font-variant-numeric:tabular-nums}
 .idx-factors .plus b{color:var(--pos)}.idx-factors .minus b{color:var(--crit-line)}
+
+/* тарифы */
+.plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:18px;margin:18px 0}
+.plan{border:1px solid var(--line);border-radius:var(--r);padding:20px 22px;background:var(--surface)}
+.plan h2{margin:0 0 6px}
+.plan-pro{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.plan-price{font-size:34px;font-weight:700;line-height:1.1;margin:4px 0}
+.plan-price span{font:400 15px/1 var(--font-ui);color:var(--muted)}
+.plan ul{padding-left:18px;margin:12px 0;display:grid;gap:6px}
+.plan-buy{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 10px}
+.pro-note{border-left:3px solid var(--accent);padding:4px 0 4px 12px}
+@media print{
+  header,footer,.share-row,.acct-actions,#org form,.org-form,button,.btn{display:none!important}
+  body{background:#fff!important;color:#000!important}
+  .dcard{break-inside:avoid}
+}

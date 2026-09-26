@@ -849,6 +849,12 @@
       postApi('/api/org/courts', inn).then(function (k) {
         if (!k || k.status !== 200 || !k.available) throw new Error();
         if (k.limited) { b.disabled = false; msgc.textContent = 'Сегодня лимит запросов к судам исчерпан. Попробуйте завтра или посмотрите сами: kad.arbitr.ru и fssp.gov.ru.'; return; }
+        if (k.paywall) {
+          b.remove(); msgc.textContent = 'Бесплатно — суды по ' + k.free + ' новым компаниям в день, на сегодня они закончились. ';
+          var pa = el('a', null, 'ИННфакт Про — без ограничений, от 290 ₽ в месяц'); pa.href = '/tarify/';
+          msgc.appendChild(pa); msgc.appendChild(document.createTextNode('. Или загляните завтра.'));
+          return;
+        }
         renderCourts(k, bc); bc.remove();
       }).catch(function () { b.disabled = false; msgc.textContent = 'Не получилось загрузить. Попробуйте ещё раз.'; });
     });
@@ -1012,6 +1018,7 @@
       msg.textContent = '';
       render(j.suggestion, j.advice);
       accountActions(j.suggestion, j.signedIn);
+      if (j.billing) pdfButton(j.pro);
       loadFns(inn, j.suggestion.data || {});
       var moreDone = loadMore(inn);
       var box = document.getElementById('org-ai');
@@ -1041,6 +1048,15 @@
       body: body ? JSON.stringify(body) : undefined
     }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { j.status = r.status; return j; }); });
   }
+  // Отчёт в PDF — печать страницы в файл (оформление для печати — в style.css, @media print). Для подписчиков
+  function pdfButton(pro) {
+    var head = document.getElementById('card-head') || out;
+    var b = el('button', 'share', pro ? 'Скачать отчёт PDF' : 'Отчёт PDF — в Про'); b.type = 'button';
+    b.addEventListener('click', function () {
+      if (pro) window.print(); else location.href = '/tarify/';
+    });
+    head.appendChild(b);
+  }
   function accountActions(s, signedIn) {
     if (!ACCT || !s || !s.data) return;
     var inn = s.data.inn;
@@ -1056,11 +1072,14 @@
       var note = el('span', 'note-sm');
       var btn = function (label, fn) {
         var b = el('button', 'share', label); b.type = 'button';
-        b.addEventListener('click', function () { b.disabled = true; fn().then(function (t) { note.textContent = t; }, function () { note.textContent = 'Не получилось, попробуйте позже.'; b.disabled = false; }); });
+        b.addEventListener('click', function () { b.disabled = true; fn().then(function (t) { if (t != null) note.textContent = t; }, function () { note.textContent = 'Не получилось, попробуйте позже.'; b.disabled = false; }); });
         box.appendChild(b);
       };
       btn('Следить за изменениями', function () {
-        return acctCall('POST', '/api/watch', { inn: inn }).then(function (j) { return j.ok ? 'Добавлено в слежение: сообщим, если сменится статус, руководитель или появится долг.' : (j.error || 'Не получилось.'); });
+        return acctCall('POST', '/api/watch', { inn: inn }).then(function (j) {
+          if (j.paywall) { note.textContent = j.error + ' '; var a = el('a', null, 'Тарифы'); a.href = '/tarify/'; note.appendChild(a); return null; }
+          return j.ok ? 'Добавлено в слежение: сообщим, если сменится статус, руководитель или появится долг.' : (j.error || 'Не получилось.');
+        });
       });
       btn('Это моя компания', function () {
         return acctCall('PATCH', '/api/me', { company_inn: inn }).then(function (j) { return j.user ? 'Сохранено в кабинете как ваша компания.' : (j.error || 'Не получилось.'); });

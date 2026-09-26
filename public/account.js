@@ -111,7 +111,7 @@
     var checkUrl = function (inn) { return '/organizacii/#inn=' + inn; };
 
     function render() {
-      Promise.all([api('GET', '/api/me'), api('GET', '/api/watch'), api('GET', '/api/history'), api('GET', '/api/calcs')]).then(function (r) {
+      Promise.all([api('GET', '/api/me'), api('GET', '/api/watch'), api('GET', '/api/history'), api('GET', '/api/calcs'), api('GET', '/api/billing').catch(function () { return {}; })]).then(function (r) {
         var me = r[0];
         if (!me.user) { location.replace('/vhod/?return=/kabinet/'); return; }
         var u = me.user;
@@ -121,6 +121,23 @@
         head.appendChild(el('p', 'lede', u.name + (u.email ? ' · ' + u.email : '')));
         head.appendChild(smallBtn('Выйти', function () { api('POST', '/auth/logout').then(function () { location.replace('/'); }); }));
         cab.appendChild(head);
+
+        // Подписка
+        var b = r[4] || {};
+        if (b.enabled) {
+          var ps = section('Подписка ИННфакт Про');
+          if (b.pro) {
+            ps.appendChild(el('p', null, 'Действует до ' + dateRu(b.paid_until) + (b.autorenew ? ', затем продлится автоматически.' : '.')));
+            if (b.autorenew) ps.appendChild(smallBtn('Отключить автопродление', function () {
+              if (confirm('Отключить автопродление? Подписка доработает до ' + dateRu(b.paid_until) + '.')) api('POST', '/api/billing/autorenew', { on: false }).then(render);
+            }));
+            else { var pp = el('p', 'note-sm'); pp.appendChild(link('Продлить заранее', '/tarify/')); ps.appendChild(pp); }
+          } else {
+            var pf = el('p', null, 'Сейчас бесплатный тариф: суды — ' + b.freeCourts + ' новые компании в день, слежение — до ' + b.freeWatch + ' компаний. ');
+            pf.appendChild(link('Подписка от ' + b.plans.month.price + ' ₽ в месяц', '/tarify/'));
+            ps.appendChild(pf);
+          }
+        }
 
         // Моя компания
         var sec = section('Моя компания', 'Укажите ИНН своей компании или ИП: откроем проверку и налоговые советы в один клик.');
@@ -211,6 +228,41 @@
         }));
       }, function () { cab.textContent = 'Сервер кабинета не отвечает. Попробуйте позже.'; });
     }
+    // возврат со страницы оплаты ЮKassa: сверяем платёж (уведомление ЮKassa могло ещё не дойти)
+    if (params.get('oplata')) {
+      var note = el('p', 'note-sm pro-note', 'Проверяем оплату…');
+      cab.parentNode.insertBefore(note, cab);
+      var tries = 0;
+      (function check() {
+        api('POST', '/api/billing/check', {}).then(function (j) {
+          if (j.pro && j.payment === 'succeeded') { note.textContent = 'Оплата прошла. Подписка ИННфакт Про действует до ' + dateRu(j.paid_until) + '.'; render(); history.replaceState(null, '', '/kabinet/'); }
+          else if (j.payment === 'canceled') note.textContent = 'Оплата не прошла. Попробуйте ещё раз на странице тарифов.';
+          else if (++tries < 10) setTimeout(check, 3000);
+          else note.textContent = 'Платёж ещё обрабатывается. Обновите страницу через пару минут.';
+        });
+      })();
+    }
     render();
+  }
+
+  /* ---------------- Тарифы ---------------- */
+  var tar = $('#tarify');
+  if (tar) {
+    var pmsg = $('#pay-msg'), buttons = tar.querySelectorAll('[data-plan]');
+    api('GET', '/api/billing').then(function (b) {
+      if (!b.enabled) { buttons.forEach(function (x) { x.disabled = true; }); pmsg.textContent = 'Оплата подключается — скоро можно будет оформить подписку.'; return; }
+      if (b.recurring) $('#autorenew-row').hidden = false;
+      if (b.pro) pmsg.textContent = 'У вас уже есть подписка до ' + dateRu(b.paid_until) + '. Оплата продлит её.';
+      buttons.forEach(function (x) {
+        x.addEventListener('click', function () {
+          x.disabled = true; pmsg.textContent = 'Переходим к оплате…';
+          api('POST', '/api/billing/pay', { plan: x.getAttribute('data-plan'), autorenew: !!($('#autorenew') && $('#autorenew').checked) }).then(function (j) {
+            if (j.status === 401) { location.href = '/vhod/?return=/tarify/'; return; }
+            if (j.url) { location.href = j.url; return; }
+            x.disabled = false; pmsg.textContent = j.error || 'Не получилось начать оплату. Попробуйте позже.';
+          }, function () { x.disabled = false; pmsg.textContent = 'Сервер оплаты не отвечает. Попробуйте позже.'; });
+        });
+      });
+    }, function () { pmsg.textContent = 'Сервер оплаты не отвечает. Попробуйте позже.'; });
   }
 })();

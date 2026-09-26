@@ -49,6 +49,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FORBIDDEN } from '../src/lib/schema.mjs';
 import { openDb, createAccounts, smtpMailer } from './accounts.mjs';
+import { createBilling } from './billing.mjs';
 import { dnCard, dnCourts } from './datanewton.mjs';
 import { createDnStore } from './dn-store.mjs';
 import { checkSite, siteNotes } from './site-check.mjs';
@@ -86,7 +87,7 @@ export function config(env = process.env) {
     aiPerIpHour: Number(env.AI_PER_IP_HOUR || 15),
     aiUpstream: (env.AI_UPSTREAM_URL || '').replace(/\/$/, ''),
     dnKey: env.DATANEWTON_KEY || '', dnUrl: (env.DATANEWTON_URL || 'https://api.datanewton.ru').replace(/\/$/, ''),
-    dnDailyUnits: Number(env.DATANEWTON_DAILY_UNITS || 100), dnCacheDays: Number(env.DATANEWTON_CACHE_DAYS || 7),
+    dnDailyUnits: Number(env.DATANEWTON_DAILY_UNITS || 100), dnProUnits: Number(env.DATANEWTON_PRO_UNITS || 100), dnCacheDays: Number(env.DATANEWTON_CACHE_DAYS || 7),
     dnCacheDb: env.DATANEWTON_CACHE_DB || (env.FNS_DB ? path.join(path.dirname(env.FNS_DB), 'dn-cache.db') : null),
     port: Number(env.PORT || 3000)
   };
@@ -404,7 +405,9 @@ export async function analyze(suggestion, cfg, fetchImpl, fns = null, more = nul
 /* ---------- HTTP ---------- */
 export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now = () => Date.now(), db = null, mailer = null, fnsPause = 700, fnsDb = undefined, dnStore = undefined } = {}) {
   const cfg = config(env);
-  const accounts = db ? createAccounts({ env, db, fetchImpl, mailer, now }) : null;
+  const accounts = db ? createAccounts({ env, db, fetchImpl, mailer, now, watchLimit: (u) => billing.watchLimit(u) }) : null;
+  // подписка: нужна база аккаунтов (платёж привязан к пользователю)
+  const billing = db ? createBilling({ env, db, fetchImpl, now, notify: (u, text) => accounts.notify(u, text) }) : null;
   const partyCache = makeCache(12 * 3600e3);
   const aiCache = makeCache(DAY);
   const fnsCache = makeCache(DAY);
@@ -418,10 +421,11 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
     const c = dn.get('card:' + inn), k = dn.get('courts:' + inn);
     return c || k ? { available: true, ...(c || {}), ...(k || {}) } : null;
   };
-  const dnAllow = (ip, units) => {
+  // pro — запрос подписчика: у него свой запас сверх общего дневного лимита
+  const dnAllow = (ip, units, pro = false) => {
     const t = now(), hits = (dnHits.get(ip) || []).filter((x) => t - x < 3600e3);
     if (hits.length >= 40) return false;
-    if (!dn.take(units)) return false;
+    if (!dn.take(units, pro ? cfg.dnDailyUnits + cfg.dnProUnits : undefined)) return false;
     hits.push(t); dnHits.set(ip, hits);
     if (dnHits.size > 20000) dnHits.clear();
     return true;
@@ -507,6 +511,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
       if (!accounts && url.pathname.startsWith('/tg/')) return relayTelegram(req, res, url);
       if (await companyPages(req, res, url, innValid)) return;
       if (req.method !== 'GET' && req.headers.origin && !cfg.origins.includes(req.headers.origin)) return send(res, 403, { error: 'Запрос с чужого сайта' });
+      if (billing && await billing.handle(req, res, url, { send, readBody, user: url.pathname.startsWith('/api/billing') ? accounts.userOf(req) : null })) return;
       if (accounts && await accounts.handle(req, res, url, { send, readBody, getParty, innValid, ip: ipOf(req) })) return;
       if (req.method !== 'POST' || !['/api/org', '/api/org/ai', '/api/org/fns', '/api/org/more', '/api/org/courts', '/api/org/suggest'].includes(url.pathname)) return send(res, 404, { error: 'Не найдено' });
       if (req.headers.origin && !cfg.origins.includes(req.headers.origin)) return send(res, 403, { error: 'Запрос с чужого сайта' });
@@ -547,7 +552,10 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
         if (!cfg.dnKey) return send(res, 200, { available: false });
         let k = dn.get('courts:' + inn);
         if (!k) {
-          if (!dnAllow(ipOf(req), inn.length === 10 ? 3 : 2)) return send(res, 200, { available: true, limited: true });
+          // уже загруженные суды показываем всем; новый запрос к DataNewton — подписчикам или в пределах бесплатных в день
+          const u = accounts && accounts.userOf(req), pro = !!(billing && billing.isPro(u));
+          if (billing && !billing.allowCourts(u, ipOf(req), inn)) return send(res, 200, { available: true, paywall: true, free: billing.state(u).freeCourts, signedIn: !!u });
+          if (!dnAllow(ipOf(req), inn.length === 10 ? 3 : 2, pro)) return send(res, 200, { available: true, limited: true });
           k = await dnCourts(inn, cfg, fetchImpl);
           if (k.courts || k.arbitration || k.fssp) dn.set('courts:' + inn, k);
         }
@@ -566,7 +574,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
       if (url.pathname === '/api/org') {
         const u = accounts && accounts.userOf(req);
         if (u) accounts.recordHistory(u, inn, s.data?.name?.short_with_opf || s.value);
-        return send(res, 200, { suggestion: s, advice: advise(s.data || {}, now()), signedIn: !!u });
+        return send(res, 200, { suggestion: s, advice: advise(s.data || {}, now()), signedIn: !!u, pro: !!(billing && billing.enabled && billing.isPro(u)), billing: !!(billing && billing.enabled) });
       }
 
       // /api/org/ai
@@ -621,5 +629,6 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     // слежение: раз в сутки свежие данные из DaData (без кеша)
     const accounts = createAccounts({ env, db, fetchImpl: globalThis.fetch, mailer });
     accounts.scheduleWatch((inn) => findParty(inn, cfg, globalThis.fetch));
+    createBilling({ env, db, fetchImpl: globalThis.fetch, notify: (u, text) => accounts.notify(u, text) }).scheduleRenew();
   }
 }
