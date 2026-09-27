@@ -86,14 +86,15 @@ const SCHEMA = {
 export function openFnsDb(file, readOnly = false) {
   const db = new DatabaseSync(file, readOnly ? { readOnly: true } : {});
   if (!readOnly) {
-    db.exec('PRAGMA journal_mode = WAL; CREATE TABLE IF NOT EXISTS fns_meta (dataset TEXT PRIMARY KEY, file TEXT, rows INT, loaded_at TEXT)');
+    db.exec('PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 60000; CREATE TABLE IF NOT EXISTS fns_meta (dataset TEXT PRIMARY KEY, file TEXT, rows INT, loaded_at TEXT)');
     for (const [t, cols] of Object.entries(SCHEMA)) db.exec(`CREATE TABLE IF NOT EXISTS ${t} ${cols}`);
   }
   return db;
 }
 
 // Разбор потока XML по документам: <Документ ...>…</Документ>
-export async function importStream(db, name, stream) {
+// check — необязательная проверка перед заменой таблицы (например, что unzip завершился без ошибки)
+export async function importStream(db, name, stream, { check } = {}) {
   const ds = DATASETS[name];
   const tmp = ds.table + '_new';
   // та же схема с первичным ключом: одна компания может встретиться в двух файлах выгрузки — оставляем последнюю запись
@@ -115,7 +116,7 @@ export async function importStream(db, name, stream) {
       ins.run(inn, ...vals);
       const org = attrs(doc.match(/<(?:СведНП|ОргВклМСП)[^>]*>/)?.[0] || '').НаимОрг;
       if (org) insName.run(inn, org);
-      if (++rows % 100000 === 0) { db.exec('COMMIT; BEGIN'); process.stdout.write(`  ${name}: ${rows}\r`); }
+      if (++rows % 100000 === 0) { db.exec('COMMIT; BEGIN'); process.stdout.write(`  ${name}: ${rows}${process.stdout.isTTY ? '\r' : '\n'}`); }
     }
     if (final) buf = '';
     else if (buf.length > 1e6 && buf.indexOf('<Документ ') === -1) buf = buf.slice(-1000);
@@ -125,8 +126,22 @@ export async function importStream(db, name, stream) {
   db.exec('COMMIT');
   if (rows === 0) throw new Error(name + ': ни одной записи — формат изменился?');
   if (missing > rows / 2) throw new Error(`${name}: у ${missing} из ${rows} записей нет нужных полей — формат изменился?`);
+  if (check) await check();
   db.exec(`BEGIN; DROP TABLE ${ds.table}; ALTER TABLE ${tmp} RENAME TO ${ds.table}; COMMIT`);
   return rows;
+}
+
+// Импорт из zip-архива через unzip -p. Распаковщик останавливаем при любой ошибке (иначе он держит процесс живым),
+// а сбой распаковки посреди архива — ошибка, а не «конец данных»: таблица тогда не заменяется.
+// Код 1 у unzip — только предупреждения, ошибка — 2 и выше или сигнал.
+export async function importZip(db, name, file) {
+  const unzip = spawn('unzip', ['-p', file], { stdio: ['ignore', 'pipe', 'ignore'] });
+  const exited = new Promise((ok) => unzip.on('close', (code, signal) => ok(signal || code)));
+  try {
+    return await importStream(db, name, unzip.stdout, {
+      check: async () => { const c = await exited; if (typeof c === 'string' || c >= 2) throw new Error(`${name}: распаковка прервалась (${c})`); }
+    });
+  } finally { if (unzip.exitCode === null && unzip.signalCode === null) unzip.kill(); }
 }
 
 async function latestZip(name) {
@@ -176,8 +191,7 @@ async function main() {
       const seen = db.prepare('SELECT file FROM fns_meta WHERE dataset = ?').get(name);
       if (seen && seen.file === path.basename(file) && !process.env.FORCE) { console.log(`${name}: уже загружен ${seen.file}`); continue; }
       console.log(`${name}: ${await download(link, file) ? 'скачан' : 'уже скачан'} ${path.basename(file)}`);
-      const unzip = spawn('unzip', ['-p', file]);
-      const rows = await importStream(db, name, unzip.stdout);
+      const rows = await importZip(db, name, file);
       db.prepare('INSERT OR REPLACE INTO fns_meta (dataset, file, rows, loaded_at) VALUES (?, ?, ?, ?)').run(name, path.basename(file), rows, new Date().toISOString());
       console.log(`${name}: загружено ${rows} организаций`);
       if (name === 'revexp' || name === 'rsmp') fresh = true;

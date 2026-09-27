@@ -7,7 +7,7 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 import { Readable } from 'node:stream';
 import { createApp } from './index.mjs';
-import { openFnsDb, importStream, download } from '../scripts/fns-import.mjs';
+import { openFnsDb, importStream, download, importZip } from '../scripts/fns-import.mjs';
 import { openData, fnsData, pbSummary } from './fns.mjs';
 import { ogSvg } from './og-image.mjs';
 
@@ -178,6 +178,50 @@ await t('скачивание архива: обрывы посреди файл
     await assert.rejects(download(`http://127.0.0.1:${srv.address().port}/b.zip`, path.join(dir, 'b.zip'), { wait: 0, attempts: 2 }), /terminated|скачано|aborted|closed/i);
     assert.ok(fs.statSync(path.join(dir, 'b.zip.part')).size > 0, 'недокачанное остаётся в .part для следующего запуска');
   } finally { srv.close(); fs.rmSync(dir, { recursive: true }); }
+});
+
+// zip без сжатия, собранный вручную (без внешних утилит): несколько XML-файлов, как в архивах ФНС
+const crcTable = Array.from({ length: 256 }, (_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
+const crc32 = (b) => { let c = 0xffffffff; for (const x of b) c = crcTable[(c ^ x) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+function makeZip(files) {
+  const parts = [], dir = []; let off = 0;
+  for (const [name, text] of files) {
+    const data = Buffer.from(text), fn = Buffer.from(name), crc = crc32(data);
+    const h = Buffer.alloc(30); h.writeUInt32LE(0x04034b50, 0); h.writeUInt16LE(20, 4); h.writeUInt16LE(0x800, 6); h.writeUInt32LE(crc, 14); h.writeUInt32LE(data.length, 18); h.writeUInt32LE(data.length, 22); h.writeUInt16LE(fn.length, 26);
+    const c = Buffer.alloc(46); c.writeUInt32LE(0x02014b50, 0); c.writeUInt16LE(20, 4); c.writeUInt16LE(20, 6); c.writeUInt16LE(0x800, 8); c.writeUInt32LE(crc, 16); c.writeUInt32LE(data.length, 20); c.writeUInt32LE(data.length, 24); c.writeUInt16LE(fn.length, 28); c.writeUInt32LE(off, 42);
+    parts.push(h, fn, data); dir.push(c, fn); off += 30 + fn.length + data.length;
+  }
+  const cd = Buffer.concat(dir), e = Buffer.alloc(22);
+  e.writeUInt32LE(0x06054b50, 0); e.writeUInt16LE(files.length, 8); e.writeUInt16LE(files.length, 10); e.writeUInt32LE(cd.length, 12); e.writeUInt32LE(off, 16);
+  return Buffer.concat([...parts, cd, e]);
+}
+await t('импорт из zip: несколько файлов; битый архив и неверный формат — ошибка, таблица прежняя, процесс не виснет', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'zip-')), db3 = openFnsDb(':memory:');
+  const staff = (inn, n) => file([doc('31.12.2025', inn, `<СведССЧР КолРаб="${n}"/>`)]);
+  try {
+    const ok = path.join(dir, 'ok.zip');
+    fs.writeFileSync(ok, makeZip([['a.xml', staff('2804011398', 7)], ['b.xml', staff('7700000000', 3)]]));
+    assert.equal(await importZip(db3, 'sshr2019', ok), 2);
+    // второй файл битый (не сходится контрольная сумма): unzip отдаёт первый и падает посередине — таблицу не трогаем
+    const broken = makeZip([['a.xml', staff('2804011398', 9)], ['b.xml', staff('7700000000', 4)]]);
+    broken[broken.indexOf(Buffer.from('КолРаб="4"')) + 14] ^= 1;
+    const cut = path.join(dir, 'broken.zip');
+    fs.writeFileSync(cut, broken);
+    await assert.rejects(importZip(db3, 'sshr2019', cut), /распаковка прервалась/);
+    assert.equal(openData('2804011398', db3).employees[0].n, 7, 'после сбоя таблица прежняя, а не 9 из недораспакованного архива');
+    // база занята другим процессом (как на сервере): импорт падает сразу, распаковщик не должен держать процесс живым
+    const dbFile = path.join(dir, 'lock.db'), a = openFnsDb(dbFile), holder = openFnsDb(dbFile);
+    a.exec('PRAGMA busy_timeout = 0');
+    holder.exec('BEGIN IMMEDIATE');
+    const large = path.join(dir, 'large.zip');
+    fs.writeFileSync(large, makeZip([['a.xml', staff('2804011398', 1).repeat(3000)]]));
+    await assert.rejects(importZip(a, 'sshr2019', large), /locked/);
+    holder.exec('ROLLBACK'); holder.close(); a.close();
+    // формат изменился: импорт падает, а распаковщик не держит процесс (иначе тест бы не завершился)
+    const bad = path.join(dir, 'bad.zip');
+    fs.writeFileSync(bad, makeZip([['a.xml', file(Array.from({ length: 3000 }, (_, i) => doc('01.09.2026', String(7700000100 + i), '<Другое/>')))]]));
+    await assert.rejects(importZip(db3, 'rsmp', bad), /нет нужных полей/);
+  } finally { fs.rmSync(dir, { recursive: true }); }
 });
 
 console.log(`\nВсе тесты ФНС прошли: ${n}`);

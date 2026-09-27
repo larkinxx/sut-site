@@ -27,4 +27,4 @@ systemctl enable sut-api caddy
   echo '30 3 26 * * runuser -u sut -- node /opt/sut-site/scripts/fns-import.mjs /var/lib/sut/fns.db >> /var/log/sut-fns-import.log 2>&1' ) | crontab -
 echo
 echo 'Готово. Дальше: заполните /etc/sut/api.env (nano /etc/sut/api.env), затем: systemctl restart sut-api caddy'
-echo 'Данные ФНС (10–15 минут): runuser -u sut -- node /opt/sut-site/scripts/fns-import.mjs /var/lib/sut/fns.db'
+echo 'Данные ФНС (до часа, ход: journalctl -u fns-import -f): systemd-run --unit=fns-import -p User=sut /usr/bin/node /opt/sut-site/scripts/fns-import.mjs /var/lib/sut/fns.db'
