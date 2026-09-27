@@ -102,14 +102,14 @@ function layout({ title, desc, path: pagePath, current, body, ld, noindex, scrip
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="theme-color" content="#F3EEE1" id="theme-color-meta">
+<meta name="theme-color" content="#FFFFFF" id="theme-color-meta">
 <link rel="icon" href="${url('/favicon.ico')}" sizes="32x32">
 <link rel="icon" href="${url('/favicon.svg')}" type="image/svg+xml">
 <link rel="apple-touch-icon" href="${url('/apple-touch-icon.png')}">
 <link rel="manifest" href="${url('/manifest.webmanifest')}">
 <script>(function(){try{if(localStorage.getItem('theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();</script>
-<link rel="preload" href="${url('/fonts/pt-serif-400-cyrillic.woff2')}" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="${url('/fonts/pt-serif-700-cyrillic.woff2')}" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="${url('/fonts/playfair-display-cyrillic.woff2')}" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="${url('/fonts/jost-cyrillic.woff2')}" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="${url('/style.css')}?v=${cssV}">
 <link rel="alternate" type="application/rss+xml" title="${esc(site.name)}" href="${url('/rss.xml')}">
 ${ld ? `<script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script>` : ''}
@@ -892,7 +892,7 @@ ${items}
 // Манифест: иконка и название, когда сайт добавляют на экран телефона
 write('manifest.webmanifest', JSON.stringify({
   name: `${site.name}: ${site.tagline}`, short_name: site.name, lang: site.lang, start_url: url('/'), display: 'browser',
-  background_color: '#F3EEE1', theme_color: '#F3EEE1',
+  background_color: '#FFFFFF', theme_color: '#FFFFFF',
   icons: [
     { src: url('/icon-192.png'), sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
     { src: url('/icon-512.png'), sizes: '512x512', type: 'image/png', purpose: 'any maskable' }

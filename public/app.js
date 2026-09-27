@@ -11,7 +11,7 @@
   /* ---------- Тема оформления ---------- */
   var themeBtn = $('#theme-toggle');
   if (themeBtn) {
-    var THEME_LIGHT = '#F3EEE1', THEME_DARK = '#0B1325';
+    var THEME_LIGHT = '#FFFFFF', THEME_DARK = '#0A0A0A';
     var meta = $('#theme-color-meta');
     var setMeta = function (dark) { if (meta) meta.setAttribute('content', dark ? THEME_DARK : THEME_LIGHT); };
     setMeta(document.documentElement.getAttribute('data-theme') === 'dark');

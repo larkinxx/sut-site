@@ -33,19 +33,19 @@ export function ogSvg({ name, inn, status, active, facts, host = 'sverkainn.ru' 
   }).join('');
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
 <style>
-text{font-family:'PT Serif','DejaVu Serif',serif;fill:#1B2130}
-.logo{font-size:44px;font-weight:700}.lt{font-weight:400}.dot{fill:#8A6A34}
-.kicker{font-family:'PT Sans','DejaVu Sans',sans-serif;font-size:22px;letter-spacing:4px;fill:#67707F}
+text{font-family:'PT Serif','DejaVu Serif',serif;fill:#111111}
+.logo{font-size:34px;font-weight:700;letter-spacing:8px}.lt{font-weight:400}.dot{fill:#111111}
+.kicker{font-family:'PT Sans','DejaVu Sans',sans-serif;font-size:22px;letter-spacing:4px;fill:#6F6F6F}
 .name{font-weight:700}
-.info{font-family:'PT Sans','DejaVu Sans',sans-serif;font-size:28px;fill:#67707F}
+.info{font-family:'PT Sans','DejaVu Sans',sans-serif;font-size:28px;fill:#6F6F6F}
 .ok{fill:#227A4F}.badst{fill:#B03A4E}
-.lbl{font-family:'PT Sans','DejaVu Sans',sans-serif;font-size:24px;fill:#67707F}
-.val{font-size:40px;font-weight:700}.val.bad{fill:#B03A4E}
-.foot{font-family:'PT Sans','DejaVu Sans',sans-serif;font-size:24px;fill:#67707F}
+.lbl{font-family:'PT Sans','DejaVu Sans',sans-serif;font-size:24px;fill:#6F6F6F}
+.val{font-size:42px;font-weight:400}.val.bad{fill:#B03A4E}
+.foot{font-family:'PT Sans','DejaVu Sans',sans-serif;font-size:24px;fill:#6F6F6F}
 </style>
-<rect width="1200" height="630" fill="#F3EEE1"/>
-<rect x="24" y="24" width="1152" height="582" rx="10" fill="#FBF7ED" stroke="#E2DCCB" stroke-width="2"/>
-<text x="60" y="100" class="logo"><tspan class="lt">Сверка</tspan>ИНН<tspan class="dot">.</tspan></text>
+<rect width="1200" height="630" fill="#FFFFFF"/>
+<rect x="24" y="24" width="1152" height="582" fill="#FFFFFF" stroke="#E6E6E6" stroke-width="2"/>
+<text x="60" y="100" class="logo"><tspan class="lt">СВЕРКА </tspan>ИНН</text>
 <text x="1140" y="96" text-anchor="end" class="kicker">ПРОВЕРКА КОМПАНИИ</text>
 ${lines.map((l, i) => `<text x="60" y="${nameY + i * size * 1.12}" class="name" font-size="${size}">${esc(l)}</text>`).join('\n')}
 <text x="60" y="${infoY}" class="info">ИНН ${esc(inn)}${status ? ` · <tspan class="${active ? 'ok' : 'badst'}">${esc(status)}</tspan>` : ''}</text>
