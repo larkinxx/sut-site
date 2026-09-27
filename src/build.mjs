@@ -430,11 +430,12 @@ write('kalkulyatory/index.html', layout({
 }));
 
 // Проверка организации по ИНН. Если задан ORG_API_URL — страница ходит на наш сервер (server/index.mjs): ключи не попадают
-// в браузер, и есть ИИ-разбор. Иначе старый режим: ключ DADATA_TOKEN вшивается в страницу при сборке.
+// в браузер, и есть ИИ-разбор. Без ORG_API_URL проверка не работает: ключ DaData в страницу больше не вшиваем (27.09.2026 DaData
+// отключила подсказки для ключа — одна из вероятных причин в том, что сборки для GitHub Pages публиковали его в HTML).
 write('organizacii/index.html', layout({
   title: 'Проверка организации по ИНН', desc: 'Проверка организации или ИП по ИНН: статус, реквизиты и руководитель из открытых реестров, памятка о налогах и сроках.', path: '/organizacii/', current: 'org',
   body: `<!--ssr:intro--><h1 class="page">Проверка организации по ИНН</h1><p class="lede">Введите ИНН${process.env.ORG_API_URL ? ' или название' : ''} организации или ИП: покажем данные из открытых реестров и памятку, о чём стоит помнить.</p><!--/ssr:intro-->
-<section class="calc" id="org"${COMPANY_PAGES ? ' data-pages="1"' : ''} data-api="${esc(process.env.ORG_API_URL || '')}" data-token="${esc(process.env.ORG_API_URL ? '' : (process.env.DADATA_TOKEN || ''))}">
+<section class="calc" id="org"${COMPANY_PAGES ? ' data-pages="1"' : ''} data-api="${esc(process.env.ORG_API_URL || '')}" data-token="">
   <form id="org-form" novalidate>
     ${process.env.ORG_API_URL
     ? `<label class="f" for="org-inn">ИНН или название</label>
