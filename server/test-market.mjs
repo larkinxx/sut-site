@@ -82,6 +82,17 @@ await t('мало компаний в регионе — берётся та ж�
   assert.equal(marketStats(db, { okved: 'рестораны' }), null);
 });
 
+await t('компании с кодом региона «00» (в реестре так бывает) — статистика считается, попадают только в «всю Россию»', async () => {
+  const db7 = openFnsDb(':memory:');
+  const zz = Array.from({ length: 25 }, (_, i) => msp(String(7800000000 + i), '56.10', '00', '10.08.2016'));
+  const zf = Array.from({ length: 25 }, (_, i) => fin(String(7800000000 + i), '5000000.00', '4000000.00'));
+  await importStream(db7, 'rsmp', chunks(file([...docs, ...zz])));
+  await importStream(db7, 'revexp', chunks(file([...fins, ...zf])));
+  assert.ok(buildPeers(db7) > 0, 'без UNIQUE constraint failed');
+  const rus = db7.prepare("SELECT n FROM fns_peers WHERE okved = '56' AND region = '00' AND age = -1").get().n;
+  assert.equal(rus, 91 + 25 + 25, 'Новосибирск, Москва и «00» — все в России');
+});
+
 await t('процентиль: между квантилями, за краями, одинаковые квантили', () => {
   const q = [10, 20, 30, 40, 50];
   assert.equal(percentile(30, q), 50);
