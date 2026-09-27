@@ -199,6 +199,76 @@ export async function etagCheck(file, etag) {
   return false;
 }
 
+// Большие архивы — кусками. file.nalog.ru рвёт соединение примерно через 5 минут (≈2 ГБ из 2,1), а после докачки
+// архив реестра МСП ни разу не сошёлся с ETag. Поэтому качаем частями размером с часть ETag (у реестра 254 × 8 МиБ):
+// каждая — отдельный короткий запрос с Range, с проверкой длины и повторами. Итог сверяем с ETag; не сошлось —
+// качаем каждую часть ещё раз и сравниваем: где копии различаются, берём третью и оставляем вариант, совпавший дважды.
+export async function downloadRanged(url, file, { fetchImpl = fetch, concurrency = 4, wait = 5e3, rounds = 3 } = {}) {
+  if (fs.existsSync(file)) return false;
+  const head = await fetchImpl(url, { method: 'HEAD', headers: UA, signal: AbortSignal.timeout(60e3) });
+  const size = Number(head.headers.get('content-length')) || 0;
+  const etag = head.headers.get('etag') || '';
+  if (!head.ok || !size || head.headers.get('accept-ranges') !== 'bytes') return null;   // кусками нельзя — пусть качает download()
+  const m = /^(?:W\/)?"?([0-9a-f]{32})(?:-(\d+))?"?$/i.exec(etag.trim());
+  const MiB = 1024 * 1024, want = m && Number(m[2] || 0);
+  let part = 8 * MiB;
+  if (want) { const fits = []; for (let q = 1; q <= 5120; q++) if (Math.ceil(size / (q * MiB)) === want) fits.push(q * MiB); if (fits.length === 1) part = fits[0]; }
+  const count = Math.ceil(size / part);
+  const md5 = (b) => crypto.createHash('md5').update(b).digest();
+  const getPart = async (i) => {
+    const from = i * part, to = Math.min(from + part, size) - 1;
+    for (let a = 1; ; a++) {
+      try {
+        const r = await fetchImpl(url, { headers: { ...UA, Range: `bytes=${from}-${to}`, 'Accept-Encoding': 'identity' }, signal: AbortSignal.timeout(120e3) });
+        if (r.status !== 206) throw new Error('ответ ' + r.status);
+        const cr = /^bytes (\d+)-(\d+)\/(\d+)$/.exec(r.headers.get('content-range') || '');
+        if (!cr || Number(cr[1]) !== from || Number(cr[2]) !== to || Number(cr[3]) !== size) throw new Error('не тот диапазон: ' + r.headers.get('content-range'));
+        if (etag && r.headers.get('etag') && r.headers.get('etag') !== etag) throw new Error('файл на сервере поменялся');
+        const b = Buffer.from(await r.arrayBuffer());
+        if (b.length !== to - from + 1) throw new Error(`получено ${b.length} из ${to - from + 1} байт`);
+        return b;
+      } catch (e) {
+        if (a >= 6) throw new Error(`часть ${i + 1} из ${count}: ${e.message}`);
+        await new Promise((ok) => setTimeout(ok, wait));
+      }
+    }
+  };
+  const tmp = file + '.part', fd = fs.openSync(tmp, 'w');
+  const sums = new Array(count);
+  const each = async (fn) => { let next = 0; await Promise.all(Array.from({ length: concurrency }, async () => { while (next < count) { const i = next++; await fn(i); } })); };
+  const put = (i, b) => { fs.writeSync(fd, b, 0, b.length, i * part); sums[i] = md5(b); };
+  const matches = () => {
+    if (!m) return null;
+    if (!want) return null;                                   // ETag целого файла сверит etagCheck() ниже
+    return md5(Buffer.concat(sums)).toString('hex') === m[1].toLowerCase();
+  };
+  try {
+    await each(async (i) => put(i, await getPart(i)));
+    for (let round = 1; matches() === false; round++) {
+      if (round > rounds) throw new Error('архив не сходится с ETag даже после перепроверки всех частей — похоже, он испорчен у ФНС');
+      console.log(`  контрольная сумма не совпала — перепроверяю все ${count} частей, круг ${round}`);
+      let fixed = 0;
+      await each(async (i) => {
+        const b2 = await getPart(i);
+        if (md5(b2).equals(sums[i])) return;
+        const b3 = await getPart(i);                          // копии разошлись — решает третья
+        const h3 = md5(b3);
+        if (h3.equals(md5(b2))) { put(i, b3); fixed++; }
+        else if (!h3.equals(sums[i])) put(i, b3);             // все три разные — берём последнюю, следующий круг проверит
+      });
+      console.log(`  заменено частей: ${fixed}`);
+    }
+    fs.closeSync(fd);
+    if (m && !want && !(await etagCheck(tmp, etag))) throw new Error('контрольная сумма не совпала с ETag');
+    fs.renameSync(tmp, file);
+    return true;
+  } catch (e) {
+    try { fs.closeSync(fd); } catch {}
+    fs.rmSync(tmp, { force: true });
+    throw e;
+  }
+}
+
 // Архивы бывают по несколько гигабайт, а сервер ФНС иногда обрывает соединение посреди скачивания («terminated»).
 // Поэтому качаем в .part и при обрыве продолжаем с места остановки (Range), несколько попыток с паузой.
 // Докачиваем, только если уверены, что это тот же файл и продолжение ровно с нужного байта: версия файла (ETag или
@@ -248,7 +318,8 @@ async function main() {
       const file = path.join(DIR, `${name}-${path.basename(link)}`);
       const seen = db.prepare('SELECT file FROM fns_meta WHERE dataset = ?').get(name);
       if (seen && seen.file === path.basename(file) && !process.env.FORCE) { console.log(`${name}: уже загружен ${seen.file}`); continue; }
-      console.log(`${name}: ${await download(link, file) ? 'скачан' : 'уже скачан'} ${path.basename(file)}`);
+      const got = (await downloadRanged(link, file)) ?? (await download(link, file));
+      console.log(`${name}: ${got ? 'скачан' : 'уже скачан'} ${path.basename(file)}`);
       const rows = await importZip(db, name, file);
       db.prepare('INSERT OR REPLACE INTO fns_meta (dataset, file, rows, loaded_at) VALUES (?, ?, ?, ?)').run(name, path.basename(file), rows, new Date().toISOString());
       console.log(`${name}: загружено ${rows} организаций`);
