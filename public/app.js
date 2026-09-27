@@ -315,6 +315,70 @@
     if (a >= 1e3) return s + Math.round(a / 1e3) + ' тыс. ₽';
     return s + Math.round(a) + ' ₽';
   }
+
+  // Excel без библиотек: .xlsx — это zip из нескольких XML. Файлы кладём без сжатия (stored), нужен только CRC-32.
+  var CRC = (function () { var t = [], c, n, k; for (n = 0; n < 256; n++) { c = n; for (k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  function crc32(b) { var c = 0xffffffff; for (var i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; }
+  function zipStored(files) {
+    var enc = new TextEncoder(), parts = [], dir = [], off = 0;
+    var u16 = function (v) { return [v & 255, (v >>> 8) & 255]; }, u32 = function (v) { return [v & 255, (v >>> 8) & 255, (v >>> 16) & 255, (v >>> 24) & 255]; };
+    files.forEach(function (f) {
+      var name = enc.encode(f[0]), data = enc.encode(f[1]), crc = crc32(data);
+      var head = [].concat(u32(0x04034b50), u16(20), u16(0x800), u16(0), u16(0), u16(0), u32(crc), u32(data.length), u32(data.length), u16(name.length), u16(0));
+      parts.push(new Uint8Array(head), name, data);
+      dir.push(new Uint8Array([].concat(u32(0x02014b50), u16(20), u16(20), u16(0x800), u16(0), u16(0), u16(0), u32(crc), u32(data.length), u32(data.length), u16(name.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(off))), name);
+      off += head.length + name.length + data.length;
+    });
+    var size = dir.reduce(function (s, d) { return s + d.length; }, 0);
+    var end = new Uint8Array([].concat(u32(0x06054b50), u16(0), u16(0), u16(files.length), u16(files.length), u32(size), u32(off), u16(0)));
+    return new Blob(parts.concat(dir, [end]), { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  }
+  // rows — массив строк, ячейка: число, текст или {v, s}: s = 2 — проценты (0,56 → 56%), 3 — число с разделителем тысяч;
+  // bold — номера строк-заголовков
+  function xlsx(rows, bold, widths) {
+    var esc = function (t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+    var col = function (i) { var s = ''; for (i++; i; i = Math.floor((i - 1) / 26)) s = String.fromCharCode(65 + (i - 1) % 26) + s; return s; };
+    var sheet = rows.map(function (r, ri) {
+      return '<row r="' + (ri + 1) + '">' + r.map(function (v, ci) {
+        var fmt = 0;
+        if (v && typeof v === 'object') { fmt = v.s; v = v.v; }
+        if (v === null || v === undefined || v === '') return '';
+        var ref = col(ci) + (ri + 1), st = bold.indexOf(ri) >= 0 ? ' s="1"' : fmt ? ' s="' + fmt + '"' : '';
+        return typeof v === 'number' && isFinite(v) ? '<c r="' + ref + '"' + st + '><v>' + v + '</v></c>' : '<c r="' + ref + '" t="inlineStr"' + st + '><is><t>' + esc(v) + '</t></is></c>';
+      }).join('') + '</row>';
+    }).join('');
+    var cols = '<cols>' + widths.map(function (w, i) { return '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + w + '" customWidth="1"/>'; }).join('') + '</cols>';
+    var x = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+    return zipStored([
+      ['[Content_Types].xml', x + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>'],
+      ['_rels/.rels', x + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'],
+      ['xl/workbook.xml', x + '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Перспективы" sheetId="1" r:id="rId1"/></sheets></workbook>'],
+      ['xl/_rels/workbook.xml.rels', x + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'],
+      ['xl/styles.xml', x + '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="9" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="3" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>'],
+      ['xl/worksheets/sheet1.xml', x + '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' + cols + '<sheetData>' + sheet + '</sheetData></worksheet>']
+    ]);
+  }
+  // Статистика отрасли для бизнес-плана: все квантили по годам работы, числа — числами
+  function prospectsXlsx(m, okvedName, regionName) {
+    var qs = ['10%', '25%', 'середина', '75%', '90%'], rows = [
+      ['Перспективы бизнеса — статистика похожих компаний (INNSIDER)'],
+      ['Отрасль', okvedName + ' (ОКВЭД ' + m.okved + ')'],
+      ['Регион', regionName],
+      ['Данные', 'открытые данные ФНС: реестр МСП и бухотчётность за ' + m.total.year + ' год; только организации, без ИП; закрывшиеся компании не учтены'],
+      ['Организаций отрасли', { v: m.competition.companies, s: 3 }],
+      ['Доля открывшихся за последний год', { v: m.competition.newShare, s: 2 }],
+      ['Доля компаний в плюсе', { v: m.total.profitableShare, s: 2 }],
+      ['Типичная рентабельность (доля прибыли в доходах)', { v: m.total.marginMedian, s: 2 }],
+      [],
+      ['Год работы', 'Где считали', 'Компаний с отчётностью', 'Доля в плюсе'].concat(qs.map(function (q) { return 'Доходы, ₽: ' + q; }), qs.map(function (q) { return 'Прибыль, ₽: ' + q; }))
+    ];
+    m.byAge.concat([Object.assign({ label: 'все вместе' }, m.total)]).forEach(function (a) {
+      var rub = function (x) { return { v: x, s: 3 }; };
+      rows.push([a.label, a.scope === 'russia' || m.region === '00' ? 'вся Россия' : 'регион', rub(a.withReports), { v: a.profitableShare, s: 2 }].concat(a.income.map(rub), a.profit.map(rub)));
+    });
+    rows.push([], ['Середина — половина компаний зарабатывает меньше, половина больше; 25–75% — обычный разброс. Прибыль — доходы минус расходы до налога. Это не прогноз дохода.']);
+    return xlsx(rows, [0, 9], [30, 14, 14, 12, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16]);
+  }
   function pctRu(x) { return Math.round(x * 100) + '%'; }
   // Столбики по годам работы: одна величина на график (легенда не нужна — её называет заголовок), цвет текста сайта,
   // разброс 25–75% — тонкий серый «ус», отрицательная прибыль уходит вниз от нуля. Точные значения — по наведению,
@@ -412,6 +476,18 @@
         '<div class="opt"><h3>' + (budget > 0 ? 'Вернутся ли ' + money(budget) + ' за ' + horizon + ' ' + plural(horizon, ['год', 'года', 'лет']) : 'Прибыль за первые ' + horizon + ' ' + plural(horizon, ['год', 'года', 'лет'])) + '</h3>' + sc + '</div>' +
         '<p class="verdict">Это не прогноз вашего дохода: у похожих компаний сейчас такой разброс результатов. ' + (m.total.profitableShare < 0.6 ? 'Заметная часть работает в минус — заложите запас на первые годы.' : 'Большинство компаний в плюсе, но первые годы обычно слабее.') + '</p>';
       bindYearsCharts(out);
+      var dl = document.createElement('button');
+      dl.type = 'button'; dl.className = 'share'; dl.textContent = 'Скачать в Excel'; dl.style.marginTop = '12px'; dl.style.justifySelf = 'start';
+      dl.addEventListener('click', function () {
+        var sel = $('[name=okved]', root), reg = $('[name=region]', root);
+        var okName = $('[name=code]', root).value.trim() ? 'ОКВЭД ' + m.okved : sel.options[sel.selectedIndex].text;
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(prospectsXlsx(m, okName, reg.options[reg.selectedIndex].text));
+        a.download = 'perspektivy-okved-' + m.okved + '-region-' + m.region + '.xlsx';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 10000);
+      });
+      out.appendChild(dl);
     };
     var run = function () {
       var code = $('[name=code]', root).value.trim(), okved = (code.match(/^\d{2}/) || [])[0] || $('[name=okved]', root).value;
