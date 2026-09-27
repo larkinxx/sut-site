@@ -489,7 +489,7 @@ footer .seller{text-align:center;margin:0 0 6px;font:400 11px/1.6 var(--font-ui)
 input[type=date],textarea{font:inherit;font-family:var(--font-ui);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:9px 10px;width:100%;min-width:0}
 textarea{resize:vertical;min-height:90px}
 #docs-form{display:grid;gap:12px}
-#docs-form [data-for],#docs-form [data-t],#docs-form [data-r]{display:grid;gap:12px}
+#docs-form [data-for],#docs-form [data-t],#docs-form [data-r],#docs-form [data-p]{display:grid;gap:12px}
 #docs-form [hidden]{display:none!important}
 .row2{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
 .f-label{font:400 13px/1.4 var(--font-ui);color:var(--muted);margin:0}
@@ -519,3 +519,4 @@ input[type=date]:focus,textarea:focus{outline:none;border-color:var(--ink)}
 /* прогноз компании (public/forecast.js): факт — сплошной, прогноз — светлый */
 .ychart .fcast{fill:var(--muted);opacity:.45}
 .ychart .neg{fill:var(--crit-line)}
+.checks{border:0;margin:0;padding:0;display:grid;gap:8px}.checks label{display:flex;gap:10px;align-items:flex-start;font:400 14px/1.4 var(--font-ui)}.checks input{margin-top:3px}
