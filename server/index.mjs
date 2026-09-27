@@ -479,13 +479,14 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
 
   // Если DaData не отвечает (27.09.2026 она отключила ключу подсказки), берём карточку DataNewton: её и так запрашивает
   // /api/org/more при каждой проверке, так что лишних единиц не тратится. Страницы для поисковиков запасной источник не используют
+  const dnMiss = makeCache(3600e3);   // ИНН, по которым DataNewton не вернул карточку: час не спрашиваем снова и не тратим единицы
   async function partyFromDn(inn) {
-    if (!cfg.dnKey) return null;
+    if (!cfg.dnKey || dnMiss.get(inn)) return null;
     let m = dn.get('card:' + inn);
     if (!m) {
       if (!dn.take(1)) return null;
       const d = await dnCard(inn, cfg, fetchImpl);
-      if (!d.card) return null;
+      if (!d.card) { dnMiss.set(inn, true); return null; }
       m = { card: d.card, left: d.left, sites: [] };
       dn.set('card:' + inn, m);
     }
