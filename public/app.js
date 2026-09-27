@@ -316,6 +316,50 @@
     return s + Math.round(a) + ' ₽';
   }
   function pctRu(x) { return Math.round(x * 100) + '%'; }
+  // Столбики по годам работы: одна величина на график (легенда не нужна — её называет заголовок), цвет текста сайта,
+  // разброс 25–75% — тонкий серый «ус», отрицательная прибыль уходит вниз от нуля. Точные значения — по наведению,
+  // а таблица ниже остаётся для тех, кому график не подходит.
+  var AGE_SHORT = { 0: '1-й год', 1: '2-й', 2: '3-й', 3: '4–5-й', 5: '5+ лет' };
+  function yearsChart(title, rows, pick, range) {
+    var W = 560, H = 150, L = 8, R = 8, T = 10, B = 4, n = rows.length;
+    if (!n) return '';
+    var vals = rows.map(pick), lo = Math.min(0, Math.min.apply(null, vals.concat(range ? rows.map(function (a) { return a.income[1]; }) : []))),
+      hi = Math.max.apply(null, vals.concat(range ? rows.map(function (a) { return a.income[3]; }) : [])) || 1;
+    var y = function (v) { return T + (H - T - B) * (1 - (v - lo) / (hi - lo)); }, band = (W - L - R) / n, bw = Math.min(24, band * 0.5);
+    var svg = '<line class="axis" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(0) + '" y2="' + y(0) + '"/>';
+    rows.forEach(function (a, i) {
+      var cx = L + band * (i + 0.5), v = pick(a), y0 = y(0), yv = y(v), top = Math.min(y0, yv), h = Math.max(1, Math.abs(yv - y0)), r = Math.min(4, h / 2);
+      // 4px скругление только на конце столбика, у нуля — прямо
+      var x0 = cx - bw / 2, x1 = cx + bw / 2, d = v >= 0
+        ? 'M' + x0 + ',' + y0 + 'V' + (top + r) + 'Q' + x0 + ',' + top + ' ' + (x0 + r) + ',' + top + 'H' + (x1 - r) + 'Q' + x1 + ',' + top + ' ' + x1 + ',' + (top + r) + 'V' + y0 + 'Z'
+        : 'M' + x0 + ',' + y0 + 'V' + (top + h - r) + 'Q' + x0 + ',' + (top + h) + ' ' + (x0 + r) + ',' + (top + h) + 'H' + (x1 - r) + 'Q' + x1 + ',' + (top + h) + ' ' + x1 + ',' + (top + h - r) + 'V' + y0 + 'Z';
+      var tip = AGE_SHORT[a.age] + ': ' + money(v) + (range ? ' (обычно ' + money(a.income[1]) + ' – ' + money(a.income[3]) + ')' : '') + (a.scope === 'russia' ? ', по России' : '');
+      svg += '<g class="bar" tabindex="0" data-tip="' + tip.replace(/"/g, '&quot;') + '">' +
+        (range ? '<line class="range" x1="' + cx + '" x2="' + cx + '" y1="' + y(a.income[3]) + '" y2="' + y(a.income[1]) + '"/>' : '') +
+        '<path class="' + (v < 0 ? 'neg' : 'pos') + '" d="' + d + '"/>' +
+        '<rect class="hit" x="' + (cx - band / 2) + '" y="0" width="' + band + '" height="' + H + '"/></g>';
+    });
+    // подписи лет — обычным текстом под графиком: в SVG они уменьшались бы вместе с ним на телефоне
+    var xs = rows.map(function (a) { return '<span>' + AGE_SHORT[a.age] + '</span>'; }).join('');
+    return '<figure class="ychart"><figcaption>' + title + '</figcaption><div class="ychart-box"><svg viewBox="0 0 ' + W + ' ' + H +
+      '" role="img" aria-label="' + title + '">' + svg + '</svg><div class="ychart-x" style="padding:0 ' + (L / W * 100) + '% 0 ' + (R / W * 100) + '%">' + xs +
+      '</div><div class="ychart-tip" hidden></div></div></figure>';
+  }
+  function bindYearsCharts(root) {
+    $$('.ychart-box', root).forEach(function (box) {
+      var tip = $('.ychart-tip', box);
+      $$('.bar', box).forEach(function (g) {
+        var show = function () {
+          var b = (g.querySelector('.range') || g.querySelector('path')).getBoundingClientRect(), p = box.getBoundingClientRect();
+          tip.textContent = g.getAttribute('data-tip'); tip.hidden = false;
+          tip.style.top = (Math.min(b.top, g.querySelector('path').getBoundingClientRect().top) - p.top - 6) + 'px';
+          tip.style.left = Math.max(0, Math.min(p.width - tip.offsetWidth, b.left - p.left + b.width / 2 - tip.offsetWidth / 2)) + 'px';
+        };
+        g.addEventListener('mouseenter', show); g.addEventListener('focus', show);
+        g.addEventListener('mouseleave', function () { tip.hidden = true; }); g.addEventListener('blur', function () { tip.hidden = true; });
+      });
+    });
+  }
   function ageBucket(y) { return y < 3 ? y : y < 5 ? 3 : 5; }   // y — год работы с нуля; группы как в server/market.mjs
   // За сколько лет накопленная прибыль сценария (квантиль qi) догонит бюджет; null — не за horizon лет
   function payback(m, qi, budget, horizon) {
@@ -361,10 +405,13 @@
         (c.newShare != null && c.companies ? row('Из них открылись за последний год', pctRu(c.newShare)) : '') + trend +
         row('В плюсе по итогам ' + m.total.year + ' года', pctRu(m.total.profitableShare)) +
         (m.total.marginMedian != null ? row('Типичная рентабельность', Math.round(m.total.marginMedian * 100) + '% от доходов') : '') +
+        yearsChart('Доходы у середины похожих компаний по годам работы, серая линия — обычный разброс', m.byAge, function (a) { return a.income[2]; }, true) +
+        yearsChart('Прибыль у середины по годам работы', m.byAge, function (a) { return a.profit[2]; }, false) +
         '<figure style="overflow-x:auto;margin:0"><table class="fns-table all-cols"><tr><th>Год работы</th><th>Доходы: середина<br><small>и обычный разброс</small></th><th>Прибыль: середина</th><th>В плюсе</th></tr>' + rows + '</table></figure>' +
         (rus ? '<p class="note-sm">* В регионе мало таких компаний — показана та же отрасль по России.</p>' : '') +
         '<div class="opt"><h3>' + (budget > 0 ? 'Вернутся ли ' + money(budget) + ' за ' + horizon + ' ' + plural(horizon, ['год', 'года', 'лет']) : 'Прибыль за первые ' + horizon + ' ' + plural(horizon, ['год', 'года', 'лет'])) + '</h3>' + sc + '</div>' +
         '<p class="verdict">Это не прогноз вашего дохода: у похожих компаний сейчас такой разброс результатов. ' + (m.total.profitableShare < 0.6 ? 'Заметная часть работает в минус — заложите запас на первые годы.' : 'Большинство компаний в плюсе, но первые годы обычно слабее.') + '</p>';
+      bindYearsCharts(out);
     };
     var run = function () {
       var code = $('[name=code]', root).value.trim(), okved = (code.match(/^\d{2}/) || [])[0] || $('[name=okved]', root).value;
