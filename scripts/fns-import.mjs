@@ -10,6 +10,7 @@
 // Запуск на сервере: node scripts/fns-import.mjs /var/lib/sut/fns.db   (нужен python3 — распаковка архивов, scripts/unzip-stream.py)
 // Данные только по юрлицам: по ИП ФНС такие наборы не публикует.
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -169,6 +170,35 @@ async function latestZip(name) {
   return link;
 }
 
+// Сверка скачанного файла с ETag хранилища (file.nalog.ru — S3): «md5» для целого файла или «md5-N» для загрузки
+// частями — md5 от склеенных md5 N частей одинакового размера (целое число МиБ). true — совпало, false — файл
+// испорчен, null — проверить нельзя (ETag другого вида или размер части не подобрать).
+export async function etagCheck(file, etag) {
+  const m = /^(?:W\/)?"?([0-9a-f]{32})(?:-(\d+))?"?$/i.exec(String(etag || '').trim());
+  if (!m) return null;
+  const size = fs.statSync(file).size, parts = Number(m[2] || 0);
+  const md5 = () => crypto.createHash('md5');
+  if (!parts) {
+    const h = md5();
+    await pipeline(fs.createReadStream(file), h);
+    return h.digest('hex') === m[1].toLowerCase();
+  }
+  // размер части — целое число МиБ, при котором частей ровно N; если подходящих размеров много, сверить нельзя
+  const MiB = 1024 * 1024, sizes = [];
+  for (let p = 1; p <= 5120; p++) if (Math.ceil(size / (p * MiB)) === parts) sizes.push(p * MiB);
+  if (!sizes.length || sizes.length > 3) return null;
+  for (const part of sizes) {
+    const whole = md5();
+    for (let off = 0; off < size; off += part) {
+      const h = md5();
+      await pipeline(fs.createReadStream(file, { start: off, end: Math.min(off + part, size) - 1 }), h);
+      whole.update(h.digest());
+    }
+    if (whole.digest('hex') === m[1].toLowerCase()) return true;
+  }
+  return false;
+}
+
 // Архивы бывают по несколько гигабайт, а сервер ФНС иногда обрывает соединение посреди скачивания («terminated»).
 // Поэтому качаем в .part и при обрыве продолжаем с места остановки (Range), несколько попыток с паузой.
 // Докачиваем, только если уверены, что это тот же файл и продолжение ровно с нужного байта: версия файла (ETag или
@@ -195,6 +225,8 @@ export async function download(url, file, { fetchImpl = fetch, attempts = 8, wai
       await pipeline(Readable.fromWeb(r.body), fs.createWriteStream(tmp, { flags: resumed ? 'a' : 'w' }));
       const size = fs.statSync(tmp).size;
       if (total && size !== total) throw new Error(`скачано ${size} из ${total} байт`);
+      const sum = await etagCheck(tmp, fs.existsSync(ver) ? fs.readFileSync(ver, 'utf8') : '');
+      if (sum === false) { reset(); throw new Error('контрольная сумма не совпала с ETag — файл испорчен при скачивании, качаю заново'); }
       fs.renameSync(tmp, file);
       fs.rmSync(ver, { force: true });
       return true;
