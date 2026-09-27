@@ -1,5 +1,5 @@
 /* INNSIDER: небольшой скрипт без зависимостей.
-   1) лента: окно 24 часа, время «N минут назад», фильтр по аудитории;
+   1) лента: окно из config/site.json (неделя), время «N минут назад», фильтр по аудитории;
    2) страница новости: вкладки по аудиториям;
    3) калькуляторы ипотеки и вклада.
    Без скрипта сайт остаётся читаемым: все новости и все блоки видны. */
@@ -98,13 +98,13 @@
       if (t) t.textContent = ago(age);
     });
 
-    /* если за сутки ничего нет, показываем последние 5 новостей с пояснением */
+    /* если за окно ленты ничего нет, показываем последние 5 новостей с пояснением */
     if (items.length && !items.some(function (it) { return it.__fresh; })) {
       items.slice().sort(function (a, b) { return Number(b.getAttribute('data-ts')) - Number(a.getAttribute('data-ts')); })
         .slice(0, VISIBLE).forEach(function (it) { it.__fresh = true; });
       var note = document.createElement('p');
       note.className = 'empty';
-      note.textContent = 'За последние 24 часа новых материалов нет. Показываем последние опубликованные.';
+      note.textContent = 'Свежих материалов пока нет. Показываем последние опубликованные.';
       feed.parentNode.insertBefore(note, feed);
     }
 

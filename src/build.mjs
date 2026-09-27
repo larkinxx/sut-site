@@ -316,7 +316,7 @@ function macroWidget() {
 </div>`;
 }
 
-// Главная: лента за 24 часа
+// Главная: лента за окно site.windowHours (неделя)
 {
   const list = cards.map(feedItem).join('\n');
   // первый экран «как у модных домов»: две половины — бизнесу (проверка компании) и людям (налоги и расчёты)
@@ -347,7 +347,9 @@ function macroWidget() {
     <div><h3>Без рекламы</h3><p>Мы не показываем рекламу и не продаём данные пользователей. Сервис живёт на подписке.</p><a class="lnk" href="${url('/tarify/')}">Тарифы</a></div>
   </div>
 </section>` : '';
-  const body = `${hero}${trust}${macroWidget()}<h1 class="page">Новости за ${site.windowHours} ${site.windowHours === 24 ? 'часа' : 'часов'}</h1>
+  // окно ленты: 24 → «24 часа», 168 → «неделю», иначе — в днях или часах
+  const win = site.windowHours % 168 === 0 ? (site.windowHours === 168 ? 'неделю' : `${site.windowHours / 168} недели`) : site.windowHours % 24 === 0 && site.windowHours > 24 ? `${site.windowHours / 24} дней` : `${site.windowHours} часа`;
+  const body = `${hero}${trust}${macroWidget()}<h1 class="page">Новости за ${win}</h1>
 <div class="filters" id="filters" role="group" aria-label="Для кого показывать новости">
   <button type="button" class="chip" data-f="*" aria-pressed="true">Все</button>
   <button type="button" class="chip" data-f="borrowers" aria-pressed="false">${AUDIENCES.borrowers}</button>
@@ -358,7 +360,7 @@ function macroWidget() {
 <div class="list" id="feed" data-window="${site.windowHours}">
 ${list}
 <button type="button" class="morebtn" id="more" hidden></button>
-<p class="empty" id="empty"${cards.length ? ' hidden' : ''}>За последние ${site.windowHours} часа новостей нет. <a href="${url('/arhiv/')}">Посмотреть архив</a>.</p>
+<p class="empty" id="empty"${cards.length ? ' hidden' : ''}>За ${win} новостей нет. <a href="${url('/arhiv/')}">Посмотреть архив</a>.</p>
 </div>
 ${subscribeBlock()}`;
   write('index.html', layout({ title: site.name, desc: site.tagline, path: '/', current: 'news', body }));
@@ -962,7 +964,7 @@ write('o-proekte/index.html', layout({
 <p>INNSIDER — сайт для малого бизнеса и обычных людей: бесплатная проверка компаний по ИНН, экономические новости с понятными шагами и законные способы платить меньше налогов. Мы берём новости из официальных источников и деловых СМИ и объясняем простым языком: что случилось, кого это касается и что можно сделать в своих делах.</p>
 <h2>Что есть на сайте</h2>
 <ul>
-<li><b>Новости за сутки</b> с разбором для заёмщиков, вкладчиков, самозанятых и малого бизнеса. У каждой новости есть ссылка на первоисточник.</li>
+<li><b>Новости за неделю</b> с разбором для заёмщиков, вкладчиков, самозанятых и малого бизнеса. У каждой новости есть ссылка на первоисточник.</li>
 <li><b>Проверка организации по ИНН</b>: данные из открытых реестров и памятка о налогах и сроках.</li>
 <li><b>Калькуляторы</b> платежа по кредиту и дохода по вкладу. Расчёт идёт у вас в браузере.</li>
 </ul>
