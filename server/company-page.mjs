@@ -70,7 +70,7 @@ ${f && f.tax && f.tax.items.length ? `<p class="fns-sub">Крупнейшие н
 <p class="note-sm">Сведения из открытых данных ФНС${party ? ' и ЕГРЮЛ' : ''}. Суды, арбитраж, приставы, учредители, отчётность и советы загружаются ниже.</p></section>`;
 
   let h = tpl
-    .replace(/<title>[^<]*<\/title>/, `<title>${esc(title)} — ИННфакт</title>`)
+    .replace(/<title>[^<]*<\/title>/, `<title>${esc(title)} — INNSIDER</title>`)
     .replace(/(<meta name="description" content=")[^"]*"/, `$1${esc(desc)}"`)
     .replace(/(<meta property="og:description" content=")[^"]*"/, `$1${esc(desc)}"`)
     .replace(/(<meta property="og:title" content=")[^"]*"/, `$1${esc(title)}"`)
@@ -86,7 +86,7 @@ ${f && f.tax && f.tax.items.length ? `<p class="fns-sub">Крупнейшие н
 
 export function createCompanyPages({ env, fdb, getParty, cachedParty, getMore = () => null, toPng = svgToPng, now = () => Date.now() }) {
   const dist = env.SITE_DIST || '/var/www/fin-check.shop';
-  const siteUrl = (env.SITE_URL || 'https://innfact.ru').replace(/\/$/, '');
+  const siteUrl = (env.SITE_URL || 'https://inn-sider.ru').replace(/\/$/, '');
   const dadataDaily = Number(env.SSR_DADATA_DAILY || 2000);   // DaData на бесплатном тарифе — 10 000 запросов в сутки на всё
   let tpl = null, tplMtime = 0, day = { key: '', n: 0 };
   let sitemapCount = null, sitemapAt = 0;

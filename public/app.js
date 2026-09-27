@@ -1,17 +1,27 @@
-/* ИННфакт: небольшой скрипт без зависимостей.
+/* INNSIDER: небольшой скрипт без зависимостей.
    1) лента: окно 24 часа, время «N минут назад», фильтр по аудитории;
    2) страница новости: вкладки по аудиториям;
    3) калькуляторы ипотеки и вклада.
    Без скрипта сайт остаётся читаемым: все новости и все блоки видны. */
 (function () {
   'use strict';
+
+  // Главная: поле «ИНН или название» в первом экране ведёт на страницу проверки
+  var hero = document.getElementById('hero-org');
+  if (hero) hero.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var v = document.getElementById('hero-inn').value.trim(), d = v.replace(/\s/g, '');
+    if (!v) { document.getElementById('hero-inn').focus(); return; }
+    var base = hero.getAttribute('action');
+    location.href = /^(\d{10}|\d{12})$/.test(d) ? (hero.getAttribute('data-pages') ? base + d + '/' : base + '#inn=' + d) : base + '#q=' + encodeURIComponent(v);
+  });
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
 
   /* ---------- Тема оформления ---------- */
   var themeBtn = $('#theme-toggle');
   if (themeBtn) {
-    var THEME_LIGHT = '#F3EEE1', THEME_DARK = '#0B1325';
+    var THEME_LIGHT = '#FFFFFF', THEME_DARK = '#0A0A0A';
     var meta = $('#theme-color-meta');
     var setMeta = function (dark) { if (meta) meta.setAttribute('content', dark ? THEME_DARK : THEME_LIGHT); };
     setMeta(document.documentElement.getAttribute('data-theme') === 'dark');
