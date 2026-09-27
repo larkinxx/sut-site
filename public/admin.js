@@ -26,8 +26,8 @@
         '<rect x="' + (P + band * i) + '" y="0" width="' + band + '" height="' + H + '" fill="transparent"/>' +
         (h ? '<rect class="pos" x="' + x + '" y="' + y + '" width="' + bw + '" height="' + h + '" rx="2"/>' : '') + '</g>';
     });
-    var table = '<details class="fns-more"><summary>Таблица по дням</summary><table class="fns-table all-cols"><tr><th>День</th><th>Проверки</th><th>Разборы</th><th>Суды</th><th>Статистика</th></tr>' +
-      rows.slice().reverse().map(function (r) { return '<tr><td>' + dayRu(r.day) + '</td><td>' + r.checks + '</td><td>' + r.ai + '</td><td>' + r.courts + '</td><td>' + r.market + '</td></tr>'; }).join('') + '</table></details>';
+    var table = '<details class="fns-more"><summary>Таблица по дням</summary><table class="fns-table all-cols"><tr><th>День</th><th>Проверки</th><th>Разборы</th><th>Суды</th><th>Статистика</th><th>Юрист</th></tr>' +
+      rows.slice().reverse().map(function (r) { return '<tr><td>' + dayRu(r.day) + '</td><td>' + r.checks + '</td><td>' + r.ai + '</td><td>' + r.courts + '</td><td>' + r.market + '</td><td>' + (r.lawyer || 0) + '</td></tr>'; }).join('') + '</table></details>';
     return '<figure class="ychart"><figcaption>Проверки по ИНН за 30 дней (последний столбик — сегодня)</figcaption><svg viewBox="0 0 ' + W + ' ' + H +
       '" role="img" aria-label="Проверки по ИНН за 30 дней">' + '<line class="axis" x1="0" x2="' + W + '" y1="' + H + '" y2="' + H + '"/>' + svg +
       '</svg><div class="ychart-x" style="display:flex;justify-content:space-between"><span>' + dayRu(rows[0].day) + '</span><span>' + dayRu(rows[n - 1].day) + '</span></div></figure>' + table;
@@ -36,7 +36,7 @@
     var u = j.usage || [], h = '';
     h += '<div class="bigstats">' +
       stat('Проверок сегодня', int(u.length ? u[u.length - 1].checks : 0), 'за 7 дней: ' + int(sum(u, 'checks', -7))) +
-      stat('Разборов за 7 дней', int(sum(u, 'ai', -7)), 'новых, платных') +
+      stat('Разборов за 7 дней', int(sum(u, 'ai', -7)), 'вопросов юристу: ' + int(sum(u, 'lawyer', -7))) +
       stat('Судов за 7 дней', int(sum(u, 'courts', -7)), 'DataNewton сегодня: ' + int(j.datanewton ? j.datanewton.usedToday : 0) + ' ед.') +
       '</div>';
     if (j.users) {
