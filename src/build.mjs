@@ -10,6 +10,7 @@ import { ROOT, loadSite, loadCards, loadMaterials, readJson } from './lib/conten
 import { AUDIENCES, AUDIENCE_TABS, esc, markTitle, dateRu, agoRu } from './lib/util.mjs';
 import { SCHEMES, taxSections, personalSections } from './lib/taxes.mjs';
 import { OKVED_COMMON, REGIONS } from './lib/market-lists.mjs';
+import { docsForm, guides as lawGuides, DOC_KINDS, LAW_NOTE } from './lib/yurist.mjs';
 import { PLANS, FREE } from '../server/billing.mjs';
 
 const withExamples = process.argv.includes('--examples');
@@ -75,6 +76,7 @@ const NAV = [
   ['/kalkulyatory/', 'Калькуляторы', 'calc'],
   ['/nalogi/', 'Налоги', 'tax'],
   ['/organizacii/', 'Организации', 'org'],
+  ['/yurist/', 'Юрист', 'law'],
   ['/fizlica/', 'Физлица', 'person']
   // «Как мы работаем» и «О проекте» — в подвале каждой страницы
 ];
@@ -640,6 +642,48 @@ ${card('Как не попасть под блокировку', [
 }));
 
 // Опасные налоговые схемы: не инструкция, а предупреждение — в чём схема, как её находят и чем она кончается
+// ---------- Юрист: документы по ИНН и разборы типовых ситуаций (src/lib/yurist.mjs, public/yurist.js) ----------
+const LAW = lawGuides(url);
+const lawCrumb = `<a class="crumb" href="${url('/yurist/')}">${icon('arrowLeft')} Юрист</a>`;
+write('yurist/index.html', layout({
+  title: 'Юрист для бизнеса: документы по ИНН и разборы ситуаций', path: '/yurist/', current: 'law',
+  desc: 'Претензия о долге с расчётом процентов, акт сверки, ответ на требование налоговой, расторжение договора и договор с самозанятым — с реквизитами из ЕГРЮЛ по ИНН. Разборы типовых ситуаций со ссылками на законы.',
+  body: `<h1 class="page">Юрист для бизнеса</h1>
+<p class="lede">Готовые документы с реквизитами из ЕГРЮЛ по ИНН и пошаговые разборы ситуаций, с которыми малый бизнес сталкивается каждую неделю.</p>
+<div class="prose">
+<h2>Документы по ИНН</h2>
+<p>Введите ИНН своей компании и контрагента — реквизиты, адреса и руководителей подставим сами. На выходе — файл Word или PDF.</p>
+<ul>${DOC_KINDS.map(([k, n]) => `<li><a href="${url('/yurist/dokumenty/')}#doc=${k}">${n}</a></li>`).join('')}</ul>
+<p><a class="btn" href="${url('/yurist/dokumenty/')}">Составить документ</a></p>
+<h2>Разборы ситуаций</h2>
+<ul>${LAW.map((g) => `<li><a href="${url('/yurist/' + g.slug + '/')}">${esc(g.title)}</a> — ${esc(g.lede)}</li>`).join('')}
+<li><a href="${url('/nalogi/blokirovka-scheta/')}">Как не попасть под блокировку счёта по 115-ФЗ</a> — за какие операции банки блокируют счета и как снять ограничения.</li></ul>
+<p class="note-sm">${esc(LAW_NOTE)}</p>
+</div>`
+}));
+write('yurist/dokumenty/index.html', layout({
+  title: 'Документы по ИНН: претензия, акт сверки, ответ налоговой, договор с самозанятым', path: '/yurist/dokumenty/', current: 'law',
+  desc: 'Составьте претензию о долге с расчётом процентов по ст. 395 ГК, акт сверки, ответ на требование налоговой, уведомление о расторжении или договор с самозанятым — реквизиты подставятся из ЕГРЮЛ по ИНН. Word или PDF.',
+  scripts: `\n<script src="${url('/yurist.js')}?v=${hashOf('yurist.js')}" defer></script>`,
+  body: `${lawCrumb}
+<h1 class="page">Документы по ИНН</h1>
+<p class="lede">Выберите документ и введите ИНН — реквизиты, адреса и руководителей подставим из ЕГРЮЛ. Проценты по статье 395 ГК посчитаем по ключевой ставке за каждый период.</p>
+${docsForm({ api: esc(process.env.ORG_API_URL || ''), rates: { keyRate: FIN.keyRate, keyRateSince: FIN.keyRateSince, keyRateHistory: FIN.keyRateHistory || [] } })}`
+}));
+for (const g of LAW) {
+  write(`yurist/${g.slug}/index.html`, layout({
+    title: g.title, path: `/yurist/${g.slug}/`, current: 'law', desc: g.desc,
+    ld: { '@context': 'https://schema.org', '@type': 'Article', headline: g.title, description: g.desc, inLanguage: 'ru', publisher: { '@type': 'Organization', name: site.name } },
+    body: `${lawCrumb}
+<h1 class="page">${esc(g.title)}</h1>
+<p class="lede">${esc(g.lede)}</p>
+<div class="prose">
+${g.body}
+<p class="note-sm">${esc(LAW_NOTE)}</p>
+</div>`
+  }));
+}
+
 write('nalogovye-shemy/index.html', layout({
   title: 'Опасные налоговые схемы: чего не делать', path: '/nalogovye-shemy/', current: 'tax',
   desc: 'Дробление бизнеса, «технические» компании, сотрудники-самозанятые, зарплата в конвертах: как налоговая находит схемы и чем они заканчиваются.',
@@ -960,7 +1004,7 @@ if (!site.siteUrl.includes('example')) {
   // lastmod: у ленты — время свежей новости, у карточки — время последней правки; у статичных страниц не ставим
   const fresh = cards.length ? cards[0].publishedAt : '';
   const urls = [
-    ['/', fresh], ['/arhiv/', fresh], ['/kalkulyatory/'], ...CALCS.map((c) => [`/kalkulyatory/${c.slug}/`]), ['/organizacii/'], ['/indeks/'], ['/fizlica/'], ['/nalogi/'], ...[...TAX, ...TAX_P].map((t) => [`/nalogi/${t.slug}/`]), ['/nalogovye-shemy/'], ['/nalogi/blokirovka-scheta/'], ['/fizlica/dropy/'], ['/kak-my-rabotaem/'], ['/o-proekte/'], ['/pravovaya-informaciya/'], ...(POLICY ? [['/politika/']] : []), ...(ACCT && POLICY ? [['/tarify/'], ['/oferta/']] : []),
+    ['/', fresh], ['/arhiv/', fresh], ['/kalkulyatory/'], ...CALCS.map((c) => [`/kalkulyatory/${c.slug}/`]), ['/organizacii/'], ['/indeks/'], ['/fizlica/'], ['/nalogi/'], ...[...TAX, ...TAX_P].map((t) => [`/nalogi/${t.slug}/`]), ['/nalogovye-shemy/'], ['/nalogi/blokirovka-scheta/'], ['/yurist/'], ['/yurist/dokumenty/'], ...LAW.map((g) => [`/yurist/${g.slug}/`]), ['/fizlica/dropy/'], ['/kak-my-rabotaem/'], ['/o-proekte/'], ['/pravovaya-informaciya/'], ...(POLICY ? [['/politika/']] : []), ...(ACCT && POLICY ? [['/tarify/'], ['/oferta/']] : []),
     ...cards.map((c) => [`/n/${c.id}/`, (c.review && c.review.at) || c.publishedAt])
   ];
   write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(([u, m]) => `<url><loc>${site.siteUrl}${u}</loc>${m ? `<lastmod>${new Date(m).toISOString()}</lastmod>` : ''}</url>`).join('\n')}\n</urlset>\n`);

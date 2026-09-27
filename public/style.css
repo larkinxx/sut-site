@@ -484,3 +484,35 @@ footer .seller{text-align:center;margin:0 0 6px;font:400 11px/1.6 var(--font-ui)
 .cols-list li{break-inside:avoid;margin:0 0 4px}
 .prose a.btn{color:var(--accent-ink);text-decoration:none}
 .prose a.btn:hover{color:var(--ink)}
+
+/* ---------- Юрист: документы по ИНН (public/yurist.js) ---------- */
+input[type=date],textarea{font:inherit;font-family:var(--font-ui);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:9px 10px;width:100%;min-width:0}
+textarea{resize:vertical;min-height:90px}
+#docs-form{display:grid;gap:12px}
+#docs-form [data-for],#docs-form [data-t],#docs-form [data-r]{display:grid;gap:12px}
+#docs-form [hidden]{display:none!important}
+.row2{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.f-label{font:400 13px/1.4 var(--font-ui);color:var(--muted);margin:0}
+.a-row{display:grid;grid-template-columns:150px 1fr 120px 190px;gap:8px;margin:0 0 8px}
+@media (max-width:640px){.a-row{grid-template-columns:1fr 1fr}.a-row .a-doc{grid-column:1/-1}}
+.btn-sm{min-height:36px;padding:0 16px}
+.btn-ghost{background:transparent;color:var(--ink)}
+.btn-ghost:hover{background:var(--accent);color:var(--accent-ink)}
+.doc-actions{display:flex;flex-wrap:wrap;gap:10px;margin:20px 0}
+.doc-sheet{background:#fff;color:#111;border:1px solid var(--line);padding:48px 56px;font:400 14px/1.5 'Times New Roman',Times,serif;max-width:800px;box-shadow:0 8px 24px rgba(0,0,0,.06)}
+.doc-sheet p{margin:0 0 6px}
+.doc-sheet .a-right{text-align:right}.doc-sheet .a-center{text-align:center}.doc-sheet .a-both{text-align:justify}
+.doc-sheet .b{font-weight:700}.doc-sheet .ind{text-indent:2.5em}.doc-sheet .pb{margin-top:36px}
+.doc-table{border-collapse:collapse;width:100%;margin:10px 0;font-size:13px}
+.doc-table.small{font-size:11px}
+.doc-table th,.doc-table td{border:1px solid #111;padding:4px 6px;vertical-align:top;text-align:left}
+@media (max-width:640px){.doc-sheet{padding:20px 16px;font-size:13px;overflow-x:auto}}
+@media print{
+  body.print-doc *{visibility:hidden}
+  body.print-doc #doc-sheet,body.print-doc #doc-sheet *{visibility:visible}
+  body.print-doc #doc-sheet{position:absolute;left:0;top:0;border:0;box-shadow:none;padding:0;max-width:none}
+  body.print-doc .doc-sheet .pb{break-before:page}
+}
+input[type=date],textarea{background:transparent;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:10px 2px;font-size:16px}
+textarea{border:1px solid var(--line);padding:10px}
+input[type=date]:focus,textarea:focus{outline:none;border-color:var(--ink)}
