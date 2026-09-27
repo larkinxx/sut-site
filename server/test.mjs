@@ -335,6 +335,42 @@ try {
     assert.ok(!JSON.stringify(f).includes('Иванов'));
   });
 
+  await t('DaData отказывает (403): карточка из DataNewton, поиск по названию — по базе ФНС', async () => {
+    const { DatabaseSync } = await import('node:sqlite');
+    const fdb = new DatabaseSync(':memory:');
+    fdb.exec('CREATE TABLE fns_name (inn TEXT PRIMARY KEY, name TEXT)');
+    fdb.prepare('INSERT INTO fns_name VALUES (?, ?)').run('7707083893', 'ООО "РОМАШКА"');
+    let dnCalls = 0;
+    const f403 = async (url) => {
+      const u = new URL(String(url));
+      if (u.hostname.includes('dadata')) return new Response('{"reason":"Forbidden"}', { status: 403 });
+      if (u.hostname === 'api.datanewton.ru' && u.pathname === '/v1/counterparty') {
+        dnCalls++;
+        return new Response(JSON.stringify({ inn: '7707083893', ogrn: '1027700132195', company: {
+          company_names: { short_name: 'ООО "РОМАШКА"' }, kpp: '770701001', registration_date: '2015-01-10',
+          status: { active_status: true, status_rus_short: 'Действует' }, address: { line_address: 'г Москва' },
+          managers: [{ fio: 'Иванов Иван Иванович', position: 'Генеральный директор' }],
+          okveds: [{ code: '62.01', value: 'Разработка ПО', main: true }], workers_count: { 2025: 7 } } }));
+      }
+      throw new Error('неожиданный запрос ' + u);
+    };
+    const srv = http.createServer(createApp({ env: { DADATA_TOKEN: 't', DATANEWTON_KEY: 'dn' }, fetchImpl: f403, fnsDb: fdb }));
+    await new Promise((r) => srv.listen(0, r));
+    const post = (p, body) => fetch('http://127.0.0.1:' + srv.address().port + p, { method: 'POST', headers: { 'content-type': 'application/json', origin: 'https://fin-check.shop' }, body: JSON.stringify(body) }).then((r) => r.json());
+    try {
+      const j = await post('/api/org', { inn: '7707083893' });
+      assert.equal(j.suggestion.source, 'datanewton');
+      assert.equal(j.suggestion.data.name.short_with_opf, 'ООО "РОМАШКА"');
+      assert.equal(j.suggestion.data.state.status, 'ACTIVE');
+      assert.equal(j.suggestion.data.state.registration_date, Date.UTC(2015, 0, 10));
+      assert.equal(j.suggestion.data.employee_count, 7);
+      await post('/api/org/more', { inn: '7707083893' });
+      assert.equal(dnCalls, 1, 'карточка DataNewton запрошена один раз — /api/org/more берёт её из хранилища');
+      const sg = await post('/api/org/suggest', { q: 'ромаш' });
+      assert.deepEqual(sg.items.map((x) => x.inn), ['7707083893']);
+    } finally { srv.close(); }
+  });
+
   console.log(`\nВсе тесты прошли: ${n}`);
 } finally {
   server.close();

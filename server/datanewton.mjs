@@ -81,6 +81,7 @@ export function normCard(j) {
   if (!regime.length && tm.common_mode) regime.push('общая система');
   return {
     type: isIp ? 'ip' : 'ul',
+    ogrn: c.ogrn || c.ogrnip || null,
     name: c.company_names?.short_name || c.fio || null,
     fullName: c.company_names?.full_name || null,
     opf: c.opf || c.vid_iptext || null,
@@ -187,5 +188,32 @@ export async function dnCourts(inn, cfg, fetchImpl) {
     courts: ok(courts) ? normCourts(ok(courts), inn) : null,
     arbitration: ok(arb) ? normArbitration(ok(arb), inn) : null,
     fssp: ok(fssp) ? normFssp(ok(fssp), inn) : null
+  };
+}
+
+// Карточка DataNewton в виде ответа DaData — запасной источник, когда DaData недоступна.
+// Только то, что есть в карточке; финансов DaData (доходы, долги) здесь нет — их даёт раздел ФНС
+export function partyOfCard(inn, c) {
+  const t = String(c.status?.text || '').toLowerCase();
+  const status = c.status && c.status.active ? 'ACTIVE' : /банкрот/.test(t) ? 'BANKRUPT' : /ликвидир.*процесс|ликвидируется|в процессе/.test(t) ? 'LIQUIDATING'
+    : /реорганиз/.test(t) ? 'REORGANIZING' : c.status ? 'LIQUIDATED' : 'ACTIVE';
+  const m = c.managers[0];
+  const main = c.okveds.find((o) => o.main) || c.okveds[0];
+  const ip = c.type === 'ip';
+  const short = ip ? 'ИП ' + (c.name || '') : c.name || '';
+  const reg = c.registered ? Date.parse(c.registered + 'T00:00:00Z') : null;
+  return {
+    value: short, source: 'datanewton',
+    data: {
+      inn, ogrn: c.ogrn, kpp: c.kpp, type: ip ? 'INDIVIDUAL' : 'LEGAL', branch_type: 'MAIN', opf: c.opf ? { short: c.opf } : undefined,
+      name: { short_with_opf: short, full_with_opf: c.fullName || short, full: ip ? c.name : undefined },
+      state: { status, registration_date: Number.isFinite(reg) ? reg : null, liquidation_date: c.dissolved ? Date.parse(c.dissolved) || null : null },
+      management: m && !ip ? { name: m.fio, post: m.position } : undefined,
+      address: c.address?.text ? { value: c.address.text, data: {} } : undefined,
+      okved: main ? main.code : null,
+      okveds: c.okveds.map((o) => ({ code: o.code, name: o.name, main: o.main })),
+      employee_count: c.workers.length ? c.workers[c.workers.length - 1].n : null,
+      invalid: !!c.address?.inaccurate
+    }
   };
 }

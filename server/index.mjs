@@ -51,7 +51,7 @@ import { fileURLToPath } from 'node:url';
 import { FORBIDDEN } from '../src/lib/schema.mjs';
 import { openDb, createAccounts, smtpMailer } from './accounts.mjs';
 import { createBilling } from './billing.mjs';
-import { dnCard, dnCourts } from './datanewton.mjs';
+import { dnCard, dnCourts, partyOfCard } from './datanewton.mjs';
 import { createDnStore } from './dn-store.mjs';
 import { checkSite, siteNotes } from './site-check.mjs';
 import { createCompanyPages } from './company-page.mjs';
@@ -477,12 +477,41 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
     return null;
   }
 
-  async function getParty(inn) {
+  // Если DaData не отвечает (27.09.2026 она отключила ключу подсказки), берём карточку DataNewton: её и так запрашивает
+  // /api/org/more при каждой проверке, так что лишних единиц не тратится. Страницы для поисковиков запасной источник не используют
+  async function partyFromDn(inn) {
+    if (!cfg.dnKey) return null;
+    let m = dn.get('card:' + inn);
+    if (!m) {
+      if (!dn.take(1)) return null;
+      const d = await dnCard(inn, cfg, fetchImpl);
+      if (!d.card) return null;
+      m = { card: d.card, left: d.left, sites: [] };
+      dn.set('card:' + inn, m);
+    }
+    return m.card ? partyOfCard(inn, m.card) : null;
+  }
+  async function getParty(inn, { fallback = true } = {}) {
     let s = partyCache.get(inn);
-    if (s === undefined) { s = await findParty(inn, cfg, fetchImpl); partyCache.set(inn, s); }
+    if (s !== undefined) return s;
+    try { s = await findParty(inn, cfg, fetchImpl); } catch (e) {
+      if (!fallback) throw e;
+      s = await partyFromDn(inn).catch(() => null);
+      if (!s) throw e;
+      console.error(new Date().toISOString(), inn, e.message, '— карточка из DataNewton');
+    }
+    partyCache.set(inn, s);
     return s;
   }
-  const companyPages = createCompanyPages({ env, fdb, getParty, cachedParty: (inn) => partyCache.get(inn), getMore: dnCached, now });
+  // поиск по названию без DaData: по нашей базе названий ФНС (только организации)
+  function suggestFromFns(q) {
+    if (!fdb) return [];
+    try {
+      return fdb.prepare('SELECT inn, name FROM fns_name WHERE instr(name, ?) > 0 LIMIT 8').all(q.toUpperCase())
+        .map((r) => ({ name: r.name, inn: r.inn, kpp: null, type: r.inn.length === 12 ? 'ip' : 'ul', status: null, branch: false, place: null, okved: null }));
+    } catch { return []; }
+  }
+  const companyPages = createCompanyPages({ env, fdb, getParty: (inn) => getParty(inn, { fallback: false }), cachedParty: (inn) => partyCache.get(inn), getMore: dnCached, now });
 
   // Пересылка к api.telegram.org для нашего сервера в России. Секретов не хранит: токен приходит в адресе и дальше не пишется
   async function relayTelegram(req, res, url) {
@@ -538,7 +567,13 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
         if (suggestHits.size > 20000) suggestHits.clear();
         const key = q.toLowerCase();
         let items = suggestCache.get(key);
-        if (!items) { items = await suggestParty(q, cfg, fetchImpl); suggestCache.set(key, items); }
+        if (!items) {
+          try { items = await suggestParty(q, cfg, fetchImpl); } catch (e) {
+            items = suggestFromFns(q);
+            if (!items.length) throw e;
+          }
+          suggestCache.set(key, items);
+        }
         return send(res, 200, { items });
       }
       const inn = String(body.inn || '').replace(/\s/g, '');
