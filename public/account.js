@@ -252,12 +252,14 @@
     api('GET', '/api/billing').then(function (b) {
       if (!b.enabled) { buttons.forEach(function (x) { x.disabled = true; }); pmsg.textContent = 'Оплата подключается — скоро можно будет оформить подписку.'; return; }
       if (b.recurring) $('#autorenew-row').hidden = false;
+      if (b.needEmail) $('#pay-email-row').hidden = false;
       if (b.pro) pmsg.textContent = 'У вас уже есть подписка до ' + dateRu(b.paid_until) + '. Оплата продлит её.';
       buttons.forEach(function (x) {
         x.addEventListener('click', function () {
           x.disabled = true; pmsg.textContent = 'Переходим к оплате…';
-          api('POST', '/api/billing/pay', { plan: x.getAttribute('data-plan'), autorenew: !!($('#autorenew') && $('#autorenew').checked) }).then(function (j) {
+          api('POST', '/api/billing/pay', { plan: x.getAttribute('data-plan'), autorenew: !!($('#autorenew') && $('#autorenew').checked), email: $('#pay-email').value.trim() || undefined }).then(function (j) {
             if (j.status === 401) { location.href = '/vhod/?return=/tarify/'; return; }
+            if (j.needEmail) { $('#pay-email-row').hidden = false; $('#pay-email').focus(); }
             if (j.url) { location.href = j.url; return; }
             x.disabled = false; pmsg.textContent = j.error || 'Не получилось начать оплату. Попробуйте позже.';
           }, function () { x.disabled = false; pmsg.textContent = 'Сервер оплаты не отвечает. Попробуйте позже.'; });

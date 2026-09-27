@@ -39,7 +39,7 @@ async function fakeFetch(url, opts = {}) {
   throw new Error('неожиданный запрос ' + u);
 }
 
-const env = { DADATA_TOKEN: 't', DATANEWTON_KEY: 'dn', SITE_URL: SITE, ALLOWED_ORIGINS: SITE, YOOKASSA_SHOP_ID: 'shop', YOOKASSA_SECRET_KEY: 'sk', YOOKASSA_RECURRING: '1' };
+const env = { DADATA_TOKEN: 't', DATANEWTON_KEY: 'dn', SITE_URL: SITE, ALLOWED_ORIGINS: SITE, YOOKASSA_SHOP_ID: 'shop', YOOKASSA_SECRET_KEY: 'sk', YOOKASSA_RECURRING: '1', YOOKASSA_RECEIPT: '1' };
 let clock = Date.UTC(2026, 8, 26, 9, 0);
 const DAY = 864e5;
 const db = openDb(':memory:');
@@ -101,7 +101,23 @@ try {
     assert.deepEqual(b.amount, { value: '290.00', currency: 'RUB' });
     assert.equal(b.save_payment_method, true);
     assert.equal(b.confirmation.return_url, SITE + '/kabinet/?oplata=1');
+    assert.deepEqual(b.receipt.customer, { email: 'a@example.ru' }, 'чек — на почту из аккаунта');
+    assert.equal(b.receipt.tax_system_code, 2);
+    assert.deepEqual(b.receipt.items[0].amount, b.amount);
+    assert.equal(b.receipt.items[0].vat_code, 1);
     assert.equal((await call('POST', '/api/billing/check', { body: {}, cookie: a.cookie })).json.pro, false);
+  });
+
+  await t('чек: без почты в аккаунте просим её ввести', async () => {
+    const tg = login('tg-user');
+    db.prepare('UPDATE users SET email = NULL WHERE id = ?').run(tg.uid);
+    assert.equal((await call('GET', '/api/billing', { cookie: tg.cookie })).json.needEmail, true);
+    const r = await call('POST', '/api/billing/pay', { body: { plan: 'year' }, cookie: tg.cookie });
+    assert.equal(r.status, 400); assert.equal(r.json.needEmail, true);
+    assert.equal((await call('POST', '/api/billing/pay', { body: { plan: 'year', email: 'плохо' }, cookie: tg.cookie })).status, 400);
+    const ok = await call('POST', '/api/billing/pay', { body: { plan: 'year', email: ' Tg@Example.RU ' }, cookie: tg.cookie });
+    assert.equal(yk.get(ok.json.id)._body.receipt.customer.email, 'tg@example.ru');
+    assert.equal((await call('GET', '/api/billing', { cookie: tg.cookie })).json.needEmail, false, 'второй раз не спрашиваем');
   });
 
   await t('уведомление ЮKassa: статус перезапрашиваем, поддельная сумма не проходит, повтор не продлевает дважды', async () => {
@@ -149,6 +165,7 @@ try {
     await call('DELETE', '/api/me', { cookie: a.cookie });
     assert.equal(db.prepare('SELECT COUNT(*) AS n FROM subscriptions').get().n, 0);
     assert.equal(db.prepare('SELECT COUNT(*) AS n FROM payments WHERE user_id IS NULL').get().n, 2, 'платежи остаются для учёта, без привязки к человеку');
+    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM payments WHERE user_id IS NULL AND email IS NOT NULL').get().n, 0, 'почта стёрта');
   });
 
   await t('без ключей ЮKassa всё бесплатно, как раньше', async () => {

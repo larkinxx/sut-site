@@ -1,4 +1,6 @@
-// Подписка ИННфакт Про: оплата через ЮKassa (самозанятый — чеки ЮKassa сама отправляет в «Мой налог»).
+// Подписка ИННфакт Про: оплата через ЮKassa. Продавец — ИП на УСН: кассовые чеки (54-ФЗ) передаём в ЮKassa
+// вместе с платежом (YOOKASSA_RECEIPT=1), чек уходит на почту покупателя. Для самозанятого чеки не нужны — ЮKassa
+// сама отправляет их в «Мой налог», тогда YOOKASSA_RECEIPT не задаётся.
 // Включается, когда заданы YOOKASSA_SHOP_ID и YOOKASSA_SECRET_KEY; без них всё бесплатно, как раньше.
 //
 // Что даёт Про: проверки судов, арбитража и приставов без дневного лимита, слежение до 50 компаний, отчёт в PDF.
@@ -26,6 +28,8 @@ export function createBilling({ env, db, fetchImpl, now = () => Date.now(), noti
     shopId: env.YOOKASSA_SHOP_ID || '', secret: env.YOOKASSA_SECRET_KEY || '',
     // автоплатежи ЮKassa включает отдельно по заявке — до этого продаём разовые периоды
     recurring: env.YOOKASSA_RECURRING === '1',
+    // чеки: система налогообложения по справочнику ЮKassa — 2 УСН «доходы», 3 УСН «доходы минус расходы»
+    receipt: env.YOOKASSA_RECEIPT === '1', taxSystem: Number(env.YOOKASSA_TAX_SYSTEM || 2),
     site: (env.SITE_URL || 'https://innfact.ru').replace(/\/$/, ''),
     freeCourts: Number(env.FREE_COURTS_PER_DAY || FREE.courts)
   };
@@ -38,9 +42,12 @@ export function createBilling({ env, db, fetchImpl, now = () => Date.now(), noti
     );
     CREATE TABLE IF NOT EXISTS payments (
       id TEXT PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE SET NULL, plan TEXT NOT NULL, amount INTEGER NOT NULL,
-      status TEXT NOT NULL, recurring INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, paid_at INTEGER
+      status TEXT NOT NULL, recurring INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, paid_at INTEGER, email TEXT
     );
   `);
+  try { db.exec('ALTER TABLE payments ADD COLUMN email TEXT'); } catch {}   // база, созданная до появления чеков
+  // при удалении аккаунта платёж остаётся для учёта, но почта из него стирается
+  db.exec('CREATE TRIGGER IF NOT EXISTS payments_forget BEFORE DELETE ON users BEGIN UPDATE payments SET email = NULL WHERE user_id = OLD.id; END');
   const q = (sql) => db.prepare(sql);
   const log = (...a) => console.log(new Date().toISOString(), 'оплата:', ...a);
 
@@ -103,7 +110,19 @@ export function createBilling({ env, db, fetchImpl, now = () => Date.now(), noti
     return true;
   }
 
-  async function createPayment(u, planKey, autorenew) {
+  // Кассовый чек: одна позиция — услуга, без НДС (УСН), полный расчёт
+  const receiptOf = (plan, email) => (cfg.receipt && email ? {
+    receipt: {
+      customer: { email }, tax_system_code: cfg.taxSystem,
+      items: [{ description: plan.desc, quantity: '1.00', amount: { value: plan.price.toFixed(2), currency: 'RUB' }, vat_code: 1, payment_subject: 'service', payment_mode: 'full_payment' }]
+    }
+  } : {});
+  // почта для чека: введённая при оплате, из аккаунта или из прошлой оплаты (вход через Telegram почты не даёт)
+  const emailOk = (e) => typeof e === 'string' && e.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e.trim());
+  const lastEmail = (uid) => q('SELECT email FROM payments WHERE user_id = ? AND email IS NOT NULL ORDER BY created_at DESC LIMIT 1').get(uid)?.email || null;
+  const emailOf = (u, typed) => (emailOk(typed) ? typed.trim().toLowerCase() : null) || u?.email || (u ? lastEmail(u.id) : null);
+
+  async function createPayment(u, planKey, autorenew, email) {
     const plan = PLANS[planKey];
     const save = cfg.recurring && !!autorenew;
     const p = await ykCall('POST', '/payments', {
@@ -112,9 +131,10 @@ export function createBilling({ env, db, fetchImpl, now = () => Date.now(), noti
       confirmation: { type: 'redirect', return_url: cfg.site + '/kabinet/?oplata=1' },
       description: plan.desc,
       metadata: { user_id: String(u.id), plan: planKey },
-      ...(save ? { save_payment_method: true } : {})
+      ...(save ? { save_payment_method: true } : {}),
+      ...receiptOf(plan, email)
     });
-    q("INSERT INTO payments (id, user_id, plan, amount, status, created_at) VALUES (?, ?, ?, ?, 'pending', ?)").run(p.id, u.id, planKey, plan.price, now());   // статус — только из apply()
+    q("INSERT INTO payments (id, user_id, plan, amount, status, created_at, email) VALUES (?, ?, ?, ?, 'pending', ?, ?)").run(p.id, u.id, planKey, plan.price, now(), email || null);   // статус — только из apply()
     return p;
   }
 
@@ -131,13 +151,15 @@ export function createBilling({ env, db, fetchImpl, now = () => Date.now(), noti
     let charged = 0;
     for (const s of q('SELECT * FROM subscriptions WHERE autorenew = 1 AND method_id IS NOT NULL AND paid_until < ? AND renew_tries < 3 AND (renew_at IS NULL OR renew_at < ?)').all(t + DAY, t - 12 * 3600e3)) {
       const plan = PLANS[s.plan];
+      const email = emailOf(q('SELECT * FROM users WHERE id = ?').get(s.user_id), null);
       q('UPDATE subscriptions SET renew_at = ?, renew_tries = renew_tries + 1 WHERE user_id = ?').run(t, s.user_id);
       try {
         const p = await ykCall('POST', '/payments', {
           amount: { value: plan.price.toFixed(2), currency: 'RUB' }, capture: true, payment_method_id: s.method_id,
-          description: plan.desc + ' (автопродление)', metadata: { user_id: String(s.user_id), plan: s.plan }
+          description: plan.desc + ' (автопродление)', metadata: { user_id: String(s.user_id), plan: s.plan },
+          ...receiptOf(plan, email)
         });
-        q("INSERT INTO payments (id, user_id, plan, amount, status, recurring, created_at) VALUES (?, ?, ?, ?, 'pending', 1, ?)").run(p.id, s.user_id, s.plan, plan.price, t);
+        q("INSERT INTO payments (id, user_id, plan, amount, status, recurring, created_at, email) VALUES (?, ?, ?, ?, 'pending', 1, ?, ?)").run(p.id, s.user_id, s.plan, plan.price, t, email);
         if (apply(p)) charged++;
       } catch (e) { log('автопродление, пользователь', s.user_id, e.message); }
       if (s.renew_tries + 1 >= 3 && !isPro({ id: s.user_id })) {
@@ -158,7 +180,9 @@ export function createBilling({ env, db, fetchImpl, now = () => Date.now(), noti
       enabled, recurring: cfg.recurring, freeCourts: cfg.freeCourts, freeWatch: FREE.watch,
       plans: Object.fromEntries(Object.entries(PLANS).map(([k, p]) => [k, { price: p.price, title: p.title }])),
       pro: isPro(u), plan: s?.plan || null, paid_until: s && s.paid_until > now() ? s.paid_until : null,
-      autorenew: !!(s && s.autorenew && s.method_id)
+      autorenew: !!(s && s.autorenew && s.method_id),
+      // почту для чека спрашиваем только у тех, чьей почты у нас нет
+      needEmail: cfg.receipt && !emailOf(u, null)
     };
   };
 
@@ -179,7 +203,9 @@ export function createBilling({ env, db, fetchImpl, now = () => Date.now(), noti
     if (p === '/api/billing/pay' && m === 'POST') {
       if (!enabled) return send(res, 503, { error: 'Оплата пока не подключена.' }), true;
       if (!PLANS[body.plan]) return send(res, 400, { error: 'Неизвестный тариф.' }), true;
-      const pay = await createPayment(user, body.plan, body.autorenew);
+      const email = emailOf(user, body.email);
+      if (cfg.receipt && !email) return send(res, 400, { error: 'Укажите почту: на неё придёт кассовый чек.', needEmail: true }), true;
+      const pay = await createPayment(user, body.plan, body.autorenew, email);
       return send(res, 200, { url: pay.confirmation?.confirmation_url, id: pay.id }), true;
     }
     if (p === '/api/billing/check' && m === 'POST') {
