@@ -85,7 +85,7 @@ function layout({ title, desc, path: pagePath, current, body, ld, noindex, scrip
   const nav = NAV.map(([href, label, id]) =>
     `<a href="${url(href)}"${id === current ? ' aria-current="page"' : ''}>${label}</a>`).join('\n      ');
   return `<!doctype html>
-<html lang="${site.lang}"${ACCT ? ` data-acct="${esc(ACCT)}"` : ''}>
+<html lang="${site.lang}"${ACCT ? ` data-acct="${esc(ACCT)}"` : ''} data-ym="113035472">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">

@@ -59,7 +59,7 @@
           polling = setInterval(function () {
             if (Date.now() - started > 10 * 60e3) { clearInterval(polling); msgEl.textContent = 'Время на вход истекло. Нажмите «Войти через Telegram» ещё раз.'; return; }
             api('GET', '/auth/telegram/status?nonce=' + encodeURIComponent(r.nonce)).then(function (s) {
-              if (s.state === 'ok') { clearInterval(polling); location.replace(ret); }
+              if (s.state === 'ok') { clearInterval(polling); if (window.goal) window.goal('login'); setTimeout(function () { location.replace(ret); }, 300); }
               else if (s.state === 'expired' || s.state === 'error' || s.status === 403) { clearInterval(polling); msgEl.textContent = s.error || 'Время на вход истекло. Нажмите «Войти через Telegram» ещё раз.'; }
             }, function () {});
           }, 2000);
@@ -81,7 +81,7 @@
         } else {
           api('POST', '/auth/email/verify', { email: email.value.trim(), code: code.value, consent: true }).then(function (r) {
             btn.disabled = false;
-            if (r.user) location.replace(ret); else msgEl.textContent = r.error || 'Не получилось войти.';
+            if (r.user) { if (window.goal) window.goal('login'); setTimeout(function () { location.replace(ret); }, 300); } else msgEl.textContent = r.error || 'Не получилось войти.';
           });
         }
       });
@@ -235,7 +235,7 @@
       var tries = 0;
       (function check() {
         api('POST', '/api/billing/check', {}).then(function (j) {
-          if (j.pro && j.payment === 'succeeded') { note.textContent = 'Оплата прошла. Подписка INNSIDER Ultima действует до ' + dateRu(j.paid_until) + '.'; render(); history.replaceState(null, '', '/kabinet/'); }
+          if (j.pro && j.payment === 'succeeded') { if (window.goal) window.goal('paid'); note.textContent = 'Оплата прошла. Подписка INNSIDER Ultima действует до ' + dateRu(j.paid_until) + '.'; render(); history.replaceState(null, '', '/kabinet/'); }
           else if (j.payment === 'canceled') note.textContent = 'Оплата не прошла. Попробуйте ещё раз на странице тарифов.';
           else if (++tries < 10) setTimeout(check, 3000);
           else note.textContent = 'Платёж ещё обрабатывается. Обновите страницу через пару минут.';

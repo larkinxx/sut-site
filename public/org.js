@@ -867,6 +867,7 @@
         if (!k || k.status !== 200 || !k.available) throw new Error();
         if (k.limited) { b.disabled = false; msgc.textContent = 'Сегодня лимит запросов к судам исчерпан. Попробуйте завтра или посмотрите сами: kad.arbitr.ru и fssp.gov.ru.'; return; }
         if (k.paywall) {
+          if (window.goal) window.goal('paywall');
           b.remove(); msgc.textContent = 'Бесплатно — суды по ' + k.free + ' новым компаниям в день, на сегодня они закончились. ';
           var pa = el('a', null, 'INNSIDER Ultima — без ограничений, от 290 ₽ в месяц'); pa.href = '/tarify/';
           msgc.appendChild(pa); msgc.appendChild(document.createTextNode('. Или загляните завтра.'));
@@ -1034,6 +1035,7 @@
       if (j.status !== 200 || !j.suggestion) { msg.textContent = j.error || 'Не получилось получить данные. Попробуйте позже.'; return; }
       msg.textContent = '';
       render(j.suggestion, j.advice);
+      if (window.goal) window.goal('check');
       accountActions(j.suggestion, j.signedIn);
       if (j.billing) pdfButton(j.pro);
       loadFns(inn, j.suggestion.data || {});
@@ -1094,7 +1096,7 @@
       };
       btn('Следить за изменениями', function () {
         return acctCall('POST', '/api/watch', { inn: inn }).then(function (j) {
-          if (j.paywall) { note.textContent = j.error + ' '; var a = el('a', null, 'Тарифы'); a.href = '/tarify/'; note.appendChild(a); return null; }
+          if (j.paywall) { if (window.goal) window.goal('paywall'); note.textContent = j.error + ' '; var a = el('a', null, 'Тарифы'); a.href = '/tarify/'; note.appendChild(a); return null; }
           return j.ok ? 'Добавлено в слежение: сообщим, если сменится статус, руководитель или появится долг.' : (j.error || 'Не получилось.');
         });
       });

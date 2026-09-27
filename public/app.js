@@ -6,6 +6,17 @@
 (function () {
   'use strict';
 
+  // Цели Яндекс Метрики (создаются в Метрике как «JavaScript-событие» с этими идентификаторами):
+  // check — проверка компании, paywall — упёрся в бесплатный лимит, pay_click — нажал «оплатить», paid — оплата прошла,
+  // login — вошёл, share — поделился проверкой или расчётом
+  var YM = Number(document.documentElement.getAttribute('data-ym'));
+  window.goal = function (name) { try { if (YM && window.ym) window.ym(YM, 'reachGoal', name); } catch (e) {} };
+  document.addEventListener('click', function (e) {
+    var t = e.target.closest && e.target.closest('.share-row .share, .share-bar .share, [data-plan]');
+    if (!t) return;
+    window.goal(t.hasAttribute('data-plan') ? 'pay_click' : 'share');
+  });
+
   // Главная: поле «ИНН или название» в первом экране ведёт на страницу проверки
   var hero = document.getElementById('hero-org');
   if (hero) hero.addEventListener('submit', function (e) {
