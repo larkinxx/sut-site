@@ -281,7 +281,53 @@
     return { title: 'Договор с самозанятым', file: 'dogovor-samozanyatyi', blocks: b };
   }
 
-  var DOCS = { claim: claim, akt: reconciliation, tax: taxAnswer, end: termination, npd: selfEmployed };
+  function claimReply() {
+    var me = P('me', 'ваша организация'), them = P('them', 'автор претензии');
+    var n = val('p-num') || '___', d = val('p-date'), pos = val('p-pos'), sum = num(val('p-sum')), until = val('p-until'), why = lines(val('p-why'));
+    if (pos !== 'yes' && !why.length) return 'Напишите доводы — почему требования не признаются.';
+    if (pos !== 'no' && !(sum > 0)) return 'Укажите сумму, которую признаёте.';
+    var b = [B.p('Кому:', { align: 'right', b: true })].concat(reqs(them).map(function (x) { return B.p(x, { align: 'right' }); }),
+      [B.p('От:', { align: 'right', b: true })], reqs(me).map(function (x) { return B.p(x, { align: 'right' }); }), [
+        B.p('Исх. № ____ от ' + ru(today)),
+        B.p('ОТВЕТ НА ПРЕТЕНЗИЮ', { align: 'center', b: true, space: 12 }),
+        B.p('№ ' + n + (d ? ' от ' + ru(d) : ''), { align: 'center', b: true }),
+        B.p(me.name + ' рассмотрело претензию ' + them.name + ' № ' + n + (d ? ' от ' + ru(d) : '') + ' и сообщает следующее.', { indent: true, align: 'both' })
+      ]);
+    if (pos === 'no') b.push(B.p('Требования, изложенные в претензии, ' + me.name + ' не признаёт по следующим основаниям:', { indent: true, align: 'both' }));
+    if (pos === 'part') b.push(B.p(me.name + ' признаёт требования в части ' + rub(sum) + (until ? ' и готово перечислить эту сумму до ' + ru(until) : '') + '. В остальной части требования не признаются по следующим основаниям:', { indent: true, align: 'both' }));
+    if (pos === 'yes') b.push(B.p(me.name + ' признаёт задолженность в размере ' + rub(sum) + ' и предлагает погасить её ' + (until ? 'до ' + ru(until) : 'в согласованные сроки') + '. Просим не начислять неустойку за период исполнения этого графика и сообщить о согласии.', { indent: true, align: 'both' }));
+    why.forEach(function (x, i) { b.push(B.p((why.length > 1 ? (i + 1) + '. ' : '') + x, { indent: true, align: 'both' })); });
+    if (pos !== 'yes') b.push(B.p('Предлагаем урегулировать разногласия путём переговоров и, при необходимости, подписать акт сверки взаимных расчётов.', { indent: true, align: 'both' }));
+    b.push(sign(me));
+    return { title: 'Ответ на претензию', file: 'otvet-na-pretenziyu-' + (them.inn || ''), blocks: b };
+  }
+
+  var POWERS = {
+    goods: 'получать товарно-материальные ценности и подписывать документы об их приёмке',
+    docs: 'подписывать и получать акты, товарные накладные, универсальные передаточные документы, счета-фактуры и акты сверки взаимных расчётов',
+    tax: 'представлять интересы организации в налоговых органах: подавать и получать документы, давать пояснения, знакомиться с материалами проверок',
+    court: 'вести от имени организации дела в арбитражных судах со всеми правами, предоставленными законом истцу, ответчику и третьему лицу, в том числе подписывать исковое заявление и отзыв на него, заключать мировое соглашение, обжаловать судебные акты, получать исполнительный лист (статья 62 АПК РФ)',
+    bank: 'представлять интересы организации в кредитных организациях: подавать и получать документы и сведения, без права распоряжения денежными средствами'
+  };
+  function powerOfAttorney() {
+    var me = P('me', 'организация'), fio = val('d-fio'), pass = val('d-pass'), until = val('d-until');
+    if (!fio) return 'Укажите ФИО представителя.';
+    var pw = [].slice.call(root.querySelectorAll('.d-pw:checked')).map(function (c) { return POWERS[c.value]; }).filter(Boolean);
+    if (!pw.length) return 'Отметьте хотя бы одно полномочие.';
+    var b = [
+      B.p('ДОВЕРЕННОСТЬ № ____', { align: 'center', b: true }),
+      B.p('г. _______________\t' + ru(today), { space: 6 }),
+      B.p(me.full + ' (ИНН ' + me.inn + (me.ogrn ? ', ' + (me.ip ? 'ОГРНИП ' : 'ОГРН ') + me.ogrn : '') + (me.address ? ', адрес: ' + me.address : '') + '), ' + (me.ip ? 'индивидуальный предприниматель ' + me.head : 'в лице ' + me.post.toLowerCase() + ' ' + me.head + ', действующего на основании устава') + ', настоящей доверенностью уполномочивает ' + fio + (pass ? ' (паспорт ' + pass + ')' : '') + ':', { indent: true, align: 'both', space: 12 })
+    ];
+    pw.forEach(function (x, i) { b.push(B.p((i + 1) + ') ' + x + ';', { indent: true, align: 'both' })); });
+    b.push(B.p('Для выполнения этих полномочий представитель вправе подписывать и получать необходимые документы.', { indent: true, align: 'both' }));
+    b.push(B.p('Доверенность выдана без права передоверия ' + (until ? 'и действительна до ' + ru(until) + ' включительно.' : 'сроком на один год.'), { indent: true, align: 'both' }));
+    b.push(B.p('Подпись представителя _______________ ' + initials(fio) + ' удостоверяю.', { indent: true, space: 12 }));
+    b.push(sign(me));
+    return { title: 'Доверенность', file: 'doverennost', blocks: b };
+  }
+
+  var DOCS = { claim: claim, akt: reconciliation, tax: taxAnswer, end: termination, npd: selfEmployed, reply: claimReply, poa: powerOfAttorney };
 
   // ---------- предпросмотр ----------
   function html(doc) {
@@ -374,6 +420,8 @@
   if (ck) ck.addEventListener('change', function () { [].forEach.call(root.querySelectorAll('.c-pen'), function (e) { e.hidden = ck.value !== 'penalty'; }); });
   var tk = $('t-kind');
   if (tk) tk.addEventListener('change', function () { [].forEach.call(root.querySelectorAll('[data-t]'), function (e) { e.hidden = e.getAttribute('data-t') !== tk.value; }); });
+  var pp = $('p-pos');
+  if (pp) pp.addEventListener('change', function () { [].forEach.call(root.querySelectorAll('[data-p]'), function (e) { e.hidden = e.getAttribute('data-p').split(' ').indexOf(pp.value) < 0; }); });
   var rm = $('r-mode');
   if (rm) rm.addEventListener('change', function () { [].forEach.call(root.querySelectorAll('[data-r]'), function (e) { e.hidden = e.getAttribute('data-r') !== rm.value; }); });
   var addRow = $('a-add');
@@ -395,7 +443,7 @@
     current = r;
     var missing = [];
     if (!parties.me) missing.push('ваших реквизитов');
-    if (kindSel.value !== 'tax' && kindSel.value !== 'npd' && !parties.them) missing.push('реквизитов контрагента');
+    if (['claim', 'akt', 'end', 'reply'].indexOf(kindSel.value) >= 0 && !parties.them) missing.push('реквизитов контрагента');
     out.innerHTML = (r.warn ? '<p class="verdict warn">' + esc(r.warn) + '</p>' : '') +
       (missing.length ? '<p class="note-sm">Нет ' + missing.join(' и ') + ' — в документе оставлены пропуски для заполнения. Введите ИНН и нажмите Enter, чтобы подставить их из ЕГРЮЛ.</p>' : '') +
       '<p class="doc-actions"><button class="btn" type="button" id="doc-word">Скачать Word</button> <button class="btn btn-ghost" type="button" id="doc-print">Печать или PDF</button></p>' +

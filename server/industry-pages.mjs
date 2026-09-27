@@ -7,11 +7,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { marketStats, MIN_GROUP } from './market.mjs';
 import { money, shortName } from './company-page.mjs';
-import { OKVED_COMMON, REGIONS } from '../src/lib/market-lists.mjs';
+import { OKVED_COMMON, OKVED_ALL, REGIONS } from '../src/lib/market-lists.mjs';
 import { RUSSIA, ALL_AGES } from '../scripts/fns-peers.mjs';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const OKVED = new Map(OKVED_COMMON);
+const OKVED = new Map(OKVED_ALL);
 const REGION = new Map(REGIONS);
 const TOP = 20;
 const pct = (x) => (x == null ? '—' : Math.round(x * 100) + '%');
@@ -98,22 +98,27 @@ export function renderIndex(db) {
     return r && { ok, name, n: r.n, profitable: r.profitable, median: (JSON.parse(r.income || 'null') || [])[2] };
   }).filter(Boolean);
   if (!rows.length) return null;
-  const body = `<table class="fns-table all-cols"><tr><th>Отрасль</th><th>Организаций</th><th>Доходы у середины</th><th>В плюсе</th></tr>
+  const common = new Set(OKVED_COMMON.map(([c]) => c));
+  const others = OKVED_ALL.filter(([ok]) => !common.has(ok) && hasData(db, ok, RUSSIA));
+  const body = `<h2 class="h">Частые у малого бизнеса</h2><table class="fns-table all-cols"><tr><th>Отрасль</th><th>Организаций</th><th>Доходы у середины</th><th>В плюсе</th></tr>
 ${rows.map((r) => `<tr><td><a href="/otrasli/${r.ok}/">${esc(r.name)}</a></td><td>${int(r.n)}</td><td>${esc(nb(money(r.median)))}</td><td>${pct(r.profitable)}</td></tr>`).join('\n')}
 </table>
+${others.length ? `<h2 class="h">Все отрасли</h2><ul class="cols-list">${others.map(([ok, name]) => `<li><a href="/otrasli/${ok}/">${esc(name)}</a></li>`).join('')}</ul>` : ''}
 <p class="note-sm">По открытым данным ФНС: реестр малого и среднего бизнеса и доходы и расходы организаций. На странице отрасли — регионы, возраст компаний и крупнейшие организации. Любую другую отрасль по коду ОКВЭД можно посмотреть в <a href="/kalkulyatory/perspektivy-biznesa/">калькуляторе перспектив</a>.</p>`;
   return { title: 'Отрасли малого бизнеса: сколько зарабатывают компании', desc: 'Сколько зарабатывают кафе, магазины, салоны красоты, стройка и другие отрасли малого бизнеса в России и по регионам: доходы, доля прибыльных, крупнейшие компании — по открытым данным ФНС.', url: '/otrasli/', h1: 'Отрасли малого бизнеса', lede: 'Сколько зарабатывают компании в разных отраслях, сколько из них в плюсе и кто крупнейший — по России и по регионам.', body, ld: [] };
+}
+
+// Хватает ли отчётности для статистики по отрасли в регионе (или по России)
+function hasData(db, okved, region) {
+  try { const r = db.prepare('SELECT nfin FROM fns_peers WHERE okved = ? AND region = ? AND age = ?').get(okved, region, ALL_AGES); return !!(r && r.nfin >= MIN_GROUP); } catch { return false; }
 }
 
 // Все адреса страниц отраслей — для карты сайта
 export function industryUrls(db) {
   const urls = ['/otrasli/'];
-  for (const [ok] of OKVED_COMMON) {
-    const regs = regionsOf(db, ok);
-    let all = null;
-    try { all = db.prepare('SELECT nfin FROM fns_peers WHERE okved = ? AND region = ? AND age = ?').get(ok, RUSSIA, ALL_AGES); } catch { all = null; }
-    if (all && all.nfin >= MIN_GROUP) urls.push(`/otrasli/${ok}/`);
-    for (const r of regs) if (r.nfin >= MIN_GROUP) urls.push(`/otrasli/${ok}/${r.region}/`);
+  for (const [ok] of OKVED_ALL) {
+    if (hasData(db, ok, RUSSIA)) urls.push(`/otrasli/${ok}/`);
+    for (const r of regionsOf(db, ok)) if (r.nfin >= MIN_GROUP) urls.push(`/otrasli/${ok}/${r.region}/`);
   }
   return urls;
 }

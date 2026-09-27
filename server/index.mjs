@@ -55,11 +55,11 @@ import { createBilling } from './billing.mjs';
 import { dnCard, dnCourts, partyOfCard } from './datanewton.mjs';
 import { createDnStore } from './dn-store.mjs';
 import { checkSite, siteNotes } from './site-check.mjs';
-import { createCompanyPages } from './company-page.mjs';
+import { createCompanyPages, shortName } from './company-page.mjs';
 import { createIndustryPages } from './industry-pages.mjs';
 import { createLawyer } from './lawyer.mjs';
 import { fnsData } from './fns.mjs';
-import { marketStats, orgPeers, okvedOf } from './market.mjs';
+import { marketStats, orgPeers, orgForecast, okvedOf } from './market.mjs';
 import { createAdmin } from './admin.mjs';
 import { DatabaseSync } from 'node:sqlite';
 
@@ -446,6 +446,22 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
   // база открытых данных ФНС открывается только на чтение; если её ещё нет — работаем без неё
   let fdb = fnsDb;
   if (fdb === undefined && env.FNS_DB) { try { fdb = new DatabaseSync(env.FNS_DB, { readOnly: true }); } catch (e) { console.error('FNS_DB:', e.message); fdb = null; } }
+  // Для ежедневного слежения (accounts.runWatch): налоговые долги из базы ФНС — всем; суды и приставы из DataNewton —
+  // только компаниям из слежения подписчиков, не чаще раза в неделю и не больше половины дневного запаса единиц,
+  // чтобы живым проверкам на сайте хватало лимита
+  async function watchExtra(inn, prev, pro) {
+    const out = {};
+    if (fdb) { try { out.fnsDebt = fdb.prepare('SELECT total FROM fns_debt WHERE inn = ?').get(inn)?.total || 0; } catch { /* таблицы нет */ } }
+    if (pro && cfg.dnKey && !(prev && prev.dnAt && now() - prev.dnAt < 7 * DAY)
+      && dn.take(inn.length === 10 ? 3 : 2, Math.round((cfg.dnDailyUnits + cfg.dnProUnits) / 2))) {
+      const k = await dnCourts(inn, cfg, fetchImpl);
+      if (k.courts || k.arbitration || k.fssp) {
+        dn.set('courts:' + inn, k);
+        Object.assign(out, { dnAt: now(), arbDef: k.arbitration?.defendant ?? null, courtsDef: k.courts?.defendant ?? null, fsspOpen: k.fssp?.open ?? null, fsspSum: k.fssp?.openSum ?? null });
+      }
+    }
+    return out;
+  }
   // панель владельца (server/admin.mjs): счётчики использования по дням и GET /api/admin/stats по ключу ADMIN_TOKEN
   const admin = createAdmin({ env, db, fdb, dn, now });
   // Помощник юриста (server/lawyer.mjs): тот же ИИ, что и у разбора, но только для подписчиков Ultima
@@ -567,7 +583,9 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
     return send(res, r.status, await r.json().catch(() => ({ ok: false, description: 'Telegram ' + r.status })));
   }
 
-  return async function handler(req, res) {
+  handler.watchExtra = watchExtra;
+  return handler;
+  async function handler(req, res) {
     cors(req, res);
     const url = new URL(req.url, 'http://x');
     try {
@@ -588,8 +606,22 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
       if (await lawyer.handle(req, res, url, { send, readBody })) return;
       if (billing && await billing.handle(req, res, url, { send, readBody, user: url.pathname.startsWith('/api/billing') ? accounts.userOf(req) : null })) return;
       if (accounts && await accounts.handle(req, res, url, { send, readBody, getParty, innValid, ip: ipOf(req) })) return;
-      if (req.method !== 'POST' || !['/api/org', '/api/org/ai', '/api/org/fns', '/api/org/more', '/api/org/courts', '/api/org/suggest', '/api/market'].includes(url.pathname)) return send(res, 404, { error: 'Не найдено' });
+      if (req.method !== 'POST' || !['/api/org', '/api/org/ai', '/api/org/fns', '/api/org/more', '/api/org/courts', '/api/org/suggest', '/api/market', '/api/forecast'].includes(url.pathname)) return send(res, 404, { error: 'Не найдено' });
       if (req.headers.origin && !cfg.origins.includes(req.headers.origin)) return send(res, 403, { error: 'Запрос с чужого сайта' });
+      if (url.pathname === '/api/forecast') {
+        // прогноз действующей организации по месту среди сверстников — тоже только наша база ФНС
+        const body = await readBody(req);
+        const inn = String((body && body.inn) || '').replace(/\D/g, '');
+        if (!/^\d{10}$/.test(inn) || !innValid(inn)) return send(res, 400, { error: 'Нужен ИНН организации — 10 цифр. По ИП ФНС не публикует отчётность.' });
+        const ip = ipOf(req), t = now();
+        const hits = (marketHits.get(ip) || []).filter((x) => t - x < 600e3);
+        if (hits.length >= 120) return send(res, 429, { error: 'Слишком много запросов. Подождите несколько минут.' });
+        hits.push(t); marketHits.set(ip, hits);
+        admin.count('market');
+        let f = null, name = null;
+        try { f = orgForecast(fdb, inn); name = fdb && fdb.prepare('SELECT name FROM fns_name WHERE inn = ?').get(inn)?.name; } catch { f = null; }
+        return send(res, 200, f ? { available: true, name: name ? shortName(name) : null, ...f } : { available: false });
+      }
       if (url.pathname === '/api/market') {
         // только открытые данные ФНС из нашей базы — DaData не нужна
         const body = await readBody(req);
@@ -727,7 +759,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   if (db) {
     // слежение: раз в сутки свежие данные из DaData (без кеша)
     const accounts = createAccounts({ env, db, fetchImpl: globalThis.fetch, mailer });
-    accounts.scheduleWatch((inn) => findParty(inn, cfg, globalThis.fetch));
-    createBilling({ env, db, fetchImpl: globalThis.fetch, notify: (u, text) => accounts.notify(u, text) }).scheduleRenew();
+    const bill = createBilling({ env, db, fetchImpl: globalThis.fetch, notify: (u, text) => accounts.notify(u, text) });
+    accounts.scheduleWatch((inn) => findParty(inn, cfg, globalThis.fetch),
+      (inn, prev, uids) => app.watchExtra(inn, prev, bill.enabled && uids.some((id) => bill.isPro({ id }))));
+    bill.scheduleRenew();
   }
 }

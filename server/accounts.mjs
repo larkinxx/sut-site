@@ -95,6 +95,13 @@ export function diffSnapshots(a, b) {
   if (a.manager && b.manager && a.manager !== b.manager) out.push('сменился руководитель');
   if (a.address && b.address && a.address !== b.address) out.push('сменился адрес');
   if (!a.disqualified && b.disqualified) out.push('руководитель в реестре дисквалифицированных лиц');
+  // суды и приставы (DataNewton, раз в неделю — только у компаний из слежения подписчиков) и налоговые долги из открытых данных ФНС
+  const grew = (k) => a[k] != null && b[k] != null && b[k] > a[k];
+  if (grew('arbDef')) out.push(`новые арбитражные дела против компании: ${b.arbDef - a.arbDef}`);
+  if (grew('courtsDef')) out.push(`новые дела в судах общей юрисдикции, где компания — ответчик: ${b.courtsDef - a.courtsDef}`);
+  if (grew('fsspOpen')) out.push(`новые исполнительные производства у приставов: ${b.fsspOpen - a.fsspOpen}`);
+  else if (a.fsspSum != null && b.fsspSum != null && b.fsspSum > a.fsspSum + 1) out.push(`долги у приставов выросли до ${rub(b.fsspSum)}`);
+  if (grew('fnsDebt') && b.fnsDebt > 0) out.push(`по данным ФНС налоговая задолженность — ${rub(b.fnsDebt)}`);
   return out;
 }
 
@@ -285,7 +292,8 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
   }
 
   /* ----- ежедневная проверка компаний из слежения ----- */
-  async function runWatch(getPartyFresh) {
+  // extra(inn, prevSnap, userIds) — дополнительные поля слепка (суды, приставы, долги ФНС) или null
+  async function runWatch(getPartyFresh, extra = null) {
     const inns = q('SELECT DISTINCT inn FROM watch').all().map((r) => r.inn);
     const changed = {};
     for (const inn of inns) {
@@ -293,8 +301,14 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
         const s = await getPartyFresh(inn);
         if (!s) continue;
         const snap = snapshotOf(s);
-        const prev = q('SELECT data FROM snapshots WHERE inn = ?').get(inn);
-        const changes = diffSnapshots(prev ? JSON.parse(prev.data) : null, snap);
+        const prevRow = q('SELECT data FROM snapshots WHERE inn = ?').get(inn), prevSnap = prevRow ? JSON.parse(prevRow.data) : null;
+        if (extra) {
+          const uids = q('SELECT user_id FROM watch WHERE inn = ?').all(inn).map((r) => r.user_id);
+          const add = await extra(inn, prevSnap, uids).catch((e) => { console.error('слежение, суды', inn, e.message); return null; }) || {};
+          // чего не проверяли сегодня — переносим из прошлого слепка, чтобы не было ложных «изменений»
+          for (const k of ['dnAt', 'arbDef', 'courtsDef', 'fsspOpen', 'fsspSum', 'fnsDebt']) snap[k] = k in add ? add[k] : prevSnap ? prevSnap[k] : undefined;
+        }
+        const changes = diffSnapshots(prevSnap, snap);
         q(`INSERT INTO snapshots (inn, data, checked_at, changed_at, last_change) VALUES (?, ?, ?, ?, ?)
            ON CONFLICT(inn) DO UPDATE SET data = excluded.data, checked_at = excluded.checked_at,
            changed_at = COALESCE(excluded.changed_at, snapshots.changed_at), last_change = COALESCE(excluded.last_change, snapshots.last_change)`)
@@ -321,14 +335,14 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
   }
 
   // Слежение запускается раз в сутки после 08:00 по Москве
-  function scheduleWatch(getPartyFresh) {
+  function scheduleWatch(getPartyFresh, extra = null) {
     const tick = async () => {
       const msk = new Date(now() + 3 * 3600e3);
       const today = msk.toISOString().slice(0, 10);
       const last = q("SELECT value FROM meta WHERE key = 'watch_day'").get();
       if (msk.getUTCHours() >= 8 && (!last || last.value !== today)) {
         q("INSERT INTO meta (key, value) VALUES ('watch_day', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(today);
-        const r = await runWatch(getPartyFresh);
+        const r = await runWatch(getPartyFresh, extra);
         console.log(new Date().toISOString(), 'слежение:', JSON.stringify(r));
       }
     };
