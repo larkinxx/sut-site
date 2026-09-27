@@ -26,6 +26,17 @@ export function parseKeyRate(html) {
   return { rate: rows[0].rate, since };
 }
 
+// История ключевой ставки для процентов по ст. 395 ГК (с 01.08.2016 они считаются по ключевой ставке):
+// дневная таблица ЦБ → точки изменения по возрастанию даты [{ from: 'ГГГГ-ММ-ДД', rate }]
+export function parseKeyRateHistory(html) {
+  const rows = [...html.matchAll(/<td>(\d\d)\.(\d\d)\.(\d{4})<\/td>\s*<td>([\d,]+)<\/td>/g)]
+    .map((m) => ({ date: `${m[3]}-${m[2]}-${m[1]}`, rate: num(m[4]) }))
+    .sort((a, b) => (a.date < b.date ? -1 : 1));
+  const out = [];
+  for (const r of rows) if (!out.length || out[out.length - 1].rate !== r.rate) out.push({ from: r.date, rate: r.rate });
+  return out.length ? out : null;
+}
+
 // Инфляция: «месяц.год — ключевая ставка — инфляция, % г/г — цель»
 export function parseInflation(html) {
   const m = html.match(/<td>(\d\d)\.(\d{4})<\/td>\s*<td>[\d,]+<\/td>\s*<td>([\d,]+)<\/td>/);
@@ -42,6 +53,12 @@ async function main() {
     if (k && (k.rate !== fin.keyRate || k.since !== fin.keyRateSince)) { fin.keyRate = k.rate; fin.keyRateSince = k.since; changed = true; }
     console.log('Ключевая ставка:', k ? `${k.rate}% с ${k.since}` : 'не распознана');
   } catch (e) { console.warn('Ключевая ставка не обновлена:', e.message); }
+  try {
+    const h = parseKeyRateHistory(await page(`https://www.cbr.ru/hd_base/KeyRate/?UniDbQuery.Posted=True&UniDbQuery.From=01.08.2016&UniDbQuery.To=${ru(to)}`));
+    // без отката назад: если ЦБ отдал обрезанную таблицу, прежняя история остаётся
+    if (h && h[0].from <= '2016-09-30' && JSON.stringify(h) !== JSON.stringify(fin.keyRateHistory)) { fin.keyRateHistory = h; changed = true; }
+    console.log('История ключевой ставки:', h ? `${h.length} изменений с ${h[0].from}` : 'не распознана');
+  } catch (e) { console.warn('История ключевой ставки не обновлена:', e.message); }
   try {
     const i = parseInflation(await page('https://www.cbr.ru/hd_base/infl/' + q));
     if (i && (!fin.inflation || i.value !== fin.inflation.value || i.month !== fin.inflation.month)) { fin.inflation = i; changed = true; }

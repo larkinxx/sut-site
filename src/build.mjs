@@ -10,6 +10,7 @@ import { ROOT, loadSite, loadCards, loadMaterials, readJson } from './lib/conten
 import { AUDIENCES, AUDIENCE_TABS, esc, markTitle, dateRu, agoRu } from './lib/util.mjs';
 import { SCHEMES, taxSections, personalSections } from './lib/taxes.mjs';
 import { OKVED_COMMON, REGIONS } from './lib/market-lists.mjs';
+import { docsForm, guides as lawGuides, DOC_KINDS, LAW_NOTE } from './lib/yurist.mjs';
 import { PLANS, FREE } from '../server/billing.mjs';
 
 const withExamples = process.argv.includes('--examples');
@@ -75,6 +76,7 @@ const NAV = [
   ['/kalkulyatory/', 'Калькуляторы', 'calc'],
   ['/nalogi/', 'Налоги', 'tax'],
   ['/organizacii/', 'Организации', 'org'],
+  ['/yurist/', 'Юрист', 'law'],
   ['/fizlica/', 'Физлица', 'person']
   // «Как мы работаем» и «О проекте» — в подвале каждой страницы
 ];
@@ -640,6 +642,60 @@ ${card('Как не попасть под блокировку', [
 }));
 
 // Опасные налоговые схемы: не инструкция, а предупреждение — в чём схема, как её находят и чем она кончается
+// ---------- Юрист: документы по ИНН и разборы типовых ситуаций (src/lib/yurist.mjs, public/yurist.js) ----------
+const LAW = lawGuides(url);
+const lawCrumb = `<a class="crumb" href="${url('/yurist/')}">${icon('arrowLeft')} Юрист</a>`;
+write('yurist/index.html', layout({
+  title: 'Юрист для бизнеса: документы по ИНН и разборы ситуаций', path: '/yurist/', current: 'law',
+  desc: 'Претензия о долге с расчётом процентов, акт сверки, ответ на требование налоговой, расторжение договора и договор с самозанятым — с реквизитами из ЕГРЮЛ по ИНН. Разборы типовых ситуаций со ссылками на законы.',
+  body: `<h1 class="page">Юрист для бизнеса</h1>
+<p class="lede">Готовые документы с реквизитами из ЕГРЮЛ по ИНН и пошаговые разборы ситуаций, с которыми малый бизнес сталкивается каждую неделю.</p>
+<div class="prose">
+<h2>Документы по ИНН</h2>
+<p>Введите ИНН своей компании и контрагента — реквизиты, адреса и руководителей подставим сами. На выходе — файл Word или PDF.</p>
+<ul>${DOC_KINDS.map(([k, n]) => `<li><a href="${url('/yurist/dokumenty/')}#doc=${k}">${n}</a></li>`).join('')}</ul>
+<p><a class="btn" href="${url('/yurist/dokumenty/')}">Составить документ</a></p>
+<h2>Разборы ситуаций</h2>
+<ul>${LAW.map((g) => `<li><a href="${url('/yurist/' + g.slug + '/')}">${esc(g.title)}</a> — ${esc(g.lede.charAt(0).toLowerCase() + g.lede.slice(1))}</li>`).join('')}
+<li><a href="${url('/nalogi/blokirovka-scheta/')}">Как не попасть под блокировку счёта по 115-ФЗ</a> — за какие операции банки блокируют счета и как снять ограничения.</li></ul>
+<p class="note-sm">${esc(LAW_NOTE)}</p>
+</div>
+${ACCT && process.env.ORG_API_URL ? `<section class="calc" id="lawyer" data-api="${esc(process.env.ORG_API_URL)}" data-login="${url('/vhod/')}" data-plans="${url('/tarify/')}">
+<h2>Помощник юриста</h2>
+<p class="note-sm">Опишите ситуацию — ответим простым языком, по шагам и со ссылками на статьи закона. Для подписчиков INNSIDER Ultima.</p>
+<form id="lawyer-form" novalidate>
+  <label class="f">Ваш вопрос<textarea id="lawyer-q" rows="5" maxlength="2000" placeholder="Покупатель не оплатил поставку на 300 000 ₽, срок оплаты прошёл два месяца назад. В договоре нет неустойки. Что делать?"></textarea></label>
+  <p><button class="btn" type="submit">Спросить</button></p>
+</form>
+<p class="verdict warn" id="lawyer-msg" aria-live="polite"></p>
+<div id="lawyer-out" aria-live="polite"></div>
+<p class="note-sm">Отвечает ИИ (Yandex AI Studio, Alice AI) по законодательству РФ. Это не юридическая консультация: ИИ может ошибаться — проверяйте статьи по ссылкам, а в споре, при крупной сумме или проверке обратитесь к юристу. Не пишите в вопросе ФИО, паспортные данные и сведения о людях.</p>
+</section>
+<script src="${url('/lawyer.js')}?v=${hashOf('lawyer.js')}" defer></script>` : ''}`
+}));
+write('yurist/dokumenty/index.html', layout({
+  title: 'Документы по ИНН: претензия, акт сверки, ответ налоговой, договор с самозанятым', path: '/yurist/dokumenty/', current: 'law',
+  desc: 'Составьте претензию о долге с расчётом процентов по ст. 395 ГК, акт сверки, ответ на требование налоговой, уведомление о расторжении или договор с самозанятым — реквизиты подставятся из ЕГРЮЛ по ИНН. Word или PDF.',
+  scripts: `\n<script src="${url('/yurist.js')}?v=${hashOf('yurist.js')}" defer></script>`,
+  body: `${lawCrumb}
+<h1 class="page">Документы по ИНН</h1>
+<p class="lede">Выберите документ и введите ИНН — реквизиты, адреса и руководителей подставим из ЕГРЮЛ. Проценты по статье 395 ГК посчитаем по ключевой ставке за каждый период.</p>
+${docsForm({ api: esc(process.env.ORG_API_URL || ''), rates: { keyRate: FIN.keyRate, keyRateSince: FIN.keyRateSince, keyRateHistory: FIN.keyRateHistory || [] } })}`
+}));
+for (const g of LAW) {
+  write(`yurist/${g.slug}/index.html`, layout({
+    title: g.title, path: `/yurist/${g.slug}/`, current: 'law', desc: g.desc,
+    ld: { '@context': 'https://schema.org', '@type': 'Article', headline: g.title, description: g.desc, inLanguage: 'ru', publisher: { '@type': 'Organization', name: site.name } },
+    body: `${lawCrumb}
+<h1 class="page">${esc(g.title)}</h1>
+<p class="lede">${esc(g.lede)}</p>
+<div class="prose">
+${g.body}
+<p class="note-sm">${esc(LAW_NOTE)}</p>
+</div>`
+  }));
+}
+
 write('nalogovye-shemy/index.html', layout({
   title: 'Опасные налоговые схемы: чего не делать', path: '/nalogovye-shemy/', current: 'tax',
   desc: 'Дробление бизнеса, «технические» компании, сотрудники-самозанятые, зарплата в конвертах: как налоговая находит схемы и чем они заканчиваются.',
@@ -685,6 +741,7 @@ ${SCHEMES.filter((x) => x.who === 'person').map((x) => schemeBlock(x, 'h3')).joi
 <li>историю проверок, список компаний для слежения, сохранённые расчёты и ИНН вашей компании, если вы его указали;</li>
 <li>дату согласия, даты входа и технический файл cookie сессии.</li>
 </ul>
+<p>Вопрос помощнику юриста (для подписчиков) передаётся в сервис Yandex AI Studio (Alice AI) от Яндекса, чтобы получить ответ. Мы не сохраняем вопросы и ответы — только число вопросов за день для лимита. Не пишите в вопросе ФИО, паспортные данные и другие сведения о людях. Документы по ИНН собираются в вашем браузере: на сервер уходят только ИНН для поиска реквизитов.</p>
 <p>Цели: вход в кабинет, хранение истории и расчётов, уведомления об изменениях у компаний, за которыми вы следите. Основание — ваше согласие, которое вы даёте при входе.</p>
 <h2>Где и сколько хранятся данные</h2>
 <p>Данные вошедших пользователей хранятся на сервере в России (Новосибирск). Код для входа по почте хранится 10 минут, сессия — 90 дней, остальные данные — пока у вас есть аккаунт. Мы не продаём ваши данные и передаём их другим лицам только в той мере, в какой это нужно для работы сервиса: Яндекс подтверждает вход через Яндекс ID, почтовый сервис доставляет коды и уведомления.</p>
@@ -960,7 +1017,7 @@ if (!site.siteUrl.includes('example')) {
   // lastmod: у ленты — время свежей новости, у карточки — время последней правки; у статичных страниц не ставим
   const fresh = cards.length ? cards[0].publishedAt : '';
   const urls = [
-    ['/', fresh], ['/arhiv/', fresh], ['/kalkulyatory/'], ...CALCS.map((c) => [`/kalkulyatory/${c.slug}/`]), ['/organizacii/'], ['/indeks/'], ['/fizlica/'], ['/nalogi/'], ...[...TAX, ...TAX_P].map((t) => [`/nalogi/${t.slug}/`]), ['/nalogovye-shemy/'], ['/nalogi/blokirovka-scheta/'], ['/fizlica/dropy/'], ['/kak-my-rabotaem/'], ['/o-proekte/'], ['/pravovaya-informaciya/'], ...(POLICY ? [['/politika/']] : []), ...(ACCT && POLICY ? [['/tarify/'], ['/oferta/']] : []),
+    ['/', fresh], ['/arhiv/', fresh], ['/kalkulyatory/'], ...CALCS.map((c) => [`/kalkulyatory/${c.slug}/`]), ['/organizacii/'], ['/indeks/'], ['/fizlica/'], ['/nalogi/'], ...[...TAX, ...TAX_P].map((t) => [`/nalogi/${t.slug}/`]), ['/nalogovye-shemy/'], ['/nalogi/blokirovka-scheta/'], ['/yurist/'], ['/yurist/dokumenty/'], ...LAW.map((g) => [`/yurist/${g.slug}/`]), ['/fizlica/dropy/'], ['/kak-my-rabotaem/'], ['/o-proekte/'], ['/pravovaya-informaciya/'], ...(POLICY ? [['/politika/']] : []), ...(ACCT && POLICY ? [['/tarify/'], ['/oferta/']] : []),
     ...cards.map((c) => [`/n/${c.id}/`, (c.review && c.review.at) || c.publishedAt])
   ];
   write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(([u, m]) => `<url><loc>${site.siteUrl}${u}</loc>${m ? `<lastmod>${new Date(m).toISOString()}</lastmod>` : ''}</url>`).join('\n')}\n</urlset>\n`);

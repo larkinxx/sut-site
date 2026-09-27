@@ -5,7 +5,7 @@
 import crypto from 'node:crypto';
 
 const DAY = 864e5;
-const METRICS = ['checks', 'ai', 'courts', 'market'];   // проверки по ИНН, разборы, суды/арбитраж, запросы статистики отрасли
+const METRICS = ['checks', 'ai', 'courts', 'market', 'lawyer'];   // проверки по ИНН, разборы, суды/арбитраж, запросы статистики отрасли, вопросы помощнику юриста
 
 export function createAdmin({ env = {}, db = null, fdb = null, dn = null, now = () => Date.now() } = {}) {
   const token = String(env.ADMIN_TOKEN || '');

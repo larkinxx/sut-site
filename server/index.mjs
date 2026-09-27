@@ -57,6 +57,7 @@ import { createDnStore } from './dn-store.mjs';
 import { checkSite, siteNotes } from './site-check.mjs';
 import { createCompanyPages } from './company-page.mjs';
 import { createIndustryPages } from './industry-pages.mjs';
+import { createLawyer } from './lawyer.mjs';
 import { fnsData } from './fns.mjs';
 import { marketStats, orgPeers, okvedOf } from './market.mjs';
 import { createAdmin } from './admin.mjs';
@@ -289,13 +290,13 @@ function parseJsonLoose(text) {
   return JSON.parse(text.slice(a, b + 1));
 }
 
-async function callYandex(prompt, cfg, fetchImpl) {
+export async function callYandex(prompt, cfg, fetchImpl, system = SYSTEM) {
   const res = await fetchImpl(cfg.yandexBase + '/chat/completions', {
     method: 'POST',
     headers: { Authorization: 'Api-Key ' + cfg.yandexKey, 'OpenAI-Project': cfg.yandexFolder, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: `gpt://${cfg.yandexFolder}/${cfg.yandexModel}`,
-      messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: prompt }],
+      messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }],
       temperature: 0.2, max_tokens: 2500
     }),
     signal: AbortSignal.timeout(60000)
@@ -306,7 +307,7 @@ async function callYandex(prompt, cfg, fetchImpl) {
 }
 export const aiProvider = (cfg) => (cfg.yandexKey && cfg.yandexFolder ? 'yandex' : cfg.geminiKey ? 'gemini' : cfg.aiUpstream ? 'upstream' : null);
 
-async function callGemini(prompt, cfg, fetchImpl) {
+export async function callGemini(prompt, cfg, fetchImpl, system = SYSTEM) {
   const models = [...new Set([cfg.geminiModel, 'gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.5-flash-lite'])];
   let last;
   for (const m of models) {
@@ -314,7 +315,7 @@ async function callGemini(prompt, cfg, fetchImpl) {
       method: 'POST',
       headers: { 'x-goog-api-key': cfg.geminiKey, 'content-type': 'application/json' },
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM }] },
+        systemInstruction: { parts: [{ text: system }] },
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         generationConfig: { responseMimeType: 'application/json', temperature: 0.2, maxOutputTokens: 2500 }
       }),
@@ -447,6 +448,19 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
   if (fdb === undefined && env.FNS_DB) { try { fdb = new DatabaseSync(env.FNS_DB, { readOnly: true }); } catch (e) { console.error('FNS_DB:', e.message); fdb = null; } }
   // панель владельца (server/admin.mjs): счётчики использования по дням и GET /api/admin/stats по ключу ADMIN_TOKEN
   const admin = createAdmin({ env, db, fdb, dn, now });
+  // Помощник юриста (server/lawyer.mjs): тот же ИИ, что и у разбора, но только для подписчиков Ultima
+  const lawyerAsk = (prompt, system) => {
+    const p = aiProvider(cfg);
+    if (p === 'yandex') return callYandex(prompt, cfg, fetchImpl, system);
+    if (p === 'gemini') return callGemini(prompt, cfg, fetchImpl, system);
+    return Promise.reject(new Error('ИИ не подключён'));
+  };
+  const lawyer = createLawyer({
+    ask: ['yandex', 'gemini'].includes(aiProvider(cfg)) ? lawyerAsk : null,
+    isPro: (u) => !!(billing && billing.enabled && billing.isPro(u)),
+    userOf: (req) => (accounts ? accounts.userOf(req) : null),
+    perUserDay: Number(env.LAWYER_PER_DAY || 30), count: (m) => admin.count(m), now
+  });
   const ipHits = new Map();
   const relayHits = new Map();
   let day = { key: '', count: 0 };
@@ -571,6 +585,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
       if (await companyPages(req, res, url, innValid)) return;
       if (industryPages(req, res, url)) return;
       if (req.method !== 'GET' && req.headers.origin && !cfg.origins.includes(req.headers.origin)) return send(res, 403, { error: 'Запрос с чужого сайта' });
+      if (await lawyer.handle(req, res, url, { send, readBody })) return;
       if (billing && await billing.handle(req, res, url, { send, readBody, user: url.pathname.startsWith('/api/billing') ? accounts.userOf(req) : null })) return;
       if (accounts && await accounts.handle(req, res, url, { send, readBody, getParty, innValid, ip: ipOf(req) })) return;
       if (req.method !== 'POST' || !['/api/org', '/api/org/ai', '/api/org/fns', '/api/org/more', '/api/org/courts', '/api/org/suggest', '/api/market'].includes(url.pathname)) return send(res, 404, { error: 'Не найдено' });
