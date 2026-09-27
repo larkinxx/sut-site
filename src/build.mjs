@@ -315,7 +315,25 @@ function macroWidget() {
 // Главная: лента за 24 часа
 {
   const list = cards.map(feedItem).join('\n');
-  const body = `${macroWidget()}<h1 class="page">Новости за ${site.windowHours} ${site.windowHours === 24 ? 'часа' : 'часов'}</h1>
+  // первый экран «как у модных домов»: две половины — бизнесу (проверка компании) и людям (налоги и расчёты)
+  const hero = process.env.ORG_API_URL ? `<section class="split" aria-label="Главное">
+  <div class="split-half">
+    <p class="label">Бизнесу</p>
+    <h2 class="split-h">Проверка компании до сделки</h2>
+    <p class="split-t">Реестры ФНС, налоги, суды и индекс надёжности — по ИНН или названию.</p>
+    <form class="split-form" id="hero-org" action="${url('/organizacii/')}"${COMPANY_PAGES ? ' data-pages="1"' : ''} novalidate>
+      <input type="text" id="hero-inn" maxlength="100" autocomplete="off" placeholder="ИНН или название" aria-label="ИНН или название компании">
+      <button class="btn" type="submit">Проверить</button>
+    </form>
+  </div>
+  <div class="split-half split-dark">
+    <p class="label">Людям</p>
+    <h2 class="split-h">Налоги, вычеты и расчёты</h2>
+    <p class="split-t">Как вернуть налог, сколько принесёт вклад, стоит ли досрочно гасить кредит.</p>
+    <p class="split-links"><a class="lnk" href="${url('/fizlica/')}">Физлицам</a><a class="lnk" href="${url('/kalkulyatory/')}">Калькуляторы</a><a class="lnk" href="${url('/nalogi/')}">Налоги</a></p>
+  </div>
+</section>` : '';
+  const body = `${hero}${macroWidget()}<h1 class="page">Новости за ${site.windowHours} ${site.windowHours === 24 ? 'часа' : 'часов'}</h1>
 <div class="filters" id="filters" role="group" aria-label="Для кого показывать новости">
   <button type="button" class="chip" data-f="*" aria-pressed="true">Все</button>
   <button type="button" class="chip" data-f="borrowers" aria-pressed="false">${AUDIENCES.borrowers}</button>

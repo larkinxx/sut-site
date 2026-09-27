@@ -5,6 +5,16 @@
    Без скрипта сайт остаётся читаемым: все новости и все блоки видны. */
 (function () {
   'use strict';
+
+  // Главная: поле «ИНН или название» в первом экране ведёт на страницу проверки
+  var hero = document.getElementById('hero-org');
+  if (hero) hero.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var v = document.getElementById('hero-inn').value.trim(), d = v.replace(/\s/g, '');
+    if (!v) { document.getElementById('hero-inn').focus(); return; }
+    var base = hero.getAttribute('action');
+    location.href = /^(\d{10}|\d{12})$/.test(d) ? (hero.getAttribute('data-pages') ? base + d + '/' : base + '#inn=' + d) : base + '#q=' + encodeURIComponent(v);
+  });
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
 

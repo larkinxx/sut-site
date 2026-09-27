@@ -1223,7 +1223,10 @@
   // /organizacii/#inn=… — сразу проверяем; работает и при смене адреса без перезагрузки (ссылки из кабинета)
   function fromHash() {
     var m = /(?:^#|&)inn=(\d{10}|\d{12})/.exec(location.hash);
-    if (m && m[1] !== input.value.replace(/\s/g, '')) { input.value = m[1]; form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Event('submit')); }
+    if (m && m[1] !== input.value.replace(/\s/g, '')) { input.value = m[1]; form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Event('submit')); return; }
+    // #q=название — с главной: подставляем и показываем подсказки
+    var q = /(?:^#|&)q=([^&]+)/.exec(location.hash);
+    if (q) { try { input.value = decodeURIComponent(q[1]); } catch (e) { return; } input.focus(); input.dispatchEvent(new Event('input')); }
   }
   window.addEventListener('hashchange', fromHash);
   var pageInn = root.getAttribute('data-inn');

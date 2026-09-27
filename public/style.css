@@ -420,3 +420,30 @@ input[type=number]:focus,input[type=text]:focus,input[type=email]:focus,select:f
 /* подвал */
 footer.wrap{padding-bottom:56px}
 footer .fine{text-align:center;margin:0 auto;padding-top:28px;font-size:12px;letter-spacing:.02em}
+
+/* ---------- первый экран: две половины ---------- */
+.split{position:relative;left:50%;transform:translateX(-50%);width:min(1200px,calc(100vw - 32px));display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--ink);margin:-24px 0 72px;animation:rise .9s cubic-bezier(.2,.7,.2,1) both}
+.split-half{padding:clamp(36px,6vw,80px) clamp(24px,5vw,64px);display:grid;align-content:center;gap:18px;min-height:clamp(320px,42vw,500px)}
+.split-dark{background:var(--ink);color:var(--bg)}
+.split-dark .label,.split-dark .split-t{color:color-mix(in srgb,var(--bg) 70%,transparent)}
+.split .label{margin:0}
+.split-h{font:400 clamp(30px,4vw,48px)/1.1 var(--font-display);margin:0;letter-spacing:-.01em;text-wrap:balance}
+.split-t{margin:0;color:var(--muted);font-weight:300;max-width:36ch}
+.split-form{display:flex;flex-wrap:wrap;gap:14px 16px;align-items:end;margin-top:8px}
+.split-form input{flex:1 1 200px}
+.split-links{display:flex;flex-wrap:wrap;gap:12px 28px;margin:8px 0 0}
+.lnk{font:400 11px/1.6 var(--font-ui);letter-spacing:.24em;text-transform:uppercase;text-decoration:none;color:inherit;padding-bottom:4px;background:linear-gradient(currentColor,currentColor) 0 100%/100% 1px no-repeat;transition:background-size .35s ease}
+.lnk:hover{background-size:0 1px;background-position:100% 100%}
+@media (max-width:760px){.split{grid-template-columns:1fr;margin-top:-32px}.split-half{min-height:0}}
+@keyframes rise{from{opacity:0;transform:translate(-50%,14px)}to{opacity:1;transform:translate(-50%,0)}}
+
+/* ---------- микроанимации ---------- */
+nav a{position:relative;border-bottom:0}
+nav a::after{content:"";position:absolute;left:0;right:0;bottom:-2px;height:1px;background:currentColor;transform:scaleX(0);transition:transform .35s ease}
+nav a:hover::after,nav a[aria-current]::after{transform:scaleX(1)}
+.dcard,.calcs a,.macro>a,.plan,.way{transition:border-color .3s ease}
+.dcard:hover,.calcs a:hover,.macro>a:hover,.way:hover{border-color:var(--ink)}
+.item summary .h{transition:opacity .25s}
+.item summary:hover .h{color:inherit;opacity:.6}
+.share,.chip,.theme-btn{transition:background .25s,color .25s,border-color .25s}
+@media (prefers-reduced-motion:reduce){.split{animation:none}nav a::after{transition:none}}
