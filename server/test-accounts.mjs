@@ -253,6 +253,32 @@ try {
     assert.deepEqual(diffSnapshots(a, { ...a }), []);
     assert.deepEqual(diffSnapshots(null, a), [], 'первый слепок — не изменение');
     assert.equal(diffSnapshots(a, { ...a, manager: 'Z', invalid: true }).length, 2);
+    // суды, приставы и долги ФНС: только рост и только если было с чем сравнить
+    const c = { ...a, arbDef: 2, courtsDef: 0, fsspOpen: 1, fsspSum: 5000, fnsDebt: 0 };
+    assert.deepEqual(diffSnapshots(c, { ...c }), []);
+    assert.deepEqual(diffSnapshots(a, { ...a, arbDef: 5 }), [], 'раньше суды не проверяли — не изменение');
+    const d = diffSnapshots(c, { ...c, arbDef: 3, fsspOpen: 2, fsspSum: 90000, fnsDebt: 12000 });
+    assert.equal(d.length, 3);
+    assert.match(d.join('; '), /новые арбитражные дела против компании: 1/);
+    assert.match(d.join('; '), /исполнительные производства у приставов: 1/);
+    assert.match(d.join('; '), /налоговая задолженность — 12\s000 ₽/);
+    assert.match(diffSnapshots(c, { ...c, fsspSum: 9000 }).join(), /долги у приставов выросли до 9\s000 ₽/);
+  });
+
+  await t('слежение: суды и приставы подмешиваются, а без проверки переносятся из прошлого слепка', async () => {
+    const seen = [];
+    let arb = 1, check = true;
+    const extra = async (inn, prev, uids) => { seen.push(uids.length); return check ? { dnAt: clock, arbDef: arb, fsspOpen: 0, fsspSum: 0 } : {}; };
+    const getFresh = async () => PARTY();
+    await app.runWatch(getFresh, extra);            // первый слепок с судами
+    arb = 3; check = false;
+    let r = await app.runWatch(getFresh, extra);    // суды сегодня не проверяли — изменений нет
+    assert.equal(r.changed, 0);
+    check = true;
+    r = await app.runWatch(getFresh, extra);
+    assert.equal(r.changed, 1);
+    assert.match(db.prepare('SELECT last_change FROM snapshots WHERE inn = ?').get('7707083893').last_change, /новые арбитражные дела против компании: 2/);
+    assert.ok(seen.every((x) => x >= 1), 'в extra передаются подписчики компании');
   });
 
   console.log(`\nВсе тесты аккаунтов прошли: ${n}`);
