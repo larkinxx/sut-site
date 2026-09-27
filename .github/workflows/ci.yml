@@ -1,0 +1,34 @@
+# Проверка каждого PR и каждого изменения в main: синтаксис, тесты сервера, содержимое и сборка сайта.
+# Красный результат — в PR что-то сломано, сливать нельзя. Секреты не нужны: тесты работают без внешних сервисов.
+name: Проверка
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Синтаксис
+        run: npm run -s lint
+      - name: Тесты сервера
+        run: npm run -s test:server
+      - name: Содержимое
+        run: npm run -s check
+      - name: Сборка сайта
+        run: node src/build.mjs --strict

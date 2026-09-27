@@ -1,4 +1,4 @@
-# systemd: сервер «Сути» (проверка организаций, разбор, аккаунты). Копия: /etc/systemd/system/sut-api.service
+# systemd: сервер INNSIDER (проверка организаций, разбор, аккаунты). Копия: /etc/systemd/system/sut-api.service
 [Unit]
 Description=Sut API
 After=network-online.target

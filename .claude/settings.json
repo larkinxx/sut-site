@@ -10,5 +10,21 @@
         ]
       }
     ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(npm run -s lint)",
+      "Bash(npm run lint)",
+      "Bash(npm run -s test:server)",
+      "Bash(npm run test:server)",
+      "Bash(npm run -s check)",
+      "Bash(npm run check)",
+      "Bash(git fetch *)",
+      "mcp__github__actions_list",
+      "mcp__github__get_job_logs",
+      "mcp__github__pull_request_read",
+      "mcp__Gmail__search_threads",
+      "mcp__Claude_Code_Remote__read_documentation"
+    ]
   }
 }
