@@ -55,11 +55,11 @@ import { createBilling } from './billing.mjs';
 import { dnCard, dnCourts, partyOfCard } from './datanewton.mjs';
 import { createDnStore } from './dn-store.mjs';
 import { checkSite, siteNotes } from './site-check.mjs';
-import { createCompanyPages } from './company-page.mjs';
+import { createCompanyPages, shortName } from './company-page.mjs';
 import { createIndustryPages } from './industry-pages.mjs';
 import { createLawyer } from './lawyer.mjs';
 import { fnsData } from './fns.mjs';
-import { marketStats, orgPeers, okvedOf } from './market.mjs';
+import { marketStats, orgPeers, orgForecast, okvedOf } from './market.mjs';
 import { createAdmin } from './admin.mjs';
 import { DatabaseSync } from 'node:sqlite';
 
@@ -588,8 +588,22 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
       if (await lawyer.handle(req, res, url, { send, readBody })) return;
       if (billing && await billing.handle(req, res, url, { send, readBody, user: url.pathname.startsWith('/api/billing') ? accounts.userOf(req) : null })) return;
       if (accounts && await accounts.handle(req, res, url, { send, readBody, getParty, innValid, ip: ipOf(req) })) return;
-      if (req.method !== 'POST' || !['/api/org', '/api/org/ai', '/api/org/fns', '/api/org/more', '/api/org/courts', '/api/org/suggest', '/api/market'].includes(url.pathname)) return send(res, 404, { error: 'Не найдено' });
+      if (req.method !== 'POST' || !['/api/org', '/api/org/ai', '/api/org/fns', '/api/org/more', '/api/org/courts', '/api/org/suggest', '/api/market', '/api/forecast'].includes(url.pathname)) return send(res, 404, { error: 'Не найдено' });
       if (req.headers.origin && !cfg.origins.includes(req.headers.origin)) return send(res, 403, { error: 'Запрос с чужого сайта' });
+      if (url.pathname === '/api/forecast') {
+        // прогноз действующей организации по месту среди сверстников — тоже только наша база ФНС
+        const body = await readBody(req);
+        const inn = String((body && body.inn) || '').replace(/\D/g, '');
+        if (!/^\d{10}$/.test(inn) || !innValid(inn)) return send(res, 400, { error: 'Нужен ИНН организации — 10 цифр. По ИП ФНС не публикует отчётность.' });
+        const ip = ipOf(req), t = now();
+        const hits = (marketHits.get(ip) || []).filter((x) => t - x < 600e3);
+        if (hits.length >= 120) return send(res, 429, { error: 'Слишком много запросов. Подождите несколько минут.' });
+        hits.push(t); marketHits.set(ip, hits);
+        admin.count('market');
+        let f = null, name = null;
+        try { f = orgForecast(fdb, inn); name = fdb && fdb.prepare('SELECT name FROM fns_name WHERE inn = ?').get(inn)?.name; } catch { f = null; }
+        return send(res, 200, f ? { available: true, name: name ? shortName(name) : null, ...f } : { available: false });
+      }
       if (url.pathname === '/api/market') {
         // только открытые данные ФНС из нашей базы — DaData не нужна
         const body = await readBody(req);

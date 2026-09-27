@@ -76,6 +76,7 @@ const NAV = [
   ['/kalkulyatory/', 'Калькуляторы', 'calc'],
   ['/nalogi/', 'Налоги', 'tax'],
   ['/organizacii/', 'Организации', 'org'],
+  ['/prognoz/', 'Прогноз', 'fc'],
   ['/yurist/', 'Юрист', 'law'],
   ['/fizlica/', 'Физлица', 'person']
   // «Как мы работаем» и «О проекте» — в подвале каждой страницы
@@ -644,6 +645,39 @@ ${card('Как не попасть под блокировку', [
 }));
 
 // Опасные налоговые схемы: не инструкция, а предупреждение — в чём схема, как её находят и чем она кончается
+// ---------- Прогноз бизнеса: действующая компания по ИНН (public/forecast.js → /api/forecast) и новый бизнес (калькулятор перспектив) ----------
+if (process.env.ORG_API_URL) {
+  write('prognoz/index.html', layout({
+    title: 'Прогноз бизнеса: доходы и прибыль на три года вперёд', path: '/prognoz/', current: 'fc',
+    desc: 'Прогноз доходов и прибыли компании по ИНН на три года по статистике похожих компаний отрасли и региона, и перспективы нового бизнеса: выручка, прибыль, окупаемость. По открытым данным ФНС.',
+    scripts: `\n<script src="${url('/forecast.js')}?v=${hashOf('forecast.js')}" defer></script>`,
+    body: `<h1 class="page">Прогноз бизнеса</h1>
+<p class="lede">Сколько будет зарабатывать ваша компания через год, два и три — и стоит ли открывать новый бизнес. По статистике тысяч похожих компаний из открытых данных ФНС.</p>
+<section class="calc" id="fc" data-api="${esc(process.env.ORG_API_URL)}" aria-labelledby="fc-h">
+  <h2 id="fc-h">Действующая компания</h2>
+  <form id="fc-form" novalidate>
+    <label class="f">ИНН организации<input type="text" id="fc-inn" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="10 цифр"></label>
+    <p><button class="btn" type="submit">Построить прогноз</button></p>
+  </form>
+  <p class="verdict warn" id="fc-msg" aria-live="polite"></p>
+  <div id="fc-out" aria-live="polite"></div>
+  <p class="note-sm">Берём доходы и расходы компании за прошлый год, находим её место среди сверстников — организаций той же отрасли, региона и возраста — и смотрим, сколько зарабатывают компании на год, два и три старше на том же месте. Только организации: по ИП ФНС отчётность не публикует.</p>
+</section>
+${calcProspects('p').replace('Перспективы бизнеса по статистике похожих компаний', 'Новый бизнес: выручка, прибыль и окупаемость')}
+<div class="prose">
+<h2>Сколько зарабатывают отрасли</h2>
+<p>${COMPANY_PAGES ? `Доходы, доля прибыльных и крупнейшие компании каждой отрасли по регионам — в разделе <a href="${url('/otrasli/')}">«Отрасли»</a>. ` : ''}Проверить конкретного партнёра и его место среди конкурентов — в <a href="${url('/organizacii/')}">проверке по ИНН</a>.</p>
+<h2>Как мы считаем</h2>
+<ul>
+<li>Данные — открытые реестры ФНС: реестр малого и среднего бизнеса (отрасль, регион, дата создания) и доходы и расходы организаций за последний отчётный год.</li>
+<li>Прибыль — доходы минус расходы до налога. Компании группируются по двум первым цифрам ОКВЭД, региону и возрасту; если в регионе меньше 20 компаний с отчётностью, берётся вся Россия.</li>
+<li>В статистику попадают только компании, которые сдали отчётность: закрывшиеся не учтены, поэтому реальные шансы ниже.</li>
+<li>Это оценка по прошлому году, а не обещание дохода и не инвестиционная рекомендация.</li>
+</ul>
+</div>`
+  }));
+}
+
 // ---------- Юрист: документы по ИНН и разборы типовых ситуаций (src/lib/yurist.mjs, public/yurist.js) ----------
 const LAW = lawGuides(url);
 const lawCrumb = `<a class="crumb" href="${url('/yurist/')}">${icon('arrowLeft')} Юрист</a>`;
@@ -1019,7 +1053,7 @@ if (!site.siteUrl.includes('example')) {
   // lastmod: у ленты — время свежей новости, у карточки — время последней правки; у статичных страниц не ставим
   const fresh = cards.length ? cards[0].publishedAt : '';
   const urls = [
-    ['/', fresh], ['/arhiv/', fresh], ['/kalkulyatory/'], ...CALCS.map((c) => [`/kalkulyatory/${c.slug}/`]), ['/organizacii/'], ['/indeks/'], ['/fizlica/'], ['/nalogi/'], ...[...TAX, ...TAX_P].map((t) => [`/nalogi/${t.slug}/`]), ['/nalogovye-shemy/'], ['/nalogi/blokirovka-scheta/'], ['/yurist/'], ['/yurist/dokumenty/'], ...LAW.map((g) => [`/yurist/${g.slug}/`]), ['/fizlica/dropy/'], ['/kak-my-rabotaem/'], ['/o-proekte/'], ['/pravovaya-informaciya/'], ...(POLICY ? [['/politika/']] : []), ...(ACCT && POLICY ? [['/tarify/'], ['/oferta/']] : []),
+    ['/', fresh], ['/arhiv/', fresh], ['/kalkulyatory/'], ...CALCS.map((c) => [`/kalkulyatory/${c.slug}/`]), ['/organizacii/'], ['/indeks/'], ['/fizlica/'], ['/nalogi/'], ...[...TAX, ...TAX_P].map((t) => [`/nalogi/${t.slug}/`]), ['/nalogovye-shemy/'], ['/nalogi/blokirovka-scheta/'], ...(process.env.ORG_API_URL ? [['/prognoz/']] : []), ['/yurist/'], ['/yurist/dokumenty/'], ...LAW.map((g) => [`/yurist/${g.slug}/`]), ['/fizlica/dropy/'], ['/kak-my-rabotaem/'], ['/o-proekte/'], ['/pravovaya-informaciya/'], ...(POLICY ? [['/politika/']] : []), ...(ACCT && POLICY ? [['/tarify/'], ['/oferta/']] : []),
     ...cards.map((c) => [`/n/${c.id}/`, (c.review && c.review.at) || c.publishedAt])
   ];
   write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(([u, m]) => `<url><loc>${site.siteUrl}${u}</loc>${m ? `<lastmod>${new Date(m).toISOString()}</lastmod>` : ''}</url>`).join('\n')}\n</urlset>\n`);

@@ -83,3 +83,44 @@ export function orgPeers(db, inn) {
     peers: g
   };
 }
+
+// Значение по месту в группе (обратное к percentile): pct 10–90 → линейно между квантилями; за краями — край
+export function valueAt(pct, qs) {
+  if (pct == null || !qs) return null;
+  const ps = QUANTILES.map((q) => q * 100);
+  if (pct <= ps[0]) return qs[0];
+  if (pct >= ps[ps.length - 1]) return qs[qs.length - 1];
+  for (let i = 1; i < ps.length; i++) {
+    if (pct <= ps[i]) return Math.round(qs[i - 1] + (pct - ps[i - 1]) / (ps[i] - ps[i - 1]) * (qs[i] - qs[i - 1]));
+  }
+  return null;
+}
+
+const ageGroup = (years) => (years < 3 ? Math.max(years, 0) : years < 5 ? 3 : 5);
+
+// Прогноз для действующей организации: если она сохранит своё место среди сверстников той же отрасли и региона,
+// какими будут доходы и прибыль в следующие три года — у компаний на год, два и три старше. Диапазон — место ±15 процентилей.
+// Это оценка по статистике прошлого года, а не обещание: рынок, цены и сама компания меняются.
+export function orgForecast(db, inn) {
+  const p = orgPeers(db, inn);
+  if (!p) return null;
+  let m;
+  try { m = st(db, 'SELECT since FROM fns_msp WHERE inn = ?').get(inn); } catch { return null; }
+  const years = Math.floor((Date.parse(p.year + '-12-31') - Date.parse(m.since)) / (365.25 * 864e5));
+  const region = p.scope === 'region' ? p.region : RUSSIA;
+  const steps = [];
+  for (let k = 1; k <= 3; k++) {
+    const a = ageGroup(years + k);
+    let g;
+    try { g = group(db, p.okved, region, a); } catch { g = null; }
+    if (!g) continue;
+    const band = (pct, qs) => (pct == null ? null : { low: valueAt(Math.max(pct - 15, 10), qs), mid: valueAt(pct, qs), high: valueAt(Math.min(pct + 15, 90), qs) });
+    steps.push({ year: p.year + k, age: a, ageLabel: AGE_LABEL[a], income: band(p.incomePercentile, g.income), profit: band(p.profitPercentile, g.profit), profitableShare: g.profitableShare, peers: g.withReports });
+  }
+  return {
+    okved: p.okved, region: p.region, scope: p.scope, year: p.year, ageNow: p.age, ageLabel: p.ageLabel,
+    income: p.income, profit: p.profit, incomePercentile: p.incomePercentile, profitPercentile: p.profitPercentile,
+    mature: p.age === 5,   // старше 5 лет: дальше возраст не меняет группу — прогноз показывает удержание места
+    steps
+  };
+}

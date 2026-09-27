@@ -6,7 +6,7 @@ import { Readable } from 'node:stream';
 import { createApp } from './index.mjs';
 import { openFnsDb, importStream } from '../scripts/fns-import.mjs';
 import { buildPeers } from '../scripts/fns-peers.mjs';
-import { marketStats, orgPeers, percentile, MIN_GROUP } from './market.mjs';
+import { marketStats, orgPeers, orgForecast, valueAt, percentile, MIN_GROUP } from './market.mjs';
 import { renderCompany } from './company-page.mjs';
 import { createIndustryPages, topCompanies, industryUrls } from './industry-pages.mjs';
 import fs from 'node:fs';
@@ -160,6 +160,25 @@ await t('страницы отраслей: статистика, крупней
   assert.match(get('/sitemap-otrasli.xml').body, /<loc>https:\/\/inn-sider.ru\/otrasli\/56\/54\/<\/loc>/);
   assert.equal(get('/organizacii/').ok, false, 'чужие адреса не трогаем');
   fs.rmSync(dir, { recursive: true });
+});
+
+await t('прогноз компании: то же место среди сверстников через 1–3 года', async () => {
+  assert.equal(valueAt(50, [10, 20, 50, 80, 100]), 50);
+  assert.equal(valueAt(37.5, [10, 20, 50, 80, 100]), 35);
+  const f = orgForecast(db, inn(59));   // сильная компания третьего года
+  assert.equal(f.ageNow, 2);
+  assert.ok(f.steps.length >= 1, 'есть хотя бы один следующий год с данными');
+  const last = f.steps[f.steps.length - 1];
+  assert.equal(last.age, 5);
+  assert.ok(last.income.mid > f.income, 'у старших компаний доходы выше — прогноз растёт');
+  assert.ok(last.income.low <= last.income.mid && last.income.mid <= last.income.high);
+  assert.equal(orgForecast(db, '7700000000'), null);
+  const srv = http.createServer(createApp({ env: {}, fnsDb: db })); await new Promise((r) => srv.listen(0, r));
+  try {
+    const post = (body) => fetch(`http://127.0.0.1:${srv.address().port}/api/forecast`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).then(async (r) => [r.status, await r.json()]);
+    assert.equal((await post({ inn: '123' }))[0], 400);
+    assert.equal((await post({ inn: '540000000001' }))[0], 400, 'ИНН ИП — нет отчётности');
+  } finally { srv.close(); }
 });
 
 await t('API /api/market: без DaData, проверка ввода, пустая база', async () => {

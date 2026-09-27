@@ -516,3 +516,6 @@ textarea{resize:vertical;min-height:90px}
 input[type=date],textarea{background:transparent;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:10px 2px;font-size:16px}
 textarea{border:1px solid var(--line);padding:10px}
 input[type=date]:focus,textarea:focus{outline:none;border-color:var(--ink)}
+/* прогноз компании (public/forecast.js): факт — сплошной, прогноз — светлый */
+.ychart .fcast{fill:var(--muted);opacity:.45}
+.ychart .neg{fill:var(--crit-line)}
