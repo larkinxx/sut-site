@@ -457,3 +457,21 @@ nav a:hover::after,nav a[aria-current]::after{transform:scaleX(1)}
 .pledges p{margin:0 0 14px;font-weight:300;color:var(--muted);font-size:15px}
 @media (max-width:760px){.pledges{grid-template-columns:1fr;gap:32px}.sources span{padding:0 12px;font-size:12px}.sources span+span{border-left:0}}
 footer .seller{text-align:center;margin:0 0 6px;font:400 11px/1.6 var(--font-ui);letter-spacing:.18em;text-transform:uppercase;color:var(--ink)}
+
+/* графики по годам работы в калькуляторе перспектив (public/app.js → yearsChart) */
+.ychart{margin:14px 0 4px}
+.ychart figcaption{font:500 12px/1.4 var(--font-ui);color:var(--muted);margin-bottom:4px}
+.result .ychart div{display:block;border:0;padding:0}
+.ychart-box{position:relative}
+.ychart svg{display:block;width:100%;height:auto;overflow:visible}
+.ychart .axis{stroke:var(--line);stroke-width:1}
+.ychart .range{stroke:var(--muted);stroke-width:2;stroke-linecap:round}
+.ychart .pos{fill:var(--ink)}
+.ychart .neg{fill:var(--lvl-l)}
+.ychart .hit{fill:transparent;cursor:default}
+.ychart .bar:focus{outline:none}
+.ychart .bar:hover .pos,.ychart .bar:focus .pos{opacity:.8}
+.result .ychart .ychart-x{display:flex;margin-top:4px}
+.ychart-x span{flex:1;text-align:center;font:400 11px/1.3 var(--font-ui);color:var(--muted)}
+.result .ychart .ychart-tip{position:absolute;transform:translateY(-100%);background:var(--ink);color:var(--bg);font:500 12px/1.3 var(--font-ui);padding:5px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;z-index:2}
+.ychart-tip[hidden]{display:none!important}

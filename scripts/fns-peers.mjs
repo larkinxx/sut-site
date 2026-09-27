@@ -33,36 +33,39 @@ export function buildPeers(db) {
                       WHERE okved IS NOT NULL AND region IS NOT NULL AND since IS NOT NULL) m
                 LEFT JOIN fns_finance f ON f.inn = m.inn`;
   // четыре уровня: отрасль+регион+возраст, отрасль+Россия+возраст, отрасль+регион, отрасль+Россия
+  // в реестре встречается КодРегион «00» — у нас это «вся Россия», поэтому такие компании идут только в российские группы
   const levels = [
-    [`rg`, `age`], [`'${RUSSIA}'`, `age`], [`rg`, `${ALL_AGES}`], [`'${RUSSIA}'`, `${ALL_AGES}`]
+    [`rg`, `age`, `WHERE rg <> '${RUSSIA}'`], [`'${RUSSIA}'`, `age`, ``], [`rg`, `${ALL_AGES}`, `WHERE rg <> '${RUSSIA}'`], [`'${RUSSIA}'`, `${ALL_AGES}`, ``]
   ];
   const put = db.prepare(`INSERT INTO fns_peers (okved, region, age, n, nfin, profitable, income, profit, margin, year)
                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
   const market = db.prepare('INSERT OR REPLACE INTO fns_market (okved, region, month, n) VALUES (?, ?, ?, ?)');
   let groups = 0;
   db.exec('BEGIN; DELETE FROM fns_peers');
-  for (const [rg, ag] of levels) {
-    const rows = db.prepare(`SELECT ok, ${rg} AS rg, ${ag} AS age, income, expense FROM (${base}) ORDER BY 1, 2, 3`).iterate({ ref });
-    let key = null, g = null;
-    const flush = () => {
-      if (!g) return;
-      const margins = g.pairs.filter(([i]) => i > 0).map(([i, e]) => (i - e) / i);
-      const profits = g.pairs.map(([i, e]) => i - e);
-      put.run(g.ok, g.rg, g.age, g.n, g.pairs.length,
-        g.pairs.length ? Math.round((profits.filter((x) => x > 0).length / g.pairs.length) * 1000) / 1000 : null,
-        JSON.stringify(quantiles(g.pairs.map(([i]) => i))), JSON.stringify(quantiles(profits)),
-        margins.length ? Math.round(quantiles(margins.map((x) => x * 1000))[2]) / 1000 : null, year);
-      if (g.age === ALL_AGES && month) market.run(g.ok, g.rg, month, g.n);
-      groups++;
-    };
-    for (const r of rows) {
-      const k = `${r.ok}|${r.rg}|${r.age}`;
-      if (k !== key) { flush(); key = k; g = { ok: r.ok, rg: r.rg, age: r.age, n: 0, pairs: [] }; }
-      g.n++;
-      if (r.income != null && r.expense != null) g.pairs.push([r.income, r.expense]);
+  try {
+    for (const [rg, ag, where] of levels) {
+      const rows = db.prepare(`SELECT ok, ${rg} AS rg, ${ag} AS age, income, expense FROM (${base}) ${where} ORDER BY 1, 2, 3`).iterate({ ref });
+      let key = null, g = null;
+      const flush = () => {
+        if (!g) return;
+        const margins = g.pairs.filter(([i]) => i > 0).map(([i, e]) => (i - e) / i);
+        const profits = g.pairs.map(([i, e]) => i - e);
+        put.run(g.ok, g.rg, g.age, g.n, g.pairs.length,
+          g.pairs.length ? Math.round((profits.filter((x) => x > 0).length / g.pairs.length) * 1000) / 1000 : null,
+          JSON.stringify(quantiles(g.pairs.map(([i]) => i))), JSON.stringify(quantiles(profits)),
+          margins.length ? Math.round(quantiles(margins.map((x) => x * 1000))[2]) / 1000 : null, year);
+        if (g.age === ALL_AGES && month) market.run(g.ok, g.rg, month, g.n);
+        groups++;
+      };
+      for (const r of rows) {
+        const k = `${r.ok}|${r.rg}|${r.age}`;
+        if (k !== key) { flush(); key = k; g = { ok: r.ok, rg: r.rg, age: r.age, n: 0, pairs: [] }; }
+        g.n++;
+        if (r.income != null && r.expense != null) g.pairs.push([r.income, r.expense]);
+      }
+      flush();
     }
-    flush();
-  }
+  } catch (e) { db.exec('ROLLBACK'); throw e; }   // прежняя статистика остаётся, пока новая не посчитана целиком
   db.exec('COMMIT');
   return groups;
 }

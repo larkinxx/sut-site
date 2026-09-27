@@ -421,6 +421,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
   const fnsCache = makeCache(DAY);
   const suggestCache = makeCache(3600e3, 20000);
   const suggestHits = new Map();
+  const marketHits = new Map();
   const dn = dnStore || createDnStore(cfg.dnCacheDb, { ttlDays: cfg.dnCacheDays, dailyUnits: cfg.dnDailyUnits, now });
   const dnHits = new Map();
   setInterval(() => dn.prune(), DAY).unref();
@@ -569,8 +570,14 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
       if (url.pathname === '/api/market') {
         // только открытые данные ФНС из нашей базы — DaData не нужна
         const body = await readBody(req);
-        if (!okvedOf(body.okved)) return send(res, 400, { error: 'Укажите отрасль: код ОКВЭД, например 47 или 56.10.' });
-        const m = marketStats(fdb, body);
+        if (!body || typeof body !== 'object' || !okvedOf(body.okved)) return send(res, 400, { error: 'Укажите отрасль: код ОКВЭД, например 47 или 56.10.' });
+        // лимит как у подсказок: 120 запросов за 10 минут с адреса — хватает для калькулятора, но не для выкачивания всей статистики
+        const ip = ipOf(req), t = now();
+        const hits = (marketHits.get(ip) || []).filter((x) => t - x < 600e3);
+        if (hits.length >= 120) return send(res, 429, { error: 'Слишком много запросов. Подождите несколько минут.' });
+        hits.push(t); marketHits.set(ip, hits);
+        if (marketHits.size > 20000) marketHits.clear();
+        const m = marketStats(fdb, { okved: body.okved, region: body.region });
         return send(res, 200, m ? { available: true, ...m } : { available: false });
       }
       if (!cfg.dadataToken) return send(res, 503, { error: 'Проверка организаций не подключена.' });

@@ -3,22 +3,27 @@
 # Задача заходит на сервер по отдельному ключу, который умеет только действия из deploy/ops.sh.
 # Нужен секрет SERVER_SSH_KEY (Settings → Secrets and variables → Actions) — как его сделать, в deploy/README.md.
 # Лог публичный: ops.sh выводит только статусы и счётчики.
+# Раз в час сама запускает status: если сайт на сервере не работает или диск почти полон, задача падает —
+# и GitHub присылает письмо владельцу репозитория (Settings → Notifications → Actions).
 name: "Сервер: команда"
 
 on:
+  schedule:
+    - cron: "17 * * * *"
   workflow_dispatch:
     inputs:
       action:
         description: "Что сделать на сервере"
         type: choice
         default: status
-        options: [status, import, import-stop, update, archive-check]
+        options: [status, import, peers, import-stop, update, archive-check]
 
 permissions:
   contents: read
 
 concurrency:
-  group: server-ops
+  # ежечасная проверка — отдельной очередью, чтобы не вытеснять поставленные вручную действия
+  group: server-ops-${{ github.event_name }}
   cancel-in-progress: false
 
 jobs:
@@ -26,11 +31,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: ${{ inputs.action }}
+      - name: ${{ inputs.action || 'status' }}
         env:
           KEY: ${{ secrets.SERVER_SSH_KEY }}
-          ACTION: ${{ inputs.action }}
+          ACTION: ${{ inputs.action || 'status' }}
           HOST: 5.129.207.51
+          HOST_KEY: ${{ vars.SERVER_HOST_KEY }}
         run: |
           if [ -z "$KEY" ]; then
             echo "::error::Секрет SERVER_SSH_KEY не задан — см. deploy/README.md, раздел «Команды на сервере из GitHub»."
@@ -38,4 +44,10 @@ jobs:
           fi
           install -m 700 -d ~/.ssh
           printf '%s\n' "$KEY" > ~/.ssh/ops && chmod 600 ~/.ssh/ops
-          ssh -i ~/.ssh/ops -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 "root@$HOST" "$ACTION"
+          # ключ сервера закреплён в переменной SERVER_HOST_KEY — иначе чужой сервер на пути смог бы выдать себя за наш
+          if [ -n "$HOST_KEY" ]; then
+            printf '%s %s\n' "$HOST" "$HOST_KEY" > ~/.ssh/known_hosts; CHECK=yes
+          else
+            echo "::warning::Переменная SERVER_HOST_KEY не задана — ключ сервера не проверяется (deploy/README.md)."; CHECK=accept-new
+          fi
+          ssh -i ~/.ssh/ops -o BatchMode=yes -o StrictHostKeyChecking=$CHECK -o ConnectTimeout=20 "root@$HOST" "$ACTION"

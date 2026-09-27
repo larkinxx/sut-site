@@ -82,6 +82,17 @@ await t('мало компаний в регионе — берётся та ж�
   assert.equal(marketStats(db, { okved: 'рестораны' }), null);
 });
 
+await t('компании с кодом региона «00» (в реестре так бывает) — статистика считается, попадают только в «всю Россию»', async () => {
+  const db7 = openFnsDb(':memory:');
+  const zz = Array.from({ length: 25 }, (_, i) => msp(String(7800000000 + i), '56.10', '00', '10.08.2016'));
+  const zf = Array.from({ length: 25 }, (_, i) => fin(String(7800000000 + i), '5000000.00', '4000000.00'));
+  await importStream(db7, 'rsmp', chunks(file([...docs, ...zz])));
+  await importStream(db7, 'revexp', chunks(file([...fins, ...zf])));
+  assert.ok(buildPeers(db7) > 0, 'без UNIQUE constraint failed');
+  const rus = db7.prepare("SELECT n FROM fns_peers WHERE okved = '56' AND region = '00' AND age = -1").get().n;
+  assert.equal(rus, 91 + 25 + 25, 'Новосибирск, Москва и «00» — все в России');
+});
+
 await t('процентиль: между квантилями, за краями, одинаковые квантили', () => {
   const q = [10, 20, 30, 40, 50];
   assert.equal(percentile(30, q), 50);
@@ -119,6 +130,13 @@ await t('API /api/market: без DaData, проверка ввода, пуста
   assert.equal((await call(createApp({ env: {}, fnsDb: db }), { okved: 'кафе' }))[0], 400);
   assert.deepEqual((await call(createApp({ env: {}, fnsDb: openFnsDb(':memory:') }), { okved: '56' }))[1], { available: false });
   assert.deepEqual((await call(createApp({ env: {}, fnsDb: null }), { okved: '56' }))[1], { available: false });
+  assert.equal((await call(createApp({ env: {}, fnsDb: db }), null))[0], 400, 'тело null — 400, а не 502');
+  const app = createApp({ env: {}, fnsDb: db }), srv = http.createServer(app); await new Promise((r) => srv.listen(0, r));
+  try {
+    const codes = [];
+    for (let i = 0; i < 122; i++) codes.push((await fetch(`http://127.0.0.1:${srv.address().port}/api/market`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"okved":"56"}' })).status);
+    assert.equal(codes.filter((c) => c === 429).length, 2, 'после 120 запросов за 10 минут — 429');
+  } finally { srv.close(); }
 });
 
 console.log(`\nВсе тесты статистики прошли: ${n}`);
