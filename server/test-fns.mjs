@@ -153,30 +153,51 @@ await t('страницы компаний: название из ФНС, нал
   } finally { srv.close(); fs.rmSync(dist, { recursive: true }); }
 });
 
-await t('скачивание архива: обрывы посреди файла — докачка с места остановки', async () => {
-  const data = crypto.randomBytes(3 * 1024 * 1024);
-  let hits = 0, ranges = [];
+await t('скачивание архива: обрывы — докачка того же файла с места остановки; иначе заново', async () => {
+  let data = crypto.randomBytes(3 * 1024 * 1024), etag = '"v1"', drops = 2, shift = 0, log = [];
   const srv = http.createServer((req, res) => {
-    hits++;
     const m = /bytes=(\d+)-/.exec(req.headers.range || '');
-    const from = m ? Number(m[1]) : 0;
-    ranges.push(from);
-    res.writeHead(m ? 206 : 200, { 'content-length': data.length - from, ...(m ? { 'content-range': `bytes ${from}-${data.length - 1}/${data.length}` } : {}) });
-    if (hits <= 2) { res.write(data.subarray(from, from + 1024 * 1024)); setTimeout(() => res.destroy(), 20); }   // обрыв после 1 МБ
+    const ok = m && req.headers['if-range'] === etag;         // If-Range не совпал — отдаём файл целиком
+    const from = ok ? Number(m[1]) + shift : 0;               // shift — «сервер продолжил не с того байта»
+    log.push([m ? Number(m[1]) : 0, req.headers['if-range'] || null, ok ? 206 : 200]);
+    res.writeHead(ok ? 206 : 200, { etag, 'content-length': data.length - from, ...(ok ? { 'content-range': `bytes ${from}-${data.length - 1}/${data.length}` } : {}) });
+    if (drops-- > 0) { res.write(data.subarray(from, from + 256 * 1024)); setTimeout(() => res.destroy(), 20); }
     else res.end(data.subarray(from));
   });
   await new Promise((r) => srv.listen(0, r));
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dl-')), file = path.join(dir, 'a.zip');
+  const base = `http://127.0.0.1:${srv.address().port}/`;
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dl-')), f = (x) => path.join(dir, x);
   try {
-    assert.equal(await download(`http://127.0.0.1:${srv.address().port}/a.zip`, file, { wait: 0 }), true);
-    assert.equal(ranges.length, 3, 'два обрыва — три попытки');
-    assert.ok(ranges[0] === 0 && ranges[1] > 0 && ranges[2] > ranges[1], 'каждая попытка продолжает с места обрыва, а не с нуля');
-    assert.ok(fs.readFileSync(file).equals(data), 'файл собран без искажений');
-    assert.ok(!fs.existsSync(file + '.part'));
-    assert.equal(await download('http://127.0.0.1:1/never', file), false, 'уже скачан — не качаем');
-    hits = 0; ranges = [];
-    await assert.rejects(download(`http://127.0.0.1:${srv.address().port}/b.zip`, path.join(dir, 'b.zip'), { wait: 0, attempts: 2 }), /terminated|скачано|aborted|closed/i);
-    assert.ok(fs.statSync(path.join(dir, 'b.zip.part')).size > 0, 'недокачанное остаётся в .part для следующего запуска');
+    // 1) два обрыва: каждая попытка продолжает с места обрыва и присылает версию файла
+    assert.equal(await download(base + 'a', f('a.zip'), { wait: 0 }), true);
+    assert.deepEqual(log.map((x) => x[2]), [200, 206, 206]);
+    assert.ok(log[1][0] > 0 && log[2][0] > log[1][0] && log[1][1] === '"v1"', 'Range с места обрыва и If-Range');
+    assert.ok(fs.readFileSync(f('a.zip')).equals(data), 'файл собран без искажений');
+    assert.ok(!fs.existsSync(f('a.zip.part')) && !fs.existsSync(f('a.zip.part.v')));
+    assert.equal(await download('http://127.0.0.1:1/never', f('a.zip')), false, 'уже скачан — не качаем');
+    // 2) между попытками файл на сервере поменялся — докачивать нельзя, приходит целиком
+    log = []; drops = 1;
+    const p2 = download(base + 'b', f('b.zip'), { wait: 50 });
+    await new Promise((r) => setTimeout(r, 25)); data = crypto.randomBytes(2 * 1024 * 1024); etag = '"v2"';
+    assert.equal(await p2, true);
+    assert.deepEqual(log.map((x) => x[2]), [200, 200], 'версия не совпала — второй раз целиком');
+    assert.ok(fs.readFileSync(f('b.zip')).equals(data), 'в файле только новая версия, без склейки');
+    // 3) сервер продолжил не с того байта — всё заново
+    log = []; drops = 1; shift = 100;
+    assert.equal(await download(base + 'c', f('c.zip'), { wait: 0 }), true);
+    assert.deepEqual(log.map((x) => x[2]), [200, 206, 200], 'после неверного продолжения — с нуля');
+    assert.ok(fs.readFileSync(f('c.zip')).equals(data));
+    shift = 0;
+    // 4) недокачанный .part от старой версии скрипта (без .part.v) — не доверяем, качаем с нуля
+    log = []; drops = 0;
+    fs.writeFileSync(f('d.zip.part'), crypto.randomBytes(1000));
+    assert.equal(await download(base + 'd', f('d.zip'), { wait: 0 }), true);
+    assert.deepEqual(log, [[0, null, 200]]);
+    assert.ok(fs.readFileSync(f('d.zip')).equals(data));
+    // 5) все попытки неудачны — недокачанное остаётся для следующего запуска вместе с версией
+    log = []; drops = 5;
+    await assert.rejects(download(base + 'e', f('e.zip'), { wait: 0, attempts: 2 }));
+    assert.ok(fs.statSync(f('e.zip.part')).size > 0 && fs.readFileSync(f('e.zip.part.v'), 'utf8') === etag);
   } finally { srv.close(); fs.rmSync(dir, { recursive: true }); }
 });
 
@@ -207,7 +228,8 @@ await t('импорт из zip: несколько файлов; битый ар
     broken[broken.indexOf(Buffer.from('КолРаб="4"')) + 14] ^= 1;
     const cut = path.join(dir, 'broken.zip');
     fs.writeFileSync(cut, broken);
-    await assert.rejects(importZip(db3, 'sshr2019', cut), /распаковка прервалась/);
+    await assert.rejects(importZip(db3, 'sshr2019', cut), /архив повреждён/);
+    assert.ok(!fs.existsSync(cut), 'повреждённый архив удалён — следующий запуск скачает заново');
     assert.equal(openData('2804011398', db3).employees[0].n, 7, 'после сбоя таблица прежняя, а не 9 из недораспакованного архива');
     // база занята другим процессом (как на сервере): импорт падает сразу, распаковщик не должен держать процесс живым
     const dbFile = path.join(dir, 'lock.db'), a = openFnsDb(dbFile), holder = openFnsDb(dbFile);

@@ -139,7 +139,13 @@ export async function importZip(db, name, file) {
   const exited = new Promise((ok) => unzip.on('close', (code, signal) => ok(signal || code)));
   try {
     return await importStream(db, name, unzip.stdout, {
-      check: async () => { const c = await exited; if (typeof c === 'string' || c >= 2) throw new Error(`${name}: распаковка прервалась (${c})`); }
+      check: async () => {
+        const c = await exited;
+        if (typeof c === 'string' || c >= 2) {
+          fs.rmSync(file, { force: true });   // архив повреждён — удаляем, чтобы следующий запуск скачал его заново
+          throw new Error(`${name}: архив повреждён или распаковка прервалась (${c}) — удалён, при следующем запуске скачается заново`);
+        }
+      }
     });
   } finally { if (unzip.exitCode === null && unzip.signalCode === null) unzip.kill(); }
 }
@@ -153,24 +159,33 @@ async function latestZip(name) {
 }
 
 // Архивы бывают по несколько гигабайт, а сервер ФНС иногда обрывает соединение посреди скачивания («terminated»).
-// Поэтому качаем в .part и при обрыве продолжаем с места остановки (заголовок Range), несколько попыток с паузой.
+// Поэтому качаем в .part и при обрыве продолжаем с места остановки (Range), несколько попыток с паузой.
+// Докачиваем, только если уверены, что это тот же файл и продолжение ровно с нужного байта: версия файла (ETag или
+// Last-Modified) хранится рядом в .part.v и отправляется в If-Range — если файл на сервере поменялся, придёт целиком (200).
+// Нет сохранённой версии или сервер начал не с того байта — начинаем заново: склеенный из кусков архив хуже, чем лишняя загрузка.
 export async function download(url, file, { fetchImpl = fetch, attempts = 8, wait = 30e3 } = {}) {
   if (fs.existsSync(file)) return false;
-  const tmp = file + '.part';
+  const tmp = file + '.part', ver = tmp + '.v';
+  const reset = () => { fs.rmSync(tmp, { force: true }); fs.rmSync(ver, { force: true }); };
   let err;
   for (let i = 1; i <= attempts; i++) {
+    if (fs.existsSync(tmp) && !fs.existsSync(ver)) reset();
     const have = fs.existsSync(tmp) ? fs.statSync(tmp).size : 0;
     try {
-      const r = await fetchImpl(url, { headers: have ? { ...UA, Range: `bytes=${have}-` } : UA, signal: AbortSignal.timeout(60 * 60e3) });
-      if (r.status === 416 && have) { fs.renameSync(tmp, file); return true; }   // докачивать нечего: файл уже целиком
-      if (!r.ok) throw new Error('скачивание ' + r.status);
-      const resumed = r.status === 206;           // сервер не умеет Range — отдаёт весь файл заново (200), начинаем с нуля
-      const len = Number(r.headers.get('content-length')) || 0;
-      const total = resumed ? Number(String(r.headers.get('content-range') || '').split('/')[1]) || (len && have + len) : len;
+      const headers = have ? { ...UA, Range: `bytes=${have}-`, 'If-Range': fs.readFileSync(ver, 'utf8') } : UA;
+      const r = await fetchImpl(url, { headers, signal: AbortSignal.timeout(60 * 60e3) });
+      if (!r.ok) { if (r.status === 416) reset(); throw new Error('скачивание ' + r.status); }
+      const range = /^bytes (\d+)-\d+\/(\d+)$/.exec(r.headers.get('content-range') || '');
+      const resumed = r.status === 206;
+      if (resumed && (!range || Number(range[1]) !== have)) { reset(); throw new Error(`сервер продолжил не с ${have} байта`); }
+      if (!resumed) fs.writeFileSync(ver, r.headers.get('etag') || r.headers.get('last-modified') || '');   // файл целиком — с нуля
+      if (!fs.readFileSync(ver, 'utf8')) fs.rmSync(ver);                                                  // без версии докачивать нельзя
+      const total = resumed ? Number(range[2]) : Number(r.headers.get('content-length')) || 0;
       await pipeline(Readable.fromWeb(r.body), fs.createWriteStream(tmp, { flags: resumed ? 'a' : 'w' }));
       const size = fs.statSync(tmp).size;
-      if (total && size < total) throw new Error(`скачано ${size} из ${total} байт`);
+      if (total && size !== total) throw new Error(`скачано ${size} из ${total} байт`);
       fs.renameSync(tmp, file);
+      fs.rmSync(ver, { force: true });
       return true;
     } catch (e) {
       err = e;
