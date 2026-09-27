@@ -7,6 +7,7 @@
 //   POST /api/org/ai {inn}  — ИИ-разбор этой организации простым языком. 5–15 секунд.
 //   POST /api/org/fns {inn} — бесплатные данные ФНС: отчётность, налоговый режим, налоги, долги (server/fns.mjs)
 //   POST /api/org/suggest {q} — поиск по названию, ИНН, адресу или руководителю (подсказки DaData)
+//   POST /api/market {okved, region} — статистика похожих компаний: выручка и прибыль по годам, конкуренция (server/market.mjs)
 //   /auth/*, /api/me, /api/history, /api/watch, /api/calcs — необязательный вход и кабинет (server/accounts.mjs)
 //
 // Переменные окружения:
@@ -54,6 +55,7 @@ import { createDnStore } from './dn-store.mjs';
 import { checkSite, siteNotes } from './site-check.mjs';
 import { createCompanyPages } from './company-page.mjs';
 import { fnsData } from './fns.mjs';
+import { marketStats, orgPeers, okvedOf } from './market.mjs';
 import { DatabaseSync } from 'node:sqlite';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -508,8 +510,15 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
       if (await companyPages(req, res, url, innValid)) return;
       if (req.method !== 'GET' && req.headers.origin && !cfg.origins.includes(req.headers.origin)) return send(res, 403, { error: 'Запрос с чужого сайта' });
       if (accounts && await accounts.handle(req, res, url, { send, readBody, getParty, innValid, ip: ipOf(req) })) return;
-      if (req.method !== 'POST' || !['/api/org', '/api/org/ai', '/api/org/fns', '/api/org/more', '/api/org/courts', '/api/org/suggest'].includes(url.pathname)) return send(res, 404, { error: 'Не найдено' });
+      if (req.method !== 'POST' || !['/api/org', '/api/org/ai', '/api/org/fns', '/api/org/more', '/api/org/courts', '/api/org/suggest', '/api/market'].includes(url.pathname)) return send(res, 404, { error: 'Не найдено' });
       if (req.headers.origin && !cfg.origins.includes(req.headers.origin)) return send(res, 403, { error: 'Запрос с чужого сайта' });
+      if (url.pathname === '/api/market') {
+        // только открытые данные ФНС из нашей базы — DaData не нужна
+        const body = await readBody(req);
+        if (!okvedOf(body.okved)) return send(res, 400, { error: 'Укажите отрасль: код ОКВЭД, например 47 или 56.10.' });
+        const m = marketStats(fdb, body);
+        return send(res, 200, m ? { available: true, ...m } : { available: false });
+      }
       if (!cfg.dadataToken) return send(res, 503, { error: 'Проверка организаций не подключена.' });
 
       const body = await readBody(req);
@@ -557,7 +566,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
       if (url.pathname === '/api/org/fns') {
         let f = fnsCache.get(inn);
         if (!f) { f = await fnsData(inn, fetchImpl, fnsPause, fdb, now); if (f.pb || f.bo) fnsCache.set(inn, f); }
-        return send(res, 200, f);
+        return send(res, 200, { ...f, peers: orgPeers(fdb, inn) });
       }
 
       const s = await getParty(inn);
