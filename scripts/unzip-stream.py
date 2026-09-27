@@ -24,7 +24,7 @@ def main(path):
     for info in entries:
         try:
             data = z.read(info)          # проверяет контрольную сумму файла
-        except (zipfile.BadZipFile, EOFError, OSError, ValueError) as e:
+        except Exception as e:          # любая порча одного файла (контрольная сумма, заголовок, zlib) — пропускаем его
             bad += 1
             if bad <= 20:
                 print(f"битый файл {info.filename} (смещение {info.header_offset}): {e}", file=sys.stderr)

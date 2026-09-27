@@ -7,7 +7,8 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 import { Readable } from 'node:stream';
 import { createApp } from './index.mjs';
-import { openFnsDb, importStream, download, importZip } from '../scripts/fns-import.mjs';
+import { openFnsDb, importStream, download, importZip, etagCheck } from '../scripts/fns-import.mjs';
+import zlib from 'node:zlib';
 import { openData, fnsData, pbSummary } from './fns.mjs';
 import { ogSvg } from './og-image.mjs';
 
@@ -212,12 +213,12 @@ await t('скачивание архива: обрывы — докачка то
 // zip без сжатия, собранный вручную (без внешних утилит): несколько XML-файлов, как в архивах ФНС
 const crcTable = Array.from({ length: 256 }, (_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
 const crc32 = (b) => { let c = 0xffffffff; for (const x of b) c = crcTable[(c ^ x) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
-function makeZip(files) {
+function makeZip(files, { deflate = false } = {}) {
   const parts = [], dir = []; let off = 0;
   for (const [name, text] of files) {
-    const data = Buffer.from(text), fn = Buffer.from(name), crc = crc32(data);
-    const h = Buffer.alloc(30); h.writeUInt32LE(0x04034b50, 0); h.writeUInt16LE(20, 4); h.writeUInt16LE(0x800, 6); h.writeUInt32LE(crc, 14); h.writeUInt32LE(data.length, 18); h.writeUInt32LE(data.length, 22); h.writeUInt16LE(fn.length, 26);
-    const c = Buffer.alloc(46); c.writeUInt32LE(0x02014b50, 0); c.writeUInt16LE(20, 4); c.writeUInt16LE(20, 6); c.writeUInt16LE(0x800, 8); c.writeUInt32LE(crc, 16); c.writeUInt32LE(data.length, 20); c.writeUInt32LE(data.length, 24); c.writeUInt16LE(fn.length, 28); c.writeUInt32LE(off, 42);
+    const raw = Buffer.from(text), data = deflate ? zlib.deflateRawSync(raw) : raw, fn = Buffer.from(name), crc = crc32(raw);
+    const h = Buffer.alloc(30); h.writeUInt32LE(0x04034b50, 0); h.writeUInt16LE(20, 4); h.writeUInt16LE(0x800, 6); h.writeUInt16LE(deflate ? 8 : 0, 8); h.writeUInt32LE(crc, 14); h.writeUInt32LE(data.length, 18); h.writeUInt32LE(raw.length, 22); h.writeUInt16LE(fn.length, 26);
+    const c = Buffer.alloc(46); c.writeUInt32LE(0x02014b50, 0); c.writeUInt16LE(20, 4); c.writeUInt16LE(20, 6); c.writeUInt16LE(0x800, 8); c.writeUInt16LE(deflate ? 8 : 0, 10); c.writeUInt32LE(crc, 16); c.writeUInt32LE(data.length, 20); c.writeUInt32LE(raw.length, 24); c.writeUInt16LE(fn.length, 28); c.writeUInt32LE(off, 42);
     parts.push(h, fn, data); dir.push(c, fn); off += 30 + fn.length + data.length;
   }
   const cd = Buffer.concat(dir), e = Buffer.alloc(22);
@@ -251,6 +252,14 @@ await t('импорт из zip: несколько файлов; битый ар
     assert.equal(db4.prepare("SELECT n FROM fns_staff WHERE inn = '7700000100'").get().n, 1);
     assert.equal(db4.prepare("SELECT count(*) AS c FROM fns_staff WHERE n IN (51, 121)").get().c, 0, 'из битых файлов ничего не попало');
     assert.ok(fs.existsSync(partly), 'годный архив не удаляется');
+    // сжатые файлы, у одного испорчены сжатые данные (на сервере: zlib «invalid code lengths set») — пропускается он один
+    const packed = makeZip(Array.from({ length: 150 }, (_, i) => [`p${i}.xml`, staff(String(7700000400 + i), i + 1)]), { deflate: true });
+    const at = packed.indexOf(Buffer.from('p70.xml')) + 7;                         // начало сжатых данных файла p70
+    for (let k = 0; k < 12; k++) packed[at + 2 + k] ^= 0x5a;
+    const zp = path.join(dir, 'packed.zip');
+    fs.writeFileSync(zp, packed);
+    const db6 = openFnsDb(':memory:');
+    assert.equal(await importZip(db6, 'sshr2019', zp), 149, 'испорченное сжатие одного файла — пропущен только он');
     // база занята другим процессом (как на сервере): импорт падает сразу, распаковщик не должен держать процесс живым
     const dbFile = path.join(dir, 'lock.db'), a = openFnsDb(dbFile), holder = openFnsDb(dbFile);
     a.exec('PRAGMA busy_timeout = 0');
@@ -263,6 +272,31 @@ await t('импорт из zip: несколько файлов; битый ар
     const bad = path.join(dir, 'bad.zip');
     fs.writeFileSync(bad, makeZip([['a.xml', file(Array.from({ length: 3000 }, (_, i) => doc('01.09.2026', String(7700000100 + i), '<Другое/>')))]]));
     await assert.rejects(importZip(db3, 'rsmp', bad), /нет нужных полей/);
+  } finally { fs.rmSync(dir, { recursive: true }); }
+});
+
+await t('скачанный файл сверяется с ETag хранилища: испорченный при передаче — качается заново', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'etag-')), f = path.join(dir, 'x.bin');
+  const MiB = 1024 * 1024, data = crypto.randomBytes(40 * MiB + 12345);   // 41 часть по 1 МиБ — размер части однозначен, как у архива ФНС (254 × 8 МиБ)
+  const md5 = (b) => crypto.createHash('md5').update(b).digest();
+  const multipart = (b, part) => { const hs = []; for (let o = 0; o < b.length; o += part) hs.push(md5(b.subarray(o, o + part))); return `"${md5(Buffer.concat(hs)).toString('hex')}-${hs.length}"`; };
+  try {
+    fs.writeFileSync(f, data);
+    assert.equal(await etagCheck(f, multipart(data, MiB)), true, 'составной ETag');
+    assert.equal(await etagCheck(f, `"${md5(data).toString('hex')}"`), true, 'ETag целого файла');
+    assert.equal(await etagCheck(f, '"v1"'), null, 'ETag не контрольная сумма — сверить нельзя');
+    const bad = Buffer.from(data); bad[15 * MiB] ^= 1; fs.writeFileSync(f, bad);
+    assert.equal(await etagCheck(f, multipart(data, MiB)), false, 'один испорченный байт');
+    assert.equal(await etagCheck(f, `"${md5(data).toString('hex')}-3"`), null, 'размер части не определить однозначно — не гадаем');
+    // сервер отдаёт испорченный файл один раз, затем правильный
+    const etag = multipart(data, MiB); let hits = 0;
+    const srv = http.createServer((req, res) => { hits++; res.writeHead(200, { etag, 'content-length': data.length }); res.end(hits === 1 ? bad : data); });
+    await new Promise((r) => srv.listen(0, r));
+    try {
+      assert.equal(await download(`http://127.0.0.1:${srv.address().port}/x`, path.join(dir, 'y.zip'), { wait: 0 }), true);
+      assert.equal(hits, 2, 'испорченный файл отброшен и скачан заново');
+      assert.ok(fs.readFileSync(path.join(dir, 'y.zip')).equals(data));
+    } finally { srv.close(); }
   } finally { fs.rmSync(dir, { recursive: true }); }
 });
 
