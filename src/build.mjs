@@ -338,6 +338,15 @@ function macroWidget() {
     <p class="split-links"><a class="lnk" href="${url('/fizlica/')}">Физлицам</a><a class="lnk" href="${url('/kalkulyatory/')}">Калькуляторы</a><a class="lnk" href="${url('/nalogi/')}">Налоги</a></p>
   </div>
 </section>` : '';
+  // линейки дома: всё, что умеет сайт, одной строкой под первым экраном
+  const lines = hero ? `<section class="lines" aria-label="Разделы INNSIDER">
+  <a href="${url('/organizacii/')}"><span class="label">Проверка</span><b>Компания по ИНН</b><span>Налоги, суды, приставы, индекс надёжности и место среди конкурентов.</span></a>
+  <a href="${url('/sravnenie/')}"><span class="label">Сравнение</span><b>Две компании бок о бок</b><span>Доходы, прибыль, сотрудники, налоги и долги в одной таблице.</span></a>
+  <a href="${url('/prognoz/')}"><span class="label">Прогноз</span><b>Доходы на три года</b><span>По статистике похожих компаний отрасли и региона.</span></a>
+  ${COMPANY_PAGES ? `<a href="${url('/otrasli/')}"><span class="label">Отрасли</span><b>Сколько зарабатывают</b><span>Доходы, доля прибыльных и крупнейшие компании по регионам.</span></a>` : ''}
+  <a href="${url('/yurist/')}"><span class="label">Юрист</span><b>Документы по ИНН</b><span>Претензия с расчётом процентов, акт сверки, договор с самозанятым.</span></a>
+  ${COMPANY_PAGES ? `<a href="${url('/issledovaniya/')}"><span class="label">Исследования</span><b>Малый бизнес в цифрах</b><span>Прибыльные отрасли, где открывают бизнес, прибыльность по возрасту компании.</span></a>` : ''}
+</section>` : '';
   const trust = hero ? `<section class="trust" aria-label="Почему нам можно доверять">
   <p class="label">Сведения из открытых государственных источников</p>
   <p class="sources"><span>ФНС России</span><span>ЕГРЮЛ и ЕГРИП</span><span>ГИР БО</span><span>Картотека арбитражных дел</span><span>ФССП России</span></p>
@@ -350,7 +359,7 @@ function macroWidget() {
 </section>` : '';
   // окно ленты: 24 → «24 часа», 168 → «неделю», иначе — в днях или часах
   const win = site.windowHours % 168 === 0 ? (site.windowHours === 168 ? 'неделю' : `${site.windowHours / 168} недели`) : site.windowHours % 24 === 0 && site.windowHours > 24 ? `${site.windowHours / 24} дней` : `${site.windowHours} часа`;
-  const body = `${hero}${trust}${macroWidget()}<h1 class="page">Новости за ${win}</h1>
+  const body = `${hero}${lines}${trust}${macroWidget()}<h1 class="page">Новости за ${win}</h1>
 <div class="filters" id="filters" role="group" aria-label="Для кого показывать новости">
   <button type="button" class="chip" data-f="*" aria-pressed="true">Все</button>
   <button type="button" class="chip" data-f="borrowers" aria-pressed="false">${AUDIENCES.borrowers}</button>
