@@ -7,7 +7,7 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 import { Readable } from 'node:stream';
 import { createApp } from './index.mjs';
-import { openFnsDb, importStream, download, importZip, etagCheck } from '../scripts/fns-import.mjs';
+import { openFnsDb, importStream, download, importZip, etagCheck, downloadRanged } from '../scripts/fns-import.mjs';
 import zlib from 'node:zlib';
 import { openData, fnsData, pbSummary } from './fns.mjs';
 import { ogSvg } from './og-image.mjs';
@@ -298,6 +298,48 @@ await t('скачанный файл сверяется с ETag хранилищ
       assert.ok(fs.readFileSync(path.join(dir, 'y.zip')).equals(data));
     } finally { srv.close(); }
   } finally { fs.rmSync(dir, { recursive: true }); }
+});
+
+await t('скачивание частями: испорченные при передаче части находятся и заменяются, ETag сходится', async () => {
+  const MiB = 1024 * 1024, data = crypto.randomBytes(40 * MiB + 12345);            // 41 часть по 1 МиБ
+  const md5 = (b) => crypto.createHash('md5').update(b).digest();
+  const hs = []; for (let o = 0; o < data.length; o += MiB) hs.push(md5(data.subarray(o, o + MiB)));
+  const etag = `"${md5(Buffer.concat(hs)).toString('hex')}-${hs.length}"`;
+  let spoil = () => false, ranges = true, gets = 0;
+  const srv = http.createServer((req, res) => {
+    if (req.method === 'HEAD') { res.writeHead(200, { etag, 'content-length': data.length, ...(ranges ? { 'accept-ranges': 'bytes' } : {}) }); return res.end(); }
+    gets++;
+    const m = /bytes=(\d+)-(\d+)/.exec(req.headers.range || '');
+    if (!m) { res.writeHead(200, { etag, 'content-length': data.length }); return res.end(data); }
+    const a = Number(m[1]), b = Number(m[2]);
+    let chunk = Buffer.from(data.subarray(a, b + 1));
+    if (spoil(a / MiB)) chunk[100] ^= 1;                                               // тот же размер, другие байты
+    res.writeHead(206, { etag, 'content-length': chunk.length, 'content-range': `bytes ${a}-${b}/${data.length}` });
+    res.end(chunk);
+  });
+  await new Promise((r) => srv.listen(0, r));
+  const url = `http://127.0.0.1:${srv.address().port}/rsmp.zip`;
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rng-')), f = (x) => path.join(dir, x);
+  try {
+    // 1) без порчи: 41 запрос, файл совпадает
+    assert.equal(await downloadRanged(url, f('a.zip'), { wait: 0 }), true);
+    assert.equal(gets, 41);
+    assert.ok(fs.readFileSync(f('a.zip')).equals(data));
+    assert.equal(await downloadRanged(url, f('a.zip')), false, 'уже скачан');
+    // 2) части 3 и 17 испорчены при первой передаче — перепроверка заменяет только их
+    const seen = new Map(); gets = 0;
+    spoil = (i) => { const n = (seen.get(i) || 0) + 1; seen.set(i, n); return (i === 3 || i === 17) && n === 1; };
+    assert.equal(await downloadRanged(url, f('b.zip'), { wait: 0 }), true);
+    assert.ok(fs.readFileSync(f('b.zip')).equals(data), 'после замены частей файл цел');
+    assert.equal(gets, 41 + 41 + 2, 'первый проход, перепроверка всех частей и третья копия двух разошедшихся');
+    // 3) часть 5 всегда приходит испорченной — копии совпадают, ETag не сходится: понятная ошибка, мусор не остаётся
+    spoil = (i) => i === 5;
+    await assert.rejects(downloadRanged(url, f('c.zip'), { wait: 0, rounds: 2 }), /испорчен у ФНС/);
+    assert.ok(!fs.existsSync(f('c.zip')) && !fs.existsSync(f('c.zip.part')));
+    // 4) сервер не отдаёт частями — null, импорт качает обычным способом
+    spoil = () => false; ranges = false;
+    assert.equal(await downloadRanged(url, f('d.zip'), { wait: 0 }), null);
+  } finally { srv.close(); fs.rmSync(dir, { recursive: true }); }
 });
 
 console.log(`\nВсе тесты ФНС прошли: ${n}`);
