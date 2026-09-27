@@ -54,7 +54,7 @@ function peersHtml(pr) {
 <p class="note-sm">Сравнение с организациями той же отрасли (ОКВЭД ${esc(pr.okved)}) ${where}, которые работают ${esc(pr.ageLabel)}, по доходам и расходам за ${pr.year} год: ${g.withReports} ${pluralRu(g.withReports, 'компания', 'компании', 'компаний')} с отчётностью. Прибыль — доходы минус расходы до налога.</p>
 ${cells ? `<div class="bigstats">${cells}</div>` : ''}
 <div class="result cols"><div><span>Доходы у середины</span><strong>${esc(money(g.income[2]))}</strong></div><div><span>Прибыль у середины</span><strong>${esc(money(g.profit[2]))}</strong></div><div><span>Похожих в плюсе</span><strong>${Math.round(g.profitableShare * 100)}%</strong></div></div>
-<p class="note-sm"><a href="/kalkulyatory/perspektivy-biznesa/#calc=prospects&amp;code=${encodeURIComponent(pr.okved)}&amp;region=${encodeURIComponent(pr.scope === 'region' ? pr.region : '00')}">Перспективы этой отрасли по годам работы</a></p>`;
+<p class="note-sm"><a href="/otrasli/${encodeURIComponent(pr.okved)}/${pr.scope === 'region' ? encodeURIComponent(pr.region) + '/' : ''}">Сколько зарабатывает отрасль и крупнейшие компании</a> · <a href="/kalkulyatory/perspektivy-biznesa/#calc=prospects&amp;code=${encodeURIComponent(pr.okved)}&amp;region=${encodeURIComponent(pr.scope === 'region' ? pr.region : '00')}">Перспективы по годам работы</a></p>`;
 }
 
 export function renderCompany(tpl, { inn, siteUrl, f, party, more = null, peers = null }) {
@@ -80,7 +80,12 @@ export function renderCompany(tpl, { inn, siteUrl, f, party, more = null, peers 
   const desc = (descParts.join(', ') + '. Суды, арбитраж, учредители, финансы и советы — бесплатная проверка.').slice(0, 300);
   const title = `${name} — ИНН ${inn}: проверка, налоги, суды`;
   const ld = { '@context': 'https://schema.org', '@type': 'Organization', name, taxID: inn, url,
-    ...(d.address ? { address: d.address.value } : {}), ...(st.registration_date ? { foundingDate: new Date(st.registration_date).toISOString().slice(0, 10) } : {}) };
+    ...(d.address ? { address: d.address.value } : {}), ...(st.registration_date ? { foundingDate: new Date(st.registration_date).toISOString().slice(0, 10) } : {}),
+    ...(d.ogrn ? { identifier: { '@type': 'PropertyValue', propertyID: 'ОГРН', value: d.ogrn } } : {}),
+    ...(f && f.staff ? { numberOfEmployees: { '@type': 'QuantitativeValue', value: f.staff.n } } : {}) };
+  const crumbs = { '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Проверка организаций', item: `${siteUrl}/organizacii/` },
+    { '@type': 'ListItem', position: 2, name, item: url }] };
   const summary = `<section class="dcard ssr-card"><h2>${esc(name)}</h2>
 <div class="result cols">${facts.map(([k, v]) => `<div><span>${esc(k)}</span><strong>${esc(v)}</strong></div>`).join('')}</div>
 ${peersHtml(peers)}
@@ -98,7 +103,7 @@ ${f && f.tax && f.tax.items.length ? `<p class="fns-sub">Крупнейшие н
     .replace(/<!--ssr:intro-->[\s\S]*?<!--\/ssr:intro-->/, `<h1 class="page">${esc(name)}</h1><p class="lede">Проверка по ИНН ${esc(inn)}: реквизиты, налоги, суды и учредители. Проверить другую организацию можно в форме ниже.</p>`)
     .replace('<div id="org-out" aria-live="polite"></div>', `<div id="org-out" aria-live="polite" class="dash">${summary}</div>`)
     .replace('<section class="calc" id="org"', `<section class="calc" id="org" data-inn="${esc(inn)}"`)
-    .replace('</head>', `<script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script>\n</head>`);
+    .replace('</head>', [ld, crumbs].map((x) => `<script type="application/ld+json">${JSON.stringify(x).replace(/</g, '\\u003c')}</script>\n`).join('') + '</head>');
   return h;
 }
 

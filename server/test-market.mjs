@@ -8,6 +8,10 @@ import { openFnsDb, importStream } from '../scripts/fns-import.mjs';
 import { buildPeers } from '../scripts/fns-peers.mjs';
 import { marketStats, orgPeers, percentile, MIN_GROUP } from './market.mjs';
 import { renderCompany } from './company-page.mjs';
+import { createIndustryPages, topCompanies, industryUrls } from './industry-pages.mjs';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 let n = 0;
 const t = async (name, fn) => { await fn(); n++; console.log('ok  ', name); };
@@ -120,11 +124,42 @@ await t('страница компании: сравнение с отрасль
   const tpl = '<head><title>x</title><meta name="description" content=""></head><div id="org-out" aria-live="polite"></div>';
   const h = renderCompany(tpl, { inn: inn(59), siteUrl: 'https://inn-sider.ru', f: { name: 'ООО "ТЕСТ"', regime: 'УСН' }, party: null, peers: orgPeers(db, inn(59)) });
   assert.match(h, /Среди похожих компаний/);
+  assert.match(h, /"@type":"BreadcrumbList"/);
+  assert.match(h, /href="\/otrasli\/56\/54\/"/, 'ссылка на страницу отрасли');
   assert.match(h, /выше, чем у \d+%/);
   assert.match(h, /<meta name="description" content="[^"]*доходы выше, чем у \d+% похожих компаний/);
   assert.match(h, /perspektivy-biznesa\/#calc=prospects&amp;code=/);
   const plain = renderCompany(tpl, { inn: inn(59), siteUrl: 'https://inn-sider.ru', f: { name: 'ООО "ТЕСТ"', regime: 'УСН' }, party: null });
   assert.doesNotMatch(plain, /Среди похожих/, 'без статистики блока нет');
+});
+
+await t('страницы отраслей: статистика, крупнейшие компании, карта сайта', async () => {
+  const top = topCompanies(db, '56', '54', 5);
+  assert.equal(top.length, 5);
+  assert.ok(top[0].income >= top[1].income, 'по убыванию доходов');
+  assert.equal(topCompanies(db, '56', '00').length, 20, 'по России — топ-20');
+  const urls = industryUrls(db);
+  assert.ok(urls.includes('/otrasli/') && urls.includes('/otrasli/56/') && urls.includes('/otrasli/56/54/'));
+  assert.ok(!urls.includes('/otrasli/62/54/'), 'мало данных — страницы нет');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'otr-'));
+  fs.mkdirSync(path.join(dir, 'otrasli'));
+  fs.writeFileSync(path.join(dir, 'otrasli', 'index.html'), '<head><title>x</title><meta name="description" content=""><link rel="canonical" href="x"></head><!--ssr:intro--><h1>x</h1><!--/ssr:intro--><!--ssr:body--><p>…</p><!--/ssr:body-->');
+  const handle = createIndustryPages({ env: { SITE_DIST: dir, SITE_URL: 'https://inn-sider.ru' }, fdb: db });
+  const get = (p) => { let code, body = '', hdr; const res = { writeHead: (c, h) => { code = c; hdr = h; }, end: (b) => { body = b || ''; } }; const ok = handle({ method: 'GET' }, res, new URL('https://x' + p)); return { ok, code, body, hdr }; };
+  const r = get('/otrasli/56/54/');
+  assert.equal(r.code, 200);
+  assert.match(r.body, /<title>Кафе, рестораны, доставка еды — Республика|<title>Кафе, рестораны, доставка еды — [^<]+: сколько зарабатывают/);
+  assert.match(r.body, /Крупнейшие организации по доходам/);
+  assert.match(r.body, /href="\/organizacii\/54000000\d\d\/"/);
+  assert.match(r.body, /"@type":"BreadcrumbList"/);
+  assert.match(r.body, /<link rel="canonical" href="https:\/\/inn-sider.ru\/otrasli\/56\/54\/"/);
+  assert.equal(get('/otrasli/62/54/').code, 404, 'мало данных — 404 с noindex');
+  assert.equal(get('/otrasli/99/54/').code, 404, 'нет такой отрасли в списке');
+  assert.equal(get('/otrasli/').code, 200);
+  assert.equal(get('/otrasli/56').code, 301);
+  assert.match(get('/sitemap-otrasli.xml').body, /<loc>https:\/\/inn-sider.ru\/otrasli\/56\/54\/<\/loc>/);
+  assert.equal(get('/organizacii/').ok, false, 'чужие адреса не трогаем');
+  fs.rmSync(dir, { recursive: true });
 });
 
 await t('API /api/market: без DaData, проверка ввода, пустая база', async () => {
