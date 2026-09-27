@@ -588,6 +588,13 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
   }
 
   handler.watchExtra = watchExtra;
+  // строка недельной сводки о компании пользователя: место среди сверстников и ссылка на прогноз
+  handler.companyLine = (inn) => {
+    const p = orgPeers(fdb, inn);
+    if (!p || p.incomePercentile == null) return null;
+    const site = (env.SITE_URL || 'https://inn-sider.ru').replace(/\/$/, '');
+    return `Ваша компания: доходы за ${p.year} год выше, чем у ${p.incomePercentile}% сверстников — компаний той же отрасли${p.scope === 'region' ? ' и региона' : ''}, которые работают ${p.ageLabel}. Прогноз на три года: ${site}/prognoz/#inn=${inn}`;
+  };
   return handler;
   async function handler(req, res) {
     cors(req, res);
@@ -795,6 +802,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const bill = createBilling({ env, db, fetchImpl: globalThis.fetch, notify: (u, text) => accounts.notify(u, text) });
     accounts.scheduleWatch((inn) => findParty(inn, cfg, globalThis.fetch),
       (inn, prev, uids) => app.watchExtra(inn, prev, bill.enabled && uids.some((id) => bill.isPro({ id }))));
+    accounts.scheduleDigest((u) => bill.enabled && bill.isPro(u), { companyLine: (inn) => app.companyLine(inn) });
     bill.scheduleRenew();
   }
 }

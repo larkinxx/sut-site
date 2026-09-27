@@ -265,6 +265,18 @@ try {
     assert.match(diffSnapshots(c, { ...c, fsspSum: 9000 }).join(), /долги у приставов выросли до 9\s000 ₽/);
   });
 
+  await t('недельная сводка подписчику: компании, изменения, сроки; только подписчикам', async () => {
+    const w = db.prepare('SELECT user_id FROM watch LIMIT 1').get();
+    const u = db.prepare('SELECT * FROM users WHERE id = ?').get(w.user_id);
+    const text = app.digestText(u, { day: new Date(Date.UTC(2026, 8, 21)), companyLine: () => 'Ваша компания: тест' });
+    assert.match(text, /Ваша неделя с INNSIDER, 21 сентября/);
+    assert.match(text, /Компании в слежении: 1\./);
+    assert.match(text, /до 25-го — уведомления.*до 28-го — уплата/);
+    assert.doesNotMatch(app.digestText(u, { day: new Date(Date.UTC(2026, 8, 7)) }), /Сроки/, 'в начале месяца сроков нет');
+    assert.equal((await app.runDigest(() => false)).sent, 0, 'без подписки сводки нет');
+    assert.ok((await app.runDigest(() => true)).sent >= 1);
+  });
+
   await t('слежение: суды и приставы подмешиваются, а без проверки переносятся из прошлого слепка', async () => {
     const seen = [];
     let arb = 1, check = true;
