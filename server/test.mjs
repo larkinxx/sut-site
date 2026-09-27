@@ -63,7 +63,7 @@ try {
 
   await t('health', async () => {
     const j = await (await fetch(base + '/health')).json();
-    assert.deepEqual(j, { ok: true, dadata: true, ai: 'gemini', accounts: false, datanewton: false });
+    assert.deepEqual(j, { ok: true, dadata: true, dadataToday: 0, datanewtonToday: 0, ai: 'gemini', accounts: false, datanewton: false });
   });
 
   await t('/api/org: данные + памятка + CORS', async () => {
@@ -379,6 +379,21 @@ try {
     assert.equal(g.status, 403);
     assert.equal(calls.dadata, before, 'в DaData не ходили');
     assert.equal(await (await fetch(base + '/robots.txt')).text(), 'User-agent: *\nDisallow: /\n');
+  });
+
+  await t('потолок DaData за сутки: дальше — запасные источники, в DaData не ходим', async () => {
+    let dd = 0;
+    const cnt = async (url, o) => { if (String(url).includes('dadata')) dd++; return fakeFetch(url, o); };
+    const srv = http.createServer(createApp({ env: { DADATA_TOKEN: 't', DADATA_DAILY_LIMIT: '2' }, fetchImpl: cnt }));
+    await new Promise((r) => srv.listen(0, r));
+    const post = (inn) => fetch('http://127.0.0.1:' + srv.address().port + '/api/org', { method: 'POST', headers: { 'content-type': 'application/json', origin: 'https://fin-check.shop' }, body: JSON.stringify({ inn }) }).then((r) => r.status);
+    try {
+      assert.equal(await post('7707083893'), 200);
+      assert.equal(await post('7707083893'), 200, 'из кеша, без запроса');
+      assert.equal(await post('7736050003'), 200);
+      assert.equal(await post('7728168971'), 502, 'потолок 2 — третий новый ИНН не идёт в DaData');
+      assert.equal(dd, 2);
+    } finally { srv.close(); }
   });
 
   console.log(`\nВсе тесты прошли: ${n}`);

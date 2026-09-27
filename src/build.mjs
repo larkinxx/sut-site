@@ -108,6 +108,7 @@ function layout({ title, desc, path: pagePath, current, body, ld, noindex, scrip
 <link rel="apple-touch-icon" href="${url('/apple-touch-icon.png')}">
 <link rel="manifest" href="${url('/manifest.webmanifest')}">
 <script>(function(){try{if(localStorage.getItem('theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();</script>
+<link rel="preload" href="${url('/fonts/playfair-display-latin.woff2')}" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="${url('/fonts/playfair-display-cyrillic.woff2')}" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="${url('/fonts/jost-cyrillic.woff2')}" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="${url('/style.css')}?v=${cssV}">
@@ -723,12 +724,12 @@ ${ACCT ? `<h2>Оплата подписки</h2>
 <div id="cab"><p class="note-sm">Загружаем…</p></div>`
     }));
 
-    // Подписка INNSIDER Pro (server/billing.mjs). Цены на странице — из тех же PLANS, что и на сервере
+    // Подписка INNSIDER Ultima (server/billing.mjs). Цены на странице — из тех же PLANS, что и на сервере
     const rubs = (n) => new Intl.NumberFormat('ru-RU').format(n) + ' ₽';
     const perMonth = Math.round(PLANS.year.price / 12);
     write('tarify/index.html', layout({
-      title: 'Тарифы: INNSIDER Pro', path: '/tarify/', current: '', scripts: accJs,
-      desc: `Проверка компаний по ИНН бесплатно. INNSIDER Pro — суды, арбитраж и приставы без ограничений, слежение за 50 компаниями и отчёт в PDF — за ${PLANS.month.price} ₽ в месяц.`,
+      title: 'Тарифы: INNSIDER Ultima', path: '/tarify/', current: '', scripts: accJs,
+      desc: `Проверка компаний по ИНН бесплатно. INNSIDER Ultima — суды, арбитраж и приставы без ограничений, слежение за 50 компаниями и отчёт в PDF — за ${PLANS.month.price} ₽ в месяц.`,
       body: `<h1 class="page">Тарифы</h1>
 <p class="lede">Проверка по ИНН, данные ФНС, индекс надёжности и разбор — бесплатно и без регистрации. Подписка нужна тем, кто проверяет контрагентов каждый день.</p>
 <div class="plans" id="tarify">
@@ -744,7 +745,7 @@ ${ACCT ? `<h2>Оплата подписки</h2>
     </ul>
   </section>
   <section class="plan plan-pro">
-    <h2>INNSIDER Pro</h2>
+    <h2>INNSIDER Ultima</h2>
     <p class="plan-price">${rubs(PLANS.month.price)} <span>в месяц</span></p>
     <p class="note-sm">или ${rubs(PLANS.year.price)} за год — это ${rubs(perMonth)} в месяц</p>
     <ul>
@@ -770,13 +771,13 @@ ${ACCT ? `<h2>Оплата подписки</h2>
     const op = site.operator || {};
     write('oferta/index.html', layout({
       title: 'Публичная оферта', path: '/oferta/', current: '',
-      desc: 'Условия подписки INNSIDER Pro: что входит, цена, оплата, возврат и контакты.',
+      desc: 'Условия подписки INNSIDER Ultima: что входит, цена, оплата, возврат и контакты.',
       body: `<h1 class="page">Публичная оферта</h1>
 <div class="prose">
 <p>Исполнитель: ${esc(OP_TITLE.charAt(0).toUpperCase() + OP_TITLE.slice(1))}, ИНН ${esc(op.inn || '')}${op.ogrnip ? `, ОГРНИП ${esc(op.ogrnip)}` : ''}, ${op.taxRegime === 'npd' ? 'применяет налоговый режим «Налог на профессиональный доход»' : 'применяет упрощённую систему налогообложения'}. Электронная почта: <a href="mailto:${esc(site.contactEmail || '')}">${esc(site.contactEmail || '')}</a>. Сайт: ${esc(site.siteUrl)}.</p>
 <p>Этот документ — предложение заключить договор на условиях ниже (статья 437 ГК РФ). Оплата подписки означает согласие с ним (статья 438 ГК РФ).</p>
 <h2>1. Что мы предоставляем</h2>
-<p>Доступ к подписке «INNSIDER Pro» на сайте ${esc(site.siteUrl)} на оплаченный срок: сведения о судебных делах, арбитраже и исполнительных производствах организаций и ИП без дневного ограничения; слежение за изменениями до 50 организаций с уведомлениями; выгрузка отчёта о проверке. Сведения берутся из открытых государственных источников и от поставщиков данных. Мы не гарантируем их полноту и не отвечаем за ошибки в самих источниках. Индекс надёжности и разбор — это наша оценка по открытым данным, а не юридическое заключение.</p>
+<p>Доступ к подписке «INNSIDER Ultima» на сайте ${esc(site.siteUrl)} на оплаченный срок: сведения о судебных делах, арбитраже и исполнительных производствах организаций и ИП без дневного ограничения; слежение за изменениями до 50 организаций с уведомлениями; выгрузка отчёта о проверке. Сведения берутся из открытых государственных источников и от поставщиков данных. Мы не гарантируем их полноту и не отвечаем за ошибки в самих источниках. Индекс надёжности и разбор — это наша оценка по открытым данным, а не юридическое заключение.</p>
 <h2>2. Цена и оплата</h2>
 <p>${rubs(PLANS.month.price)} за 30 дней или ${rubs(PLANS.year.price)} за 365 дней. НДС не облагается. Оплата банковской картой или через СБП с помощью сервиса ЮKassa. ${op.taxRegime === 'npd' ? 'Чек формируется через приложение «Мой налог» и передаётся вам через ЮKassa.' : 'Кассовый чек приходит на электронную почту, указанную в аккаунте или при оплате.'}</p>
 <h2>3. Срок и автопродление</h2>

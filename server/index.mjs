@@ -89,6 +89,8 @@ export function config(env = process.env) {
     aiPerIpHour: Number(env.AI_PER_IP_HOUR || 15),
     aiUpstream: (env.AI_UPSTREAM_URL || '').replace(/\/$/, ''),
     dnKey: env.DATANEWTON_KEY || '', dnUrl: (env.DATANEWTON_URL || 'https://api.datanewton.ru').replace(/\/$/, ''),
+    // DaData бесплатно даёт 10 000 запросов в сутки на всё; держим запас, чтобы лимит не кончался посреди дня
+    dadataDaily: Number(env.DADATA_DAILY_LIMIT || 8000),
     dnDailyUnits: Number(env.DATANEWTON_DAILY_UNITS || 100), dnProUnits: Number(env.DATANEWTON_PRO_UNITS || 100), dnCacheDays: Number(env.DATANEWTON_CACHE_DAYS || 7),
     dnCacheDb: env.DATANEWTON_CACHE_DB || (env.FNS_DB ? path.join(path.dirname(env.FNS_DB), 'dn-cache.db') : null),
     port: Number(env.PORT || 3000)
@@ -414,7 +416,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
   const accounts = db ? createAccounts({ env, db, fetchImpl, mailer, now, watchLimit: (u) => billing.watchLimit(u) }) : null;
   // подписка: нужна база аккаунтов (платёж привязан к пользователю)
   const billing = db ? createBilling({ env, db, fetchImpl, now, notify: (u, text) => accounts.notify(u, text) }) : null;
-  const partyCache = makeCache(12 * 3600e3);
+  const partyCache = makeCache(24 * 3600e3, 20000);   // сведения из ЕГРЮЛ за сутки почти не меняются; слежение берёт свежие отдельно
   const aiCache = makeCache(DAY);
   const fnsCache = makeCache(DAY);
   const suggestCache = makeCache(3600e3, 20000);
@@ -496,10 +498,18 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
     }
     return m.card ? partyOfCard(inn, m.card) : null;
   }
+  // счётчик запросов к DaData за сутки по Москве; на потолке работаем по запасным источникам
+  let dadataDay = { key: '', n: 0 };
+  function dadataTake() {
+    const key = new Date(now() + 3 * 3600e3).toISOString().slice(0, 10);
+    if (dadataDay.key !== key) dadataDay = { key, n: 0 };
+    if (dadataDay.n >= cfg.dadataDaily) throw new Error('DaData: дневной потолок ' + cfg.dadataDaily);
+    dadataDay.n++;
+  }
   async function getParty(inn, { fallback = true } = {}) {
     let s = partyCache.get(inn);
     if (s !== undefined) return s;
-    try { s = await findParty(inn, cfg, fetchImpl); } catch (e) {
+    try { dadataTake(); s = await findParty(inn, cfg, fetchImpl); } catch (e) {
       if (!fallback) throw e;
       s = await partyFromDn(inn).catch(() => null);
       if (!s) throw e;
@@ -542,7 +552,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
     try {
       if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
       if (req.method === 'GET' && (url.pathname === '/health' || url.pathname === '/')) {
-        return send(res, 200, { ok: true, dadata: !!cfg.dadataToken, ai: aiProvider(cfg), accounts: !!accounts, datanewton: !!cfg.dnKey });
+        return send(res, 200, { ok: true, dadata: !!cfg.dadataToken, dadataToday: dadataDay.n, datanewtonToday: dn.used(), ai: aiProvider(cfg), accounts: !!accounts, datanewton: !!cfg.dnKey });
       }
       if (!accounts && url.pathname.startsWith('/tg/')) return relayTelegram(req, res, url);
       // адрес API роботам не нужен: Google и Яндекс не станут вызывать его, открывая страницы
@@ -579,7 +589,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
         const key = q.toLowerCase();
         let items = suggestCache.get(key);
         if (!items) {
-          try { items = await suggestParty(q, cfg, fetchImpl); } catch (e) {
+          try { dadataTake(); items = await suggestParty(q, cfg, fetchImpl); } catch (e) {
             items = suggestFromFns(q);
             if (!items.length) throw e;
           }

@@ -868,7 +868,7 @@
         if (k.limited) { b.disabled = false; msgc.textContent = 'Сегодня лимит запросов к судам исчерпан. Попробуйте завтра или посмотрите сами: kad.arbitr.ru и fssp.gov.ru.'; return; }
         if (k.paywall) {
           b.remove(); msgc.textContent = 'Бесплатно — суды по ' + k.free + ' новым компаниям в день, на сегодня они закончились. ';
-          var pa = el('a', null, 'INNSIDER Pro — без ограничений, от 290 ₽ в месяц'); pa.href = '/tarify/';
+          var pa = el('a', null, 'INNSIDER Ultima — без ограничений, от 290 ₽ в месяц'); pa.href = '/tarify/';
           msgc.appendChild(pa); msgc.appendChild(document.createTextNode('. Или загляните завтра.'));
           return;
         }
@@ -1068,7 +1068,7 @@
   // Отчёт в PDF — печать страницы в файл (оформление для печати — в style.css, @media print). Для подписчиков
   function pdfButton(pro) {
     var head = document.getElementById('card-head') || out;
-    var b = el('button', 'share', pro ? 'Скачать отчёт PDF' : 'Отчёт PDF — в Про'); b.type = 'button';
+    var b = el('button', 'share', pro ? 'Скачать отчёт PDF' : 'Отчёт PDF — в Ultima'); b.type = 'button';
     b.addEventListener('click', function () {
       if (pro) window.print(); else location.href = '/tarify/';
     });

@@ -24,4 +24,8 @@ rm -rf "$OUT.new" && cp -a "$REPO/dist" "$OUT.new" && chmod -R a+rX "$OUT.new"
 mv "$OUT.new" "$OUT" && rm -rf "$OUT.old"
 # если изменился сервер — перезапустить его
 if [ "$OLD" != "$NEW" ] && $G diff --name-only "$OLD" "$NEW" | grep -q '^server/'; then systemctl restart sut-api; fi
+# если изменились настройки Caddy для сайта — проверить и применить (при ошибке остаются прежние)
+if [ "$OLD" != "$NEW" ] && $G diff --name-only "$OLD" "$NEW" | grep -q '^deploy/Caddyfile.site'; then
+  caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1 && systemctl reload caddy || echo "Caddyfile.site с ошибкой — не применён"
+fi
 echo "$(date '+%F %T') сайт собран: $NEW"

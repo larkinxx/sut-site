@@ -525,7 +525,7 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
         if (!innValid(inn)) return send(res, 400, { error: 'Проверьте ИНН.' }), true;
         const n = q('SELECT COUNT(*) AS n FROM watch WHERE user_id = ?').get(u.id).n;
         const lim = watchLimit(u);
-        if (n >= lim) return send(res, 400, { error: `Можно следить не больше чем за ${lim} компаниями.` + (lim < LIMITS.watch ? ' С подпиской INNSIDER Pro — до ' + LIMITS.watch + '.' : ''), paywall: lim < LIMITS.watch }), true;
+        if (n >= lim) return send(res, 400, { error: `Можно следить не больше чем за ${lim} компаниями.` + (lim < LIMITS.watch ? ' С подпиской INNSIDER Ultima — до ' + LIMITS.watch + '.' : ''), paywall: lim < LIMITS.watch }), true;
         const s = await getParty(inn);
         if (!s) return send(res, 404, { error: 'По этому ИНН ничего не найдено.' }), true;
         const snap = snapshotOf(s);
