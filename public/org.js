@@ -631,6 +631,7 @@
       if (b.url) { var a = el('a', null, 'Отчётность полностью на bo.nalog.gov.ru'); a.href = b.url; a.target = '_blank'; a.rel = 'noopener'; var pp = el('p', 'note-sm'); pp.appendChild(a); fin.appendChild(pp); }
     }
     if (j.peers) peersBlock(fin || box, j.peers);
+    if (j.similar && j.similar.length) similarBlock(fin || box, j.similar);
 
     box.appendChild(el('h2', null, 'Налоги и сотрудники'));
     box.appendChild(el('p', 'note-sm', 'Официальные данные ФНС: ' + (p && p.source === 'opendata' ? 'открытые данные о налогах и численности' : 'сервис «Прозрачный бизнес»') + '.'));
@@ -670,6 +671,18 @@
     sig.forEach(function (x) { box.appendChild(tip(x[0], x[1])); });
   }
   // Компания среди похожих: та же отрасль (две цифры ОКВЭД), регион и возраст — server/market.mjs
+  // похожие компании той же отрасли и региона с близкими доходами — с кем ещё сравнить
+  function similarBlock(parent, list) {
+    parent.appendChild(el('p', 'fns-sub', 'Похожие компании'));
+    var ul = el('ul', 'similar');
+    list.forEach(function (c) {
+      var li = el('li'), a = el('a', null, c.name);
+      a.href = location.origin + '/organizacii/' + c.inn + '/';
+      li.appendChild(a); li.appendChild(document.createTextNode(' ')); li.appendChild(el('span', 'note-sm', money(c.income)));
+      ul.appendChild(li);
+    });
+    parent.appendChild(ul);
+  }
   function peersBlock(parent, pr) {
     var g = pr.peers, where = pr.scope === 'region' ? 'в том же регионе' : 'по России';
     parent.appendChild(el('p', 'fns-sub', 'Среди похожих компаний'));

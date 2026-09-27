@@ -55,7 +55,7 @@ import { createBilling } from './billing.mjs';
 import { dnCard, dnCourts, partyOfCard } from './datanewton.mjs';
 import { createDnStore } from './dn-store.mjs';
 import { checkSite, siteNotes } from './site-check.mjs';
-import { createCompanyPages, shortName } from './company-page.mjs';
+import { createCompanyPages, shortName, similarCompanies } from './company-page.mjs';
 import { createIndustryPages } from './industry-pages.mjs';
 import { createLawyer } from './lawyer.mjs';
 import { createCerts, certSnapshot } from './certs.mjs';
@@ -712,7 +712,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
       if (url.pathname === '/api/org/fns') {
         let f = fnsCache.get(inn);
         if (!f) { f = await fnsData(inn, fetchImpl, fnsPause, fdb, now); if (f.pb || f.bo) fnsCache.set(inn, f); }
-        return send(res, 200, { ...f, peers: orgPeers(fdb, inn) });
+        return send(res, 200, { ...f, peers: orgPeers(fdb, inn), similar: similarCompanies(fdb, inn) });
       }
 
       const s = await getParty(inn);

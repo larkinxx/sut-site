@@ -7,7 +7,7 @@ import { createApp } from './index.mjs';
 import { openFnsDb, importStream } from '../scripts/fns-import.mjs';
 import { buildPeers } from '../scripts/fns-peers.mjs';
 import { marketStats, orgPeers, orgForecast, valueAt, percentile, MIN_GROUP } from './market.mjs';
-import { renderCompany } from './company-page.mjs';
+import { renderCompany, similarCompanies } from './company-page.mjs';
 import { createIndustryPages, topCompanies, industryUrls } from './industry-pages.mjs';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -131,6 +131,16 @@ await t('страница компании: сравнение с отрасль
   assert.match(h, /perspektivy-biznesa\/#calc=prospects&amp;code=/);
   const plain = renderCompany(tpl, { inn: inn(59), siteUrl: 'https://inn-sider.ru', f: { name: 'ООО "ТЕСТ"', regime: 'УСН' }, party: null });
   assert.doesNotMatch(plain, /Среди похожих/, 'без статистики блока нет');
+  const sim = similarCompanies(db, inn(59));
+  assert.equal(sim.length, 6);
+  assert.ok(sim.every((c) => c.inn !== inn(59) && c.okved === '56' && c.region === '54'), 'та же отрасль и регион, без самой компании');
+  const own = db.prepare('SELECT income FROM fns_finance WHERE inn = ?').get(inn(59)).income;
+  const d = sim.map((c) => Math.abs(c.income - own));
+  assert.deepEqual(d, [...d].sort((a, b) => a - b), 'ближайшие по доходам — первыми');
+  const withSim = renderCompany(tpl, { inn: inn(59), siteUrl: 'https://inn-sider.ru', f: { name: 'ООО "ТЕСТ"', regime: 'УСН' }, party: null, similar: sim });
+  assert.match(withSim, /Похожие компании/);
+  assert.match(withSim, /href="\/otrasli\/56\/54\/">Все крупные компании/);
+  assert.deepEqual(similarCompanies(db, '7700000000'), []);
 });
 
 await t('страницы отраслей: статистика, крупнейшие компании, карта сайта', async () => {

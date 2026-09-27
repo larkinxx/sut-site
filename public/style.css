@@ -525,3 +525,4 @@ input[type=date]:focus,textarea:focus{outline:none;border-color:var(--ink)}
 .cert-print{border-top:1px solid var(--ink);border-bottom:1px solid var(--ink);padding:14px 0;margin:0 0 18px}
 .cert .cert-facts{margin:18px 0}
 @media screen{.cert-print{display:block}}
+.similar{list-style:none;padding:0;margin:6px 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:4px 24px}.similar li{padding:6px 0;border-bottom:1px solid var(--line)}
