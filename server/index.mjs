@@ -96,6 +96,10 @@ export function config(env = process.env) {
 }
 
 /* ---------- простой кеш с ограничением размера ---------- */
+// Поисковые роботы открывают страницы компаний с включённым JavaScript, и страница сама запрашивала проверку —
+// так боты за сутки выбирали лимиты DaData и DataNewton (27.09.2026). Роботам проверка не нужна: данные ФНС уже в HTML
+export const isBot = (req) => /bot|crawl|spider|slurp|headless|lighthouse|preview|facebookexternalhit|vkshare/i.test(String(req.headers['user-agent'] || ''));
+
 function makeCache(ttl, max = 5000) {
   const m = new Map();
   return {
@@ -541,6 +545,11 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
         return send(res, 200, { ok: true, dadata: !!cfg.dadataToken, ai: aiProvider(cfg), accounts: !!accounts, datanewton: !!cfg.dnKey });
       }
       if (!accounts && url.pathname.startsWith('/tg/')) return relayTelegram(req, res, url);
+      // адрес API роботам не нужен: Google и Яндекс не станут вызывать его, открывая страницы
+      if (req.method === 'GET' && url.pathname === '/robots.txt') {   // robots.txt самого сайта отдаёт Caddy из статики
+        res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+        return res.end('User-agent: *\nDisallow: /\n');
+      }
       if (await companyPages(req, res, url, innValid)) return;
       if (req.method !== 'GET' && req.headers.origin && !cfg.origins.includes(req.headers.origin)) return send(res, 403, { error: 'Запрос с чужого сайта' });
       if (billing && await billing.handle(req, res, url, { send, readBody, user: url.pathname.startsWith('/api/billing') ? accounts.userOf(req) : null })) return;
@@ -556,6 +565,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
       }
       if (!cfg.dadataToken) return send(res, 503, { error: 'Проверка организаций не подключена.' });
 
+      if (isBot(req)) return send(res, 403, { error: 'Проверка доступна в браузере.' });
       const body = await readBody(req);
       if (url.pathname === '/api/org/suggest') {
         const q = String(body.q || '').replace(/\s+/g, ' ').trim().slice(0, 100);

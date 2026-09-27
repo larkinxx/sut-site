@@ -1227,6 +1227,8 @@
   }
   window.addEventListener('hashchange', fromHash);
   var pageInn = root.getAttribute('data-inn');
-  if (pageInn && !/inn=/.test(location.hash)) { input.value = pageInn; form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Event('submit')); }
+  // роботам поисковиков проверку сами не запускаем: она тратит платные запросы, а данные ФНС уже есть на странице
+  var robot = navigator.webdriver || /bot|crawl|spider|slurp|headless|lighthouse|preview/i.test(navigator.userAgent);
+  if (pageInn && !robot && !/inn=/.test(location.hash)) { input.value = pageInn; form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Event('submit')); }
   else fromHash();
 })();

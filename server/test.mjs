@@ -371,6 +371,16 @@ try {
     } finally { srv.close(); }
   });
 
+  await t('поисковые роботы: API закрыт в robots.txt, проверка для них не запускается', async () => {
+    const before = calls.dadata;
+    const r = await fetch(base + '/api/org', { method: 'POST', headers: { 'content-type': 'application/json', origin: 'https://fin-check.shop', 'user-agent': 'Mozilla/5.0 (compatible; YandexBot/3.0; +http://yandex.com/bots)' }, body: JSON.stringify({ inn: '7707083893' }) });
+    assert.equal(r.status, 403);
+    const g = await fetch(base + '/api/org/more', { method: 'POST', headers: { 'content-type': 'application/json', 'user-agent': 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Googlebot/2.1) Chrome/126 Safari/537.36' }, body: JSON.stringify({ inn: '7707083893' }) });
+    assert.equal(g.status, 403);
+    assert.equal(calls.dadata, before, 'в DaData не ходили');
+    assert.equal(await (await fetch(base + '/robots.txt')).text(), 'User-agent: *\nDisallow: /\n');
+  });
+
   console.log(`\nВсе тесты прошли: ${n}`);
 } finally {
   server.close();
