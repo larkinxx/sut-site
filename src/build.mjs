@@ -197,9 +197,10 @@ function subscribeBlock() {
 </section>`;
 }
 
+// Рекламы на сайте нет: партнёрские (рекламные) материалы не показываем вовсе
 function materialsFor(topicIds, { max = 1 } = {}) {
   const pick = (kind) => materials
-    .filter((m) => m.kind === kind && m.topics.some((t) => topicIds.includes(t)))
+    .filter((m) => !m.affiliate && m.kind === kind && m.topics.some((t) => topicIds.includes(t)))
     .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
     .slice(0, max);
   return [...pick('video'), ...pick('course')];
@@ -209,8 +210,7 @@ function materialRow(m) {
   return `<div class="mat"><b class="${m.kind === 'video' ? 'k-video' : 'k-course'}">${m.kind === 'video' ? 'Видео' : 'Курс'}</b>
     <div class="mi"><span>${esc(m.title)}</span>
       <span class="by">${esc(m.author)}${m.duration ? ' · ' + esc(m.duration) : ''}${price ? ' · ' + esc(price) : ''} · обновлено ${esc(m.updatedAt)}</span>
-      ${m.affiliate ? '<span class="tag-ad">Партнёрская ссылка</span>' : ''}
-      <a class="go" href="${esc(m.url)}" rel="noopener${m.affiliate ? ' sponsored' : ''}">${m.kind === 'video' ? 'Смотреть' : 'Подробнее'}</a>
+      <a class="go" href="${esc(m.url)}" rel="noopener">${m.kind === 'video' ? 'Смотреть' : 'Подробнее'}</a>
     </div></div>`;
 }
 
