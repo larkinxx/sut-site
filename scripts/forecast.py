@@ -3,6 +3,8 @@
 # печатает таблицу и сохраняет content/forecast.json. Модель — TimesFM 2.5 (веса Apache-2.0, можно
 # использовать на сайте; веса TimesFM 3.0 пока только для некоммерческого использования).
 # Установка: pip install "timesfm[torch]"   Запуск: python scripts/forecast.py [--horizon 22] [--out файл.json]
+# Проверка по истории: --backtest 12 — 12 раз «откатывается» назад с шагом horizon, прогнозирует по тогдашней
+# истории и сравнивает с фактом и с правилом «курс не изменится».
 # Mac на Intel: там максимум torch 2.2.2, он работает только с numpy<2 → pip install "numpy<2" "timesfm[torch]"
 # Это статистический прогноз, а не инвестиционная рекомендация: он не знает о будущих решениях ЦБ и событиях.
 import argparse
@@ -78,11 +80,60 @@ def load_model(max_context, horizon):
   return model
 
 
+def run_forecast(model, inputs, horizon):
+  """Точечный прогноз и интервал 80% (квантили 0.1 и 0.9); останавливается, если модель вернула NaN."""
+  point, quant = model.forecast(horizon=horizon, inputs=inputs)
+  # quant[..., 0] — среднее, дальше квантили 0.1 … 0.9
+  if np.isnan(point).any() or np.isnan(quant).any():
+    raise SystemExit("Модель вернула NaN — прогноз не сохраняю. Пришлите версии: python -c 'import torch, numpy; print(torch.__version__, numpy.__version__)'")
+  return point, quant[:, :, 1], quant[:, :, 9]
+
+
+def backtest(model, series, horizon, runs, max_context):
+  """Прогнозы из прошлого: для каждой валюты runs точек старта с шагом horizon, последняя — horizon дней назад."""
+  jobs = []  # (валюта, дата старта, контекст, факт через horizon дней)
+  for cur, rows in series.items():
+    values = np.array([v for _, v in rows], dtype=np.float32)
+    for k in range(runs, 0, -1):
+      t = len(values) - k * horizon  # прогноз делается по values[:t], факт — values[t + horizon - 1]
+      if t < 100:
+        continue
+      jobs.append((cur, rows[t - 1][0], values[max(0, t - max_context):t], float(values[t + horizon - 1])))
+  point, lo, hi = run_forecast(model, [j[2] for j in jobs], horizon)
+
+  report = {}
+  for cur in series:
+    idx = [i for i, j in enumerate(jobs) if j[0] == cur]
+    fact = np.array([jobs[i][3] for i in idx])
+    naive = np.array([jobs[i][2][-1] for i in idx])
+    pred, low, high = point[idx, -1], lo[idx, -1], hi[idx, -1]
+    err_model, err_naive = np.abs(pred / fact - 1) * 100, np.abs(naive / fact - 1) * 100
+    report[cur] = {
+      "runs": len(idx),
+      "mapeModel": round(float(err_model.mean()), 2),
+      "mapeNaive": round(float(err_naive.mean()), 2),
+      "modelBetter": int((err_model < err_naive).sum()),
+      "coverage80": round(float(((fact >= low) & (fact <= high)).mean() * 100), 1),
+      "cases": [
+        {"from": jobs[i][1].isoformat(), "fact": round(f, 4), "forecast": round(float(p), 4),
+         "low80": round(float(l), 4), "high80": round(float(h), 4)}
+        for i, f, p, l, h in zip(idx, fact, pred, low, high)
+      ],
+    }
+    r = report[cur]
+    print(
+      f"{cur}: {r['runs']} прогнозов — средняя ошибка TimesFM {r['mapeModel']:.2f}%, «курс не изменится» {r['mapeNaive']:.2f}%; "
+      f"TimesFM точнее в {r['modelBetter']} из {r['runs']}; факт внутри интервала 80% — в {r['coverage80']:.0f}% случаев"
+    )
+  return report
+
+
 def main():
   ap = argparse.ArgumentParser(description=__doc__)
   ap.add_argument("--horizon", type=int, default=22, help="на сколько рабочих дней вперёд")
   ap.add_argument("--years", type=int, default=3, help="сколько лет истории брать")
   ap.add_argument("--out", type=pathlib.Path, default=OUT, help="куда сохранить JSON")
+  ap.add_argument("--backtest", type=int, default=0, metavar="N", help="проверить N прогнозов из прошлого")
   args = ap.parse_args()
 
   today = dt.date.today()
@@ -97,11 +148,7 @@ def main():
   max_context = 1024  # ≈ 4 года рабочих дней; более длинная история обрезается
   model = load_model(max_context, args.horizon)
   inputs = [np.array([v for _, v in rows], dtype=np.float32)[-max_context:] for rows in history.values()]
-  point, quant = model.forecast(horizon=args.horizon, inputs=inputs)
-  # quant[..., 0] — среднее, дальше квантили 0.1 … 0.9: берём 0.1 и 0.9 → интервал 80%
-  lo, hi = quant[:, :, 1], quant[:, :, 9]
-  if np.isnan(point).any() or np.isnan(quant).any():
-    raise SystemExit("Модель вернула NaN — прогноз не сохраняю. Пришлите версии: python -c 'import torch, numpy; print(torch.__version__, numpy.__version__)'")
+  point, lo, hi = run_forecast(model, inputs, args.horizon)
 
   result = {
     "_note": "Прогноз TimesFM 2.5 по официальным курсам ЦБ. Статистическая модель, не рекомендация.",
@@ -126,6 +173,10 @@ def main():
       f"{cur}: {last_value:.2f} ₽ на {last_date:%d.%m.%Y} → {end['value']:.2f} ₽ к {dt.date.fromisoformat(end['date']):%d.%m.%Y} "
       f"({change:+.1f}%), интервал 80%: {end['low80']:.2f}–{end['high80']:.2f} ₽"
     )
+
+  if args.backtest:
+    print(f"\nПроверка по истории: прогноз на {args.horizon} рабочих дней, сравнение с фактом")
+    result["backtest"] = backtest(model, history, args.horizon, args.backtest, max_context)
 
   args.out.parent.mkdir(parents=True, exist_ok=True)
   args.out.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
