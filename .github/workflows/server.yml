@@ -1,0 +1,41 @@
+# Действия на сервере без SSH с компьютера: статус, импорт данных ФНС, обновление кода.
+# Запуск: Actions → «Сервер: команда» → Run workflow → выберите действие (или Claude запускает сам).
+# Задача заходит на сервер по отдельному ключу, который умеет только действия из deploy/ops.sh.
+# Нужен секрет SERVER_SSH_KEY (Settings → Secrets and variables → Actions) — как его сделать, в deploy/README.md.
+# Лог публичный: ops.sh выводит только статусы и счётчики.
+name: "Сервер: команда"
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Что сделать на сервере"
+        type: choice
+        default: status
+        options: [status, import, import-stop, update, archive-check]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: server-ops
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: ${{ inputs.action }}
+        env:
+          KEY: ${{ secrets.SERVER_SSH_KEY }}
+          ACTION: ${{ inputs.action }}
+          HOST: 5.129.207.51
+        run: |
+          if [ -z "$KEY" ]; then
+            echo "::error::Секрет SERVER_SSH_KEY не задан — см. deploy/README.md, раздел «Команды на сервере из GitHub»."
+            exit 1
+          fi
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/ops && chmod 600 ~/.ssh/ops
+          ssh -i ~/.ssh/ops -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 "root@$HOST" "$ACTION"

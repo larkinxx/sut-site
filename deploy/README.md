@@ -53,3 +53,23 @@ curl https://api.fin-check.shop/health   # должно быть "accounts":true
   `systemd-run --unit=fns-import -p User=sut /usr/bin/node /opt/sut-site/scripts/fns-import.mjs /var/lib/sut/fns.db` (от 15 минут до часа: реестр МСП — архив больше 2 ГБ).
   Ход: `journalctl -u fns-import -f`. Не запускайте через `runuser … &` — при обрыве SSH импорт зависает и держит базу.
 - Слежение за компаниями запускается само раз в сутки после 08:00 по Москве.
+
+## Команды на сервере из GitHub (без SSH с компьютера)
+
+Задача **Actions → «Сервер: команда»** (`.github/workflows/server.yml`) выполняет на сервере одно из действий `deploy/ops.sh`:
+`status` (службы, ход импорта ФНС, число записей в базе, диск и память), `import` (запустить импорт ФНС), `import-stop`,
+`update` (то же, что `deploy/update.sh`), `archive-check` (архивы ФНС и итог проверки архива). Её может запускать и Claude.
+
+Ключ задачи привязан к `ops.sh`: по нему нельзя выполнить ничего, кроме этих действий. Репозиторий публичный, поэтому
+`ops.sh` выводит в лог только статусы и счётчики. Настройка — один раз, на сервере под root (после `update.sh`, чтобы `ops.sh` уже был):
+
+```
+ssh-keygen -t ed25519 -N "" -C github-ops -f /root/github-ops
+echo "command=\"/opt/sut-site/deploy/ops.sh\",no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-pty $(cat /root/github-ops.pub)" >> /root/.ssh/authorized_keys
+cat /root/github-ops
+```
+
+Скопируйте весь вывод последней команды (от `-----BEGIN` до `-----END … KEY-----` включительно) в GitHub:
+**Settings → Secrets and variables → Actions → New repository secret**, имя `SERVER_SSH_KEY`. Затем удалите ключ с сервера:
+`rm /root/github-ops /root/github-ops.pub`. Ключ никуда больше не отправляйте. Отозвать доступ — удалить строку с `github-ops`
+из `/root/.ssh/authorized_keys`.
