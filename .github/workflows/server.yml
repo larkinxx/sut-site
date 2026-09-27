@@ -16,7 +16,7 @@ on:
         description: "Что сделать на сервере"
         type: choice
         default: status
-        options: [status, import, import-stop, update, archive-check]
+        options: [status, import, peers, import-stop, update, archive-check]
 
 permissions:
   contents: read

@@ -34,6 +34,8 @@ case "$ACTION" in
     echo "== службы: сайт $(systemctl is-active sut-api), импорт ФНС $(systemctl is-active fns-import 2>/dev/null || true)"
     echo "== журнал импорта ФНС (последние строки)"
     journalctl -u fns-import --no-pager -o short-iso -n 12 2>/dev/null | sed -E 's/^([^ ]+) [^ ]+ [^ ]+: /\1 /' || true
+    echo "== пересчёт статистики: $(systemctl is-active fns-peers 2>/dev/null || true)"
+    journalctl -u fns-peers --no-pager -o short-iso -n 3 2>/dev/null | sed -E 's/^([^ ]+) [^ ]+ [^ ]+: /\1 /' || true
     echo "== база ФНС"
     counts
     echo "== диск и память"
@@ -49,6 +51,13 @@ case "$ACTION" in
     systemctl reset-failed fns-import 2>/dev/null || true
     systemd-run --unit=fns-import -p User=sut /usr/bin/node /opt/sut-site/scripts/fns-import.mjs "$DB"
     echo "Импорт запущен. Ход — действием status."
+    ;;
+  peers)
+    # только пересчёт статистики похожих компаний (fns_peers, fns_market) по уже загруженным данным — без скачивания
+    if systemctl is-active --quiet fns-import || systemctl is-active --quiet fns-peers; then echo "Импорт или пересчёт уже идёт."; exit 0; fi
+    systemctl reset-failed fns-peers 2>/dev/null || true
+    systemd-run --unit=fns-peers -p User=sut /usr/bin/node /opt/sut-site/scripts/fns-peers.mjs "$DB"
+    echo "Пересчёт запущен. Итог — действием status (журнал fns-peers)."
     ;;
   import-stop)
     systemctl stop fns-import 2>/dev/null || true
@@ -72,7 +81,7 @@ case "$ACTION" in
       | sed -E 's/^([^ ]+) [^ ]+ [^ ]+: /\1 /' || true
     ;;
   *)
-    echo "Неизвестное действие: $ACTION. Можно: status, import, import-stop, update, archive-check."
+    echo "Неизвестное действие: $ACTION. Можно: status, import, peers, import-stop, update, archive-check."
     exit 2
     ;;
 esac
