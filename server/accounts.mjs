@@ -282,12 +282,13 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
   }
 
   /* ----- уведомления ----- */
-  async function notify(u, text) {
+  // subject — тема письма (в Telegram не нужна); в письмах — подпись дома
+  async function notify(u, text, subject = 'INNSIDER: изменения у компаний, за которыми вы следите') {
     const ch = channelOf(u);
     if (ch === 'telegram' && cfg.tgToken) {
       await tgCall('sendMessage', { chat_id: u.telegram_id, text, link_preview_options: { is_disabled: true } });
     } else if (ch === 'email' && mailer) {
-      await mailer({ to: u.email, subject: 'INNSIDER: изменения у компаний, за которыми вы следите', text });
+      await mailer({ to: u.email, subject, text: `${text}\n\n—\nINNSIDER · ${host}\nНастроить уведомления: ${cfg.site}/kabinet/` });
     }
   }
 
@@ -377,7 +378,7 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
       if (!isPro(u)) continue;
       const text = digestText(u, opts);
       if (!text) continue;
-      try { await notify(u, text); sent++; } catch (e) { console.error('сводка', u.id, e.message); }
+      try { await notify(u, text, 'INNSIDER: ваша неделя'); sent++; } catch (e) { console.error('сводка', u.id, e.message); }
     }
     return { sent };
   }

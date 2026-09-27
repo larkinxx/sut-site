@@ -421,7 +421,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
   const cfg = config(env);
   const accounts = db ? createAccounts({ env, db, fetchImpl, mailer, now, watchLimit: (u) => billing.watchLimit(u) }) : null;
   // подписка: нужна база аккаунтов (платёж привязан к пользователю)
-  const billing = db ? createBilling({ env, db, fetchImpl, now, notify: (u, text) => accounts.notify(u, text) }) : null;
+  const billing = db ? createBilling({ env, db, fetchImpl, now, notify: (u, text) => accounts.notify(u, text, 'INNSIDER Ultima: подписка') }) : null;
   const partyCache = makeCache(24 * 3600e3, 20000);   // сведения из ЕГРЮЛ за сутки почти не меняются; слежение берёт свежие отдельно
   const aiCache = makeCache(DAY);
   const fnsCache = makeCache(DAY);
@@ -799,7 +799,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   if (db) {
     // слежение: раз в сутки свежие данные из DaData (без кеша)
     const accounts = createAccounts({ env, db, fetchImpl: globalThis.fetch, mailer });
-    const bill = createBilling({ env, db, fetchImpl: globalThis.fetch, notify: (u, text) => accounts.notify(u, text) });
+    const bill = createBilling({ env, db, fetchImpl: globalThis.fetch, notify: (u, text) => accounts.notify(u, text, 'INNSIDER Ultima: подписка') });
     accounts.scheduleWatch((inn) => findParty(inn, cfg, globalThis.fetch),
       (inn, prev, uids) => app.watchExtra(inn, prev, bill.enabled && uids.some((id) => bill.isPro({ id }))));
     accounts.scheduleDigest((u) => bill.enabled && bill.isPro(u), { companyLine: (inn) => app.companyLine(inn) });
