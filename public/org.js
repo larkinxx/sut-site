@@ -674,12 +674,21 @@
     var g = pr.peers, where = pr.scope === 'region' ? 'в том же регионе' : 'по России';
     parent.appendChild(el('p', 'fns-sub', 'Среди похожих компаний'));
     parent.appendChild(el('p', 'note-sm', 'Сравнение с организациями той же отрасли (ОКВЭД ' + pr.okved + ') ' + where + ', которые работают ' + pr.ageLabel + ', по доходам и расходам за ' + pr.year + ' год (открытые данные ФНС, ' + g.withReports + ' ' + plural(g.withReports, 'компания', 'компании', 'компаний') + '). Прибыль здесь — доходы минус расходы до налога.'));
+    // главное — две крупные цифры, как у выручки и прибыли выше: у скольких похожих компаний показатель меньше
+    var stats = el('div', 'bigstats');
+    [['Доходы ' + money(pr.income), pr.incomePercentile], ['Прибыль ' + money(pr.profit), pr.profitPercentile]].forEach(function (x) {
+      if (x[1] == null) return;
+      var b = el('div', 'bigstat');
+      b.appendChild(el('span', 'bs-label', x[0]));
+      b.appendChild(el('strong', 'bs-val', 'выше, чем у ' + x[1] + '%'));
+      stats.appendChild(b);
+    });
+    if (stats.children.length) parent.appendChild(stats);
     var t = el('div', 'result');
-    var beat = function (pct) { return pct == null ? '—' : 'больше, чем у ' + pct + '%'; };
-    row(t, 'Доходы ' + money(pr.income), beat(pr.incomePercentile));
-    row(t, 'Прибыль ' + money(pr.profit), beat(pr.profitPercentile));
-    row(t, 'У похожих в середине', 'доходы ' + money(g.income[2]) + ', прибыль ' + money(g.profit[2]));
-    row(t, 'Похожих компаний в плюсе', Math.round(g.profitableShare * 100) + '%');
+    var nb = function (x) { return x.replace(/ /g, '\u00a0'); };   // «5,9 млн ₽» не разрывать
+    row(t, 'Доходы у середины', nb(money(g.income[2])));
+    row(t, 'Прибыль у середины', nb(money(g.profit[2])));
+    row(t, 'Похожих в плюсе', Math.round(g.profitableShare * 100) + '%');
     parent.appendChild(t);
     var a = el('a', null, 'Перспективы этой отрасли по годам работы');
     a.href = location.origin + '/kalkulyatory/perspektivy-biznesa/#calc=prospects&code=' + encodeURIComponent(pr.okved) + '&region=' + encodeURIComponent(pr.scope === 'region' ? pr.region : '00');
