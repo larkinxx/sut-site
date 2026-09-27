@@ -4,7 +4,7 @@
 # Подключается командой deploy/move-domain.sh.
 inn-sider.ru {
 	encode zstd gzip
-	@company path_regexp company ^/(organizacii/[0-9]{10,12}(/|/og\.png)?|sitemap-companies(-[0-9]+)?\.xml|otrasli(/.*)?|sitemap-otrasli\.xml)$
+	@company path_regexp company ^/(organizacii/[0-9]{10,12}(/|/og\.png)?|sitemap-companies(-[0-9]+)?\.xml|otrasli(/.*)?|sitemap-otrasli\.xml|sertifikat(/.*)?)$
 	handle @company {
 		reverse_proxy 127.0.0.1:3000
 	}

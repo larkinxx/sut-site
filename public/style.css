@@ -520,3 +520,8 @@ input[type=date]:focus,textarea:focus{outline:none;border-color:var(--ink)}
 .ychart .fcast{fill:var(--muted);opacity:.45}
 .ychart .neg{fill:var(--crit-line)}
 .checks{border:0;margin:0;padding:0;display:grid;gap:8px}.checks label{display:flex;gap:10px;align-items:flex-start;font:400 14px/1.4 var(--font-ui)}.checks input{margin-top:3px}
+/* сертификат проверки (server/certs.mjs): номер крупной антиквой с разрядкой, как гравировка */
+.cert-no{font:400 22px/1.2 var(--font-display);letter-spacing:.18em;text-transform:uppercase;margin:0 0 8px}
+.cert-print{border-top:1px solid var(--ink);border-bottom:1px solid var(--ink);padding:14px 0;margin:0 0 18px}
+.cert .cert-facts{margin:18px 0}
+@media screen{.cert-print{display:block}}

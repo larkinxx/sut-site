@@ -645,6 +645,16 @@ ${card('Как не попасть под блокировку', [
 }));
 
 // Опасные налоговые схемы: не инструкция, а предупреждение — в чём схема, как её находят и чем она кончается
+// Сертификат проверки /sertifikat/<номер>/ — страницу собирает сервер (server/certs.mjs) из этого шаблона
+if (ACCT && COMPANY_PAGES) {
+  write('sertifikat/index.html', layout({
+    title: 'Сертификат проверки', path: '/sertifikat/', current: '', noindex: true,
+    desc: 'Проверка подлинности сертификата проверки организации INNSIDER.',
+    body: `<!--ssr:intro--><h1 class="page">Сертификат проверки</h1><!--/ssr:intro-->
+<section class="cert"><!--ssr:body--><p class="lede">Откройте ссылку из отчёта или введите номер в адрес страницы: /sertifikat/7KQ2-M9XA/.</p><!--/ssr:body--></section>`
+  }));
+}
+
 // ---------- Прогноз бизнеса: действующая компания по ИНН (public/forecast.js → /api/forecast) и новый бизнес (калькулятор перспектив) ----------
 if (process.env.ORG_API_URL) {
   write('prognoz/index.html', layout({

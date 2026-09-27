@@ -58,6 +58,7 @@ import { checkSite, siteNotes } from './site-check.mjs';
 import { createCompanyPages, shortName } from './company-page.mjs';
 import { createIndustryPages } from './industry-pages.mjs';
 import { createLawyer } from './lawyer.mjs';
+import { createCerts, certSnapshot } from './certs.mjs';
 import { fnsData } from './fns.mjs';
 import { marketStats, orgPeers, orgForecast, okvedOf } from './market.mjs';
 import { createAdmin } from './admin.mjs';
@@ -563,6 +564,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
     } catch { return []; }
   }
   const industryPages = createIndustryPages({ env, fdb, now });
+  const certs = db ? createCerts({ env, db, now }) : null;   // сертификаты проверки (server/certs.mjs)
   const companyPages = createCompanyPages({ env, fdb, getParty: (inn) => getParty(inn, { fallback: false }), cachedParty: (inn) => partyCache.get(inn), getMore: dnCached, now });
 
   // Пересылка к api.telegram.org для нашего сервера в России. Секретов не хранит: токен приходит в адресе и дальше не пишется
@@ -602,8 +604,24 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
       }
       if (await companyPages(req, res, url, innValid)) return;
       if (industryPages(req, res, url)) return;
+      if (certs && certs.handle(req, res, url)) return;
       if (req.method !== 'GET' && req.headers.origin && !cfg.origins.includes(req.headers.origin)) return send(res, 403, { error: 'Запрос с чужого сайта' });
       if (await lawyer.handle(req, res, url, { send, readBody })) return;
+      if (url.pathname === '/api/cert') {
+        // сертификат к отчёту PDF — только подписчикам: снимок того, что они видели о компании
+        if (req.method !== 'POST' || !certs) return send(res, 404, { error: 'Не найдено' });
+        const u = accounts && accounts.userOf(req);
+        if (!u) return send(res, 401, { error: 'Войдите, чтобы получить сертификат.' });
+        if (!(billing && billing.enabled && billing.isPro(u))) return send(res, 403, { error: 'Сертификат проверки — в подписке INNSIDER Ultima.', needPro: true });
+        let body; try { body = await readBody(req); } catch { return send(res, 400, { error: 'Не удалось прочитать запрос.' }); }
+        const inn = String((body && body.inn) || '').replace(/\D/g, '');
+        if (!innValid(inn)) return send(res, 400, { error: 'Неверный ИНН.' });
+        const s = partyCache.get(inn) || await getParty(inn).catch(() => null);
+        if (!s) return send(res, 404, { error: 'По этому ИНН ничего не найдено.' });
+        const f = fnsCache.get(inn) || null, more = dnCached(inn);
+        const c = certs.issue(u.id, certSnapshot({ inn, suggestion: s, fns: f, more, index: innIndex(indexInputFor(s, f, more)) }));
+        return c ? send(res, 200, c) : send(res, 429, { error: 'На сегодня сертификатов достаточно. Попробуйте завтра.' });
+      }
       if (billing && await billing.handle(req, res, url, { send, readBody, user: url.pathname.startsWith('/api/billing') ? accounts.userOf(req) : null })) return;
       if (accounts && await accounts.handle(req, res, url, { send, readBody, getParty, innValid, ip: ipOf(req) })) return;
       if (req.method !== 'POST' || !['/api/org', '/api/org/ai', '/api/org/fns', '/api/org/more', '/api/org/courts', '/api/org/suggest', '/api/market', '/api/forecast'].includes(url.pathname)) return send(res, 404, { error: 'Не найдено' });

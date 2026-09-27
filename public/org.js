@@ -1046,7 +1046,7 @@
       render(j.suggestion, j.advice);
       if (window.goal) window.goal('check');
       accountActions(j.suggestion, j.signedIn);
-      if (j.billing) pdfButton(j.pro);
+      if (j.billing) pdfButton(j.pro, j.suggestion.data && j.suggestion.data.inn);
       loadFns(inn, j.suggestion.data || {});
       var moreDone = loadMore(inn);
       var box = document.getElementById('org-ai');
@@ -1077,11 +1077,24 @@
     }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { j.status = r.status; return j; }); });
   }
   // Отчёт в PDF — печать страницы в файл (оформление для печати — в style.css, @media print). Для подписчиков
-  function pdfButton(pro) {
+  // Подписчику к отчёту выдаётся «Сертификат проверки» с номером (server/certs.mjs): номер и адрес для проверки подлинности
+  // печатаются в отчёте. Не получилось выдать — печатаем без сертификата, отчёт важнее.
+  function pdfButton(pro, inn) {
     var head = document.getElementById('card-head') || out;
-    var b = el('button', 'share', pro ? 'Скачать отчёт PDF' : 'Отчёт PDF — в Ultima'); b.type = 'button';
+    var b = el('button', 'share', pro ? 'Скачать отчёт PDF с сертификатом' : 'Отчёт PDF с сертификатом — в Ultima'); b.type = 'button';
     b.addEventListener('click', function () {
-      if (pro) window.print(); else location.href = '/tarify/';
+      if (!pro) { location.href = '/tarify/'; return; }
+      var old = document.getElementById('cert-print'); if (old) old.remove();
+      b.disabled = true;
+      acctCall('POST', '/api/cert', { inn: inn }).then(function (j) {
+        if (j.status === 200 && j.id) {
+          var c = el('div', 'cert-print'); c.id = 'cert-print';
+          var when = new Date(j.at).toLocaleString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Moscow' });
+          c.appendChild(el('p', 'cert-no', 'Сертификат проверки № ' + j.id));
+          c.appendChild(el('p', 'note-sm', 'Проверка проведена ' + when + ' (МСК). Подлинность и сведения на эту дату: ' + j.url.replace(/^https?:\/\//, '')));
+          out.insertBefore(c, out.firstChild);
+        }
+      }).catch(function () {}).then(function () { b.disabled = false; window.print(); });
     });
     head.appendChild(b);
   }
