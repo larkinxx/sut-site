@@ -116,6 +116,7 @@ export function renderCompany(tpl, { inn, siteUrl, f, party, more = null, peers 
 ${peersHtml(peers)}
 ${similarHtml(similar)}
 ${f && f.tax && f.tax.items.length ? `<p class="fns-sub">Крупнейшие налоги за ${f.tax.year} год</p><ul>${f.tax.items.map((x) => `<li>${esc(x.name)}: ${esc(money(x.sum))}</li>`).join('')}</ul>` : ''}
+${inn.length === 10 ? `<p class="note-sm"><a href="/sravnenie/#a=${esc(inn)}">Сравнить с другой компанией</a> · <a href="/prognoz/#inn=${esc(inn)}">Прогноз на три года</a></p>` : ''}
 <p class="note-sm">Сведения из открытых данных ФНС${party ? ' и ЕГРЮЛ' : ''}. Суды, арбитраж, приставы, учредители, отчётность и советы загружаются ниже.</p></section>`;
 
   let h = tpl

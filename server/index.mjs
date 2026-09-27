@@ -61,7 +61,7 @@ import { createLawyer } from './lawyer.mjs';
 import { createCerts, certSnapshot } from './certs.mjs';
 import { createResearch } from './research.mjs';
 import { fnsData } from './fns.mjs';
-import { marketStats, orgPeers, orgForecast, okvedOf } from './market.mjs';
+import { marketStats, orgPeers, orgForecast, compareFacts, okvedOf } from './market.mjs';
 import { createAdmin } from './admin.mjs';
 import { DatabaseSync } from 'node:sqlite';
 
@@ -627,8 +627,20 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
       }
       if (billing && await billing.handle(req, res, url, { send, readBody, user: url.pathname.startsWith('/api/billing') ? accounts.userOf(req) : null })) return;
       if (accounts && await accounts.handle(req, res, url, { send, readBody, getParty, innValid, ip: ipOf(req) })) return;
-      if (req.method !== 'POST' || !['/api/org', '/api/org/ai', '/api/org/fns', '/api/org/more', '/api/org/courts', '/api/org/suggest', '/api/market', '/api/forecast'].includes(url.pathname)) return send(res, 404, { error: 'Не найдено' });
+      if (req.method !== 'POST' || !['/api/org', '/api/org/ai', '/api/org/fns', '/api/org/more', '/api/org/courts', '/api/org/suggest', '/api/market', '/api/forecast', '/api/compare'].includes(url.pathname)) return send(res, 404, { error: 'Не найдено' });
       if (req.headers.origin && !cfg.origins.includes(req.headers.origin)) return send(res, 403, { error: 'Запрос с чужого сайта' });
+      if (url.pathname === '/api/compare') {
+        // сравнение 2–3 организаций бок о бок — только база ФНС
+        const body = await readBody(req);
+        const inns = (Array.isArray(body && body.inns) ? body.inns : []).map((x) => String(x).replace(/\D/g, '')).filter((x) => /^\d{10}$/.test(x) && innValid(x));
+        if (inns.length < 2 || inns.length > 3 || new Set(inns).size !== inns.length) return send(res, 400, { error: 'Укажите от двух до трёх разных ИНН организаций (10 цифр).' });
+        const ip = ipOf(req), t = now();
+        const hits = (marketHits.get(ip) || []).filter((x) => t - x < 600e3);
+        if (hits.length >= 120) return send(res, 429, { error: 'Слишком много запросов. Подождите несколько минут.' });
+        hits.push(t); marketHits.set(ip, hits);
+        admin.count('market');
+        return send(res, 200, { items: inns.map((inn) => { const c = compareFacts(fdb, inn); return c ? { ...c, name: c.name ? shortName(c.name) : null } : { inn, missing: true }; }) });
+      }
       if (url.pathname === '/api/forecast') {
         // прогноз действующей организации по месту среди сверстников — тоже только наша база ФНС
         const body = await readBody(req);

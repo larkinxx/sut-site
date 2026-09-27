@@ -6,7 +6,7 @@ import { Readable } from 'node:stream';
 import { createApp } from './index.mjs';
 import { openFnsDb, importStream } from '../scripts/fns-import.mjs';
 import { buildPeers } from '../scripts/fns-peers.mjs';
-import { marketStats, orgPeers, orgForecast, valueAt, percentile, MIN_GROUP } from './market.mjs';
+import { marketStats, orgPeers, orgForecast, compareFacts, valueAt, percentile, MIN_GROUP } from './market.mjs';
 import { renderCompany, similarCompanies } from './company-page.mjs';
 import { createIndustryPages, topCompanies, industryUrls } from './industry-pages.mjs';
 import { createResearch, STUDIES } from './research.mjs';
@@ -212,6 +212,23 @@ await t('исследования: рейтинги отраслей и реги
   const build = fs.readFileSync(new URL('../src/build.mjs', import.meta.url), 'utf8');
   for (const st of STUDIES) assert.ok(build.includes(`'${st.slug}'`), `${st.slug} есть в STUDY_SLUGS (карта сайта)`);
   fs.rmSync(dir, { recursive: true });
+});
+
+await t('сравнение компаний: карточка из базы ФНС и проверка ввода', async () => {
+  const c = compareFacts(db, inn(59));
+  assert.equal(c.okved, '56');
+  assert.ok(c.income > 0 && c.profit != null && c.year === 2025);
+  assert.ok(c.incomePercentile >= 90);
+  assert.equal(compareFacts(db, '7700000000'), null);
+  const srv = http.createServer(createApp({ env: {}, fnsDb: db })); await new Promise((r) => srv.listen(0, r));
+  try {
+    const post = (body) => fetch(`http://127.0.0.1:${srv.address().port}/api/compare`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).then(async (r) => [r.status, await r.json()]);
+    assert.equal((await post({ inns: ['7707083893'] }))[0], 400, 'одна компания — нечего сравнивать');
+    assert.equal((await post({ inns: ['7707083893', '7707083893'] }))[0], 400, 'одинаковые ИНН');
+    const [code, j] = await post({ inns: ['7707083893', '7736207543'] });
+    assert.equal(code, 200);
+    assert.deepEqual(j.items.map((x) => x.missing), [true, true], 'нет в базе — пометка, а не ошибка');
+  } finally { srv.close(); }
 });
 
 await t('API /api/market: без DaData, проверка ввода, пустая база', async () => {

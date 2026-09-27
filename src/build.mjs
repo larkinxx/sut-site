@@ -645,6 +645,31 @@ ${card('Как не попасть под блокировку', [
 }));
 
 // Опасные налоговые схемы: не инструкция, а предупреждение — в чём схема, как её находят и чем она кончается
+// Сравнение компаний /sravnenie/ — public/compare.js → /api/compare (только база ФНС)
+if (process.env.ORG_API_URL) {
+  write('sravnenie/index.html', layout({
+    title: 'Сравнение компаний по ИНН', path: '/sravnenie/', current: 'org',
+    desc: 'Сравните две или три компании по ИНН бок о бок: доходы, прибыль, сотрудники, налоги, долги и место среди конкурентов. Бесплатно, по открытым данным ФНС.',
+    scripts: `\n<script src="${url('/compare.js')}?v=${hashOf('compare.js')}" defer></script>`,
+    body: `<a class="crumb" href="${url('/organizacii/')}">${icon('arrowLeft')} Проверка организации</a>
+<h1 class="page">Сравнение компаний</h1>
+<p class="lede">Две или три организации бок о бок: доходы, прибыль, сотрудники, налоги, долги и место среди конкурентов своей отрасли.</p>
+<section class="calc" id="cmp" data-api="${esc(process.env.ORG_API_URL)}">
+  <form id="cmp-form" novalidate>
+    <div class="row2">
+      <label class="f">Первая организация, ИНН<input type="text" class="cmp-inn" id="cmp-a" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="10 цифр"></label>
+      <label class="f">Вторая, ИНН<input type="text" class="cmp-inn" id="cmp-b" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="10 цифр"></label>
+      <label class="f">Третья, по желанию<input type="text" class="cmp-inn" id="cmp-c" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="10 цифр"></label>
+    </div>
+    <p><button class="btn" type="submit">Сравнить</button></p>
+  </form>
+  <p class="verdict warn" id="cmp-msg" aria-live="polite"></p>
+  <div id="cmp-out" aria-live="polite"></div>
+  <p class="note-sm">По открытым данным ФНС: реестр МСП, налоги, численность, долги, доходы и расходы. Только организации: по ИП налоговая не публикует отчётность.</p>
+</section>`
+  }));
+}
+
 // «Исследования INNSIDER» /issledovaniya/… — страницы собирает сервер (server/research.mjs) из этого шаблона
 const STUDY_SLUGS = ['pribylnye-otrasli', 'gde-otkryvayut-biznes', 'gde-bolshe-zarabatyvayut', 'pribylnost-po-vozrastu'];   // как STUDIES в server/research.mjs
 if (COMPANY_PAGES) {
@@ -1075,7 +1100,7 @@ if (!site.siteUrl.includes('example')) {
   // lastmod: у ленты — время свежей новости, у карточки — время последней правки; у статичных страниц не ставим
   const fresh = cards.length ? cards[0].publishedAt : '';
   const urls = [
-    ['/', fresh], ['/arhiv/', fresh], ['/kalkulyatory/'], ...CALCS.map((c) => [`/kalkulyatory/${c.slug}/`]), ['/organizacii/'], ['/indeks/'], ['/fizlica/'], ['/nalogi/'], ...[...TAX, ...TAX_P].map((t) => [`/nalogi/${t.slug}/`]), ['/nalogovye-shemy/'], ['/nalogi/blokirovka-scheta/'], ...(process.env.ORG_API_URL ? [['/prognoz/']] : []), ...(COMPANY_PAGES ? [['/issledovaniya/'], ...STUDY_SLUGS.map((x) => [`/issledovaniya/${x}/`])] : []), ['/yurist/'], ['/yurist/dokumenty/'], ...LAW.map((g) => [`/yurist/${g.slug}/`]), ['/fizlica/dropy/'], ['/kak-my-rabotaem/'], ['/o-proekte/'], ['/pravovaya-informaciya/'], ...(POLICY ? [['/politika/']] : []), ...(ACCT && POLICY ? [['/tarify/'], ['/oferta/']] : []),
+    ['/', fresh], ['/arhiv/', fresh], ['/kalkulyatory/'], ...CALCS.map((c) => [`/kalkulyatory/${c.slug}/`]), ['/organizacii/'], ['/indeks/'], ['/fizlica/'], ['/nalogi/'], ...[...TAX, ...TAX_P].map((t) => [`/nalogi/${t.slug}/`]), ['/nalogovye-shemy/'], ['/nalogi/blokirovka-scheta/'], ...(process.env.ORG_API_URL ? [['/prognoz/'], ['/sravnenie/']] : []), ...(COMPANY_PAGES ? [['/issledovaniya/'], ...STUDY_SLUGS.map((x) => [`/issledovaniya/${x}/`])] : []), ['/yurist/'], ['/yurist/dokumenty/'], ...LAW.map((g) => [`/yurist/${g.slug}/`]), ['/fizlica/dropy/'], ['/kak-my-rabotaem/'], ['/o-proekte/'], ['/pravovaya-informaciya/'], ...(POLICY ? [['/politika/']] : []), ...(ACCT && POLICY ? [['/tarify/'], ['/oferta/']] : []),
     ...cards.map((c) => [`/n/${c.id}/`, (c.review && c.review.at) || c.publishedAt])
   ];
   write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(([u, m]) => `<url><loc>${site.siteUrl}${u}</loc>${m ? `<lastmod>${new Date(m).toISOString()}</lastmod>` : ''}</url>`).join('\n')}\n</urlset>\n`);
