@@ -37,6 +37,9 @@ export function buildPeers(db) {
   const levels = [
     [`rg`, `age`, `WHERE rg <> '${RUSSIA}'`], [`'${RUSSIA}'`, `age`, ``], [`rg`, `${ALL_AGES}`, `WHERE rg <> '${RUSSIA}'`], [`'${RUSSIA}'`, `${ALL_AGES}`, ``]
   ];
+  // индексы для страниц отраслей (server/industry-pages.mjs): крупнейшие компании отрасли в регионе и по России.
+  // Импорт пересоздаёт fns_msp, поэтому индексы ставим здесь, после каждого расчёта.
+  db.exec('CREATE INDEX IF NOT EXISTS fns_msp_okved ON fns_msp (okved); CREATE INDEX IF NOT EXISTS fns_msp_region_okved ON fns_msp (region, okved)');
   const put = db.prepare(`INSERT INTO fns_peers (okved, region, age, n, nfin, profitable, income, profit, margin, year)
                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
   const market = db.prepare('INSERT OR REPLACE INTO fns_market (okved, region, month, n) VALUES (?, ?, ?, ?)');

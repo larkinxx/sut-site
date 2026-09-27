@@ -56,6 +56,7 @@ import { dnCard, dnCourts, partyOfCard } from './datanewton.mjs';
 import { createDnStore } from './dn-store.mjs';
 import { checkSite, siteNotes } from './site-check.mjs';
 import { createCompanyPages } from './company-page.mjs';
+import { createIndustryPages } from './industry-pages.mjs';
 import { fnsData } from './fns.mjs';
 import { marketStats, orgPeers, okvedOf } from './market.mjs';
 import { createAdmin } from './admin.mjs';
@@ -531,6 +532,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
         .map((r) => ({ name: r.name, inn: r.inn, kpp: null, type: r.inn.length === 12 ? 'ip' : 'ul', status: null, branch: false, place: null, okved: null }));
     } catch { return []; }
   }
+  const industryPages = createIndustryPages({ env, fdb, now });
   const companyPages = createCompanyPages({ env, fdb, getParty: (inn) => getParty(inn, { fallback: false }), cachedParty: (inn) => partyCache.get(inn), getMore: dnCached, now });
 
   // Пересылка к api.telegram.org для нашего сервера в России. Секретов не хранит: токен приходит в адресе и дальше не пишется
@@ -567,6 +569,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
         return res.end('User-agent: *\nDisallow: /\n');
       }
       if (await companyPages(req, res, url, innValid)) return;
+      if (industryPages(req, res, url)) return;
       if (req.method !== 'GET' && req.headers.origin && !cfg.origins.includes(req.headers.origin)) return send(res, 403, { error: 'Запрос с чужого сайта' });
       if (billing && await billing.handle(req, res, url, { send, readBody, user: url.pathname.startsWith('/api/billing') ? accounts.userOf(req) : null })) return;
       if (accounts && await accounts.handle(req, res, url, { send, readBody, getParty, innValid, ip: ipOf(req) })) return;

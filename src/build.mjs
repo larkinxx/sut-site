@@ -138,7 +138,7 @@ ${body}
 </main>
 <footer class="wrap">
   ${POLICY ? `<p class="seller">${esc((OP_TITLE.charAt(0).toUpperCase() + OP_TITLE.slice(1)))} · ИНН ${esc(site.operator.inn)}${site.operator.ogrnip ? ` · ОГРНИП ${esc(site.operator.ogrnip)}` : ''}</p>` : ''}
-  <p class="fine">${esc(site.disclaimer)} Как мы готовим новости: <a href="${url('/kak-my-rabotaem/')}">как мы работаем</a>. <a href="${url('/o-proekte/')}">О проекте</a>. <a href="${url('/pravovaya-informaciya/')}">Правовая информация</a>.${POLICY ? ` <a href="${url('/politika/')}">Политика конфиденциальности</a>.` : ''}${ACCT && POLICY ? ` <a href="${url('/tarify/')}">Тарифы</a>. <a href="${url('/oferta/')}">Оферта</a>.` : ''}${site.contactEmail ? ` Нашли ошибку? Напишите: <a href="mailto:${esc(site.contactEmail)}">${esc(site.contactEmail)}</a>.` : ''}</p>
+  <p class="fine">${esc(site.disclaimer)} Как мы готовим новости: <a href="${url('/kak-my-rabotaem/')}">как мы работаем</a>. <a href="${url('/o-proekte/')}">О проекте</a>. <a href="${url('/pravovaya-informaciya/')}">Правовая информация</a>.${COMPANY_PAGES ? ` <a href="${url('/otrasli/')}">Отрасли: сколько зарабатывают</a>.` : ''}${POLICY ? ` <a href="${url('/politika/')}">Политика конфиденциальности</a>.` : ''}${ACCT && POLICY ? ` <a href="${url('/tarify/')}">Тарифы</a>. <a href="${url('/oferta/')}">Оферта</a>.` : ''}${site.contactEmail ? ` Нашли ошибку? Напишите: <a href="mailto:${esc(site.contactEmail)}">${esc(site.contactEmail)}</a>.` : ''}</p>
 </footer>
 ${body.includes('data-calc=') || body.includes('id="org"') ? `<script type="application/json" id="fin">${JSON.stringify(FIN).replace(/</g, '\\u003c')}</script>\n` : ''}<script src="${url('/app.js')}?v=${jsV}" defer></script>${scripts}
 <script>
@@ -341,6 +341,7 @@ function macroWidget() {
   <div class="pledges">
     <div><h3>Открытая методика</h3><p>Индекс надёжности считается по опубликованным правилам, и у каждой оценки видны причины.</p><a class="lnk" href="${url('/indeks/')}">Как мы считаем</a></div>
     <div><h3>Данные в России</h3><p>Аккаунты и история проверок хранятся на сервере в России, по закону о персональных данных.</p><a class="lnk" href="${url('/politika/')}">Политика</a></div>
+    ${process.env.ORG_API_URL ? `<div><h3>Место среди своих</h3><p>Покажем, где компания среди похожих: доходы и прибыль против той же отрасли, региона и возраста. Бесплатно и без регистрации.</p><a class="lnk" href="${url(COMPANY_PAGES ? '/otrasli/' : '/kalkulyatory/perspektivy-biznesa/')}">Сколько зарабатывают отрасли</a></div>` : ''}
     <div><h3>Без рекламы</h3><p>Мы не показываем рекламу и не продаём данные пользователей. Сервис живёт на подписке.</p><a class="lnk" href="${url('/tarify/')}">Тарифы</a></div>
   </div>
 </section>` : '';
@@ -696,6 +697,14 @@ ${ACCT ? `<h2>Оплата подписки</h2>
 <p class="note-sm">Редакция от ${esc(new Date(FIN.checkedAt + 'T12:00:00+03:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Moscow' }))}.</p>
 </div>`
   }));
+  // Страницы отраслей /otrasli/… собирает сервер (server/industry-pages.mjs) из этого шаблона и данных ФНС
+  if (COMPANY_PAGES) {
+    write('otrasli/index.html', layout({
+      title: 'Отрасли малого бизнеса: сколько зарабатывают компании', desc: 'Сколько зарабатывают компании разных отраслей малого бизнеса в России и по регионам — по открытым данным ФНС.', path: '/otrasli/', current: 'calc',
+      body: `<!--ssr:intro--><h1 class="page">Отрасли малого бизнеса</h1><p class="lede">Сколько зарабатывают компании в разных отраслях и регионах — по открытым данным ФНС.</p><!--/ssr:intro-->
+<section class="prose"><!--ssr:body--><p>Статистика загружается…</p><!--/ssr:body--></section>`
+    }));
+  }
   // Панель владельца: сводка с сервера (server/admin.mjs) по ключу ADMIN_TOKEN, который владелец вводит один раз
   if (process.env.ORG_API_URL) {
     write('admin/index.html', layout({
@@ -746,7 +755,7 @@ ${ACCT ? `<h2>Оплата подписки</h2>
       title: 'Тарифы: INNSIDER Ultima', path: '/tarify/', current: '', scripts: accJs,
       desc: `Проверка компаний по ИНН бесплатно. INNSIDER Ultima — суды, арбитраж и приставы без ограничений, слежение за 50 компаниями и отчёт в PDF — за ${PLANS.month.price} ₽ в месяц.`,
       body: `<h1 class="page">Тарифы</h1>
-<p class="lede">Проверка по ИНН, данные ФНС, индекс надёжности и разбор — бесплатно и без регистрации. Подписка нужна тем, кто проверяет контрагентов каждый день.</p>
+<p class="lede">Проверка по ИНН, данные ФНС, индекс надёжности, разбор и сравнение с похожими компаниями отрасли — бесплатно и без регистрации. Подписка нужна тем, кто проверяет контрагентов каждый день.</p>
 <div class="plans" id="tarify">
   <section class="plan">
     <h2>Бесплатно</h2>
@@ -754,6 +763,7 @@ ${ACCT ? `<h2>Оплата подписки</h2>
     <ul>
       <li>Реестры ФНС, налоги, отчётность, сотрудники</li>
       <li>Индекс надёжности и экспресс-разбор</li>
+      <li>Сравнение с похожими компаниями отрасли и региона</li>
       <li>Учредители, контакты, проверка сайта</li>
       <li>Суды, арбитраж и приставы — ${FREE.courts} новые компании в день</li>
       <li>Слежение за ${FREE.watch} компаниями</li>
@@ -945,7 +955,7 @@ write('manifest.webmanifest', JSON.stringify({
 }, null, 2));
 
 // robots и sitemap
-write('robots.txt', `User-agent: *\nAllow: /\nDisallow: /admin/\n${site.siteUrl.includes('example') ? '' : `Sitemap: ${site.siteUrl}/sitemap.xml\n${COMPANY_PAGES ? `Sitemap: ${site.siteUrl}/sitemap-companies.xml\n` : ''}`}`);
+write('robots.txt', `User-agent: *\nAllow: /\nDisallow: /admin/\n${site.siteUrl.includes('example') ? '' : `Sitemap: ${site.siteUrl}/sitemap.xml\n${COMPANY_PAGES ? `Sitemap: ${site.siteUrl}/sitemap-companies.xml\nSitemap: ${site.siteUrl}/sitemap-otrasli.xml\n` : ''}`}`);
 if (!site.siteUrl.includes('example')) {
   // lastmod: у ленты — время свежей новости, у карточки — время последней правки; у статичных страниц не ставим
   const fresh = cards.length ? cards[0].publishedAt : '';
