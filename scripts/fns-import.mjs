@@ -7,11 +7,13 @@
 //   rsmp     — реестр МСП: основной ОКВЭД, регион, дата включения в реестр (≈ возраст компании), категория
 // После загрузки считается статистика похожих компаний (scripts/fns-peers.mjs → fns_peers, fns_market).
 // Источник: https://www.nalog.gov.ru/opendata/  (наборы 7707329152-*). ФНС обновляет их раз в месяц, около 25 числа.
-// Запуск на сервере: node scripts/fns-import.mjs /var/lib/sut/fns.db   (нужна утилита unzip)
+// Запуск на сервере: node scripts/fns-import.mjs /var/lib/sut/fns.db   (нужен python3 — распаковка архивов, scripts/unzip-stream.py)
 // Данные только по юрлицам: по ИП ФНС такие наборы не публикует.
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { StringDecoder } from 'node:string_decoder';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { DatabaseSync } from 'node:sqlite';
@@ -121,7 +123,10 @@ export async function importStream(db, name, stream, { check } = {}) {
     if (final) buf = '';
     else if (buf.length > 1e6 && buf.indexOf('<Документ ') === -1) buf = buf.slice(-1000);
   };
-  for await (const chunk of stream) { buf += chunk.toString('utf8'); flush(false); }
+  // русская буква — 2 байта в UTF-8, и граница куска может разрезать её пополам: StringDecoder дожидается второй половины
+  const dec = new StringDecoder('utf8');
+  for await (const chunk of stream) { buf += typeof chunk === 'string' ? chunk : dec.write(chunk); flush(false); }
+  buf += dec.end();
   flush(true);
   db.exec('COMMIT');
   if (rows === 0) throw new Error(name + ': ни одной записи — формат изменился?');
@@ -131,19 +136,25 @@ export async function importStream(db, name, stream, { check } = {}) {
   return rows;
 }
 
-// Импорт из zip-архива через unzip -p. Распаковщик останавливаем при любой ошибке (иначе он держит процесс живым),
-// а сбой распаковки посреди архива — ошибка, а не «конец данных»: таблица тогда не заменяется.
-// Код 1 у unzip — только предупреждения, ошибка — 2 и выше или сигнал.
+// Импорт из zip-архива. Распаковывает scripts/unzip-stream.py: каждый файл архива проверяется по контрольной сумме
+// до того, как попасть в поток, битые пропускаются. Если битых не больше 1% — загружаем остальное (в журнал —
+// предупреждение со списком), если больше или архив не читается — ошибка до замены таблицы, архив удаляется,
+// чтобы следующий запуск скачал его заново. Распаковщик останавливаем при любой ошибке импорта.
+const UNZIP = path.join(path.dirname(fileURLToPath(import.meta.url)), 'unzip-stream.py');
 export async function importZip(db, name, file) {
-  const unzip = spawn('unzip', ['-p', file], { stdio: ['ignore', 'pipe', 'ignore'] });
+  const unzip = spawn('python3', [UNZIP, file], { stdio: ['ignore', 'pipe', 'pipe'] });
+  const notes = [];
+  unzip.stderr.setEncoding('utf8');
+  unzip.stderr.on('data', (t) => { for (const l of t.split('\n')) if (l.trim() && notes.length < 30) notes.push(l.trim()); });
   const exited = new Promise((ok) => unzip.on('close', (code, signal) => ok(signal || code)));
   try {
     return await importStream(db, name, unzip.stdout, {
       check: async () => {
         const c = await exited;
-        if (typeof c === 'string' || c >= 2) {
-          fs.rmSync(file, { force: true });   // архив повреждён — удаляем, чтобы следующий запуск скачал его заново
-          throw new Error(`${name}: архив повреждён или распаковка прервалась (${c}) — удалён, при следующем запуске скачается заново`);
+        if (c === 3) { console.warn(`${name}: часть файлов архива повреждена, загружено остальное — ${notes.join('; ')}`); return; }
+        if (c !== 0) {
+          fs.rmSync(file, { force: true });
+          throw new Error(`${name}: архив повреждён (${c}) — удалён, при следующем запуске скачается заново. ${notes.join('; ')}`);
         }
       }
     });

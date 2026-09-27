@@ -43,6 +43,14 @@ await t('компании нет в наборе спецрежимов → об
   assert.equal(openData('1234567890', db2), null, 'совсем нет данных — null');
 });
 
+await t('поток режется посреди русской буквы — записи не теряются и не портятся', async () => {
+  const db5 = openFnsDb(':memory:');
+  const bytes = Buffer.from(file(Array.from({ length: 60 }, (_, i) => doc('31.12.2025', String(7700000200 + i), `<СведССЧР КолРаб="${i + 1}"/>`))));
+  const pieces = []; for (let o = 0; o < bytes.length; o += 7) pieces.push(bytes.subarray(o, o + 7));   // байтами, не строками
+  assert.equal(await importStream(db5, 'sshr2019', Readable.from(pieces)), 60);
+  assert.equal(db5.prepare("SELECT name FROM fns_name WHERE inn = '7700000259'").get().name, 'ООО "ПЕКАРНЯ"', 'кириллица не испорчена');
+});
+
 await t('повторный импорт заменяет данные целиком', async () => {
   await importStream(db, 'debtam', stream(file([doc('01.10.2026', '7700000001', '<СведНедоим НаимНалог="НДФЛ" СумНедНалог="10" СумПени="0" СумШтраф="0" ОбщСумНедоим="10"/>')])));
   assert.equal(openData('2804011398', db).arrears.total, 0, 'долг погашен — в новом наборе его нет');
@@ -231,6 +239,18 @@ await t('импорт из zip: несколько файлов; битый ар
     await assert.rejects(importZip(db3, 'sshr2019', cut), /архив повреждён/);
     assert.ok(!fs.existsSync(cut), 'повреждённый архив удалён — следующий запуск скачает заново');
     assert.equal(openData('2804011398', db3).employees[0].n, 7, 'после сбоя таблица прежняя, а не 9 из недораспакованного архива');
+    // 200 файлов, у двух испорчены данные и заголовок (как в архиве реестра МСП): битых ≤ 1% — загружаем остальные 198
+    const many = Array.from({ length: 200 }, (_, i) => [`f${i}.xml`, staff(String(7700000100 + i).slice(0, 10), i + 1)]);
+    const zipMany = makeZip(many);
+    zipMany[zipMany.indexOf(Buffer.from('КолРаб="51"')) + 13] ^= 1;                    // контрольная сумма не сходится
+    zipMany.write('XX', zipMany.indexOf(Buffer.from('f120.xml')) - 30, 'latin1');       // «bad zipfile offset»: нет сигнатуры
+    const partly = path.join(dir, 'partly.zip');
+    fs.writeFileSync(partly, zipMany);
+    const db4 = openFnsDb(':memory:');
+    assert.equal(await importZip(db4, 'sshr2019', partly), 198, 'битые 2 из 200 пропущены, остальные загружены');
+    assert.equal(db4.prepare("SELECT n FROM fns_staff WHERE inn = '7700000100'").get().n, 1);
+    assert.equal(db4.prepare("SELECT count(*) AS c FROM fns_staff WHERE n IN (51, 121)").get().c, 0, 'из битых файлов ничего не попало');
+    assert.ok(fs.existsSync(partly), 'годный архив не удаляется');
     // база занята другим процессом (как на сервере): импорт падает сразу, распаковщик не должен держать процесс живым
     const dbFile = path.join(dir, 'lock.db'), a = openFnsDb(dbFile), holder = openFnsDb(dbFile);
     a.exec('PRAGMA busy_timeout = 0');
