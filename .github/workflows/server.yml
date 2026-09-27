@@ -3,9 +3,13 @@
 # Задача заходит на сервер по отдельному ключу, который умеет только действия из deploy/ops.sh.
 # Нужен секрет SERVER_SSH_KEY (Settings → Secrets and variables → Actions) — как его сделать, в deploy/README.md.
 # Лог публичный: ops.sh выводит только статусы и счётчики.
+# Раз в час сама запускает status: если сайт на сервере не работает или диск почти полон, задача падает —
+# и GitHub присылает письмо владельцу репозитория (Settings → Notifications → Actions).
 name: "Сервер: команда"
 
 on:
+  schedule:
+    - cron: "17 * * * *"
   workflow_dispatch:
     inputs:
       action:
@@ -18,7 +22,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: server-ops
+  # ежечасная проверка — отдельной очередью, чтобы не вытеснять поставленные вручную действия
+  group: server-ops-${{ github.event_name }}
   cancel-in-progress: false
 
 jobs:
@@ -26,10 +31,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: ${{ inputs.action }}
+      - name: ${{ inputs.action || 'status' }}
         env:
           KEY: ${{ secrets.SERVER_SSH_KEY }}
-          ACTION: ${{ inputs.action }}
+          ACTION: ${{ inputs.action || 'status' }}
           HOST: 5.129.207.51
           HOST_KEY: ${{ vars.SERVER_HOST_KEY }}
         run: |

@@ -39,6 +39,10 @@ case "$ACTION" in
     echo "== диск и память"
     df -h / | tail -1
     free -m | sed -n 2p
+    # для ежечасной проверки: сайт не работает или диск почти полон — ошибка, GitHub пришлёт письмо
+    if ! systemctl is-active --quiet sut-api; then echo "ТРЕВОГА: сайт на сервере (sut-api) не работает"; exit 1; fi
+    used=$(df --output=pcent / | tail -1 | tr -dc 0-9)
+    if [ "${used:-0}" -ge 90 ]; then echo "ТРЕВОГА: диск заполнен на ${used}%"; exit 1; fi
     ;;
   import)
     if systemctl is-active --quiet fns-import; then echo "Импорт уже идёт — второй не запускаю."; exit 0; fi
