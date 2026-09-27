@@ -137,14 +137,32 @@ async function latestZip(name) {
   return link;
 }
 
-async function download(url, file) {
+// Архивы бывают по несколько гигабайт, а сервер ФНС иногда обрывает соединение посреди скачивания («terminated»).
+// Поэтому качаем в .part и при обрыве продолжаем с места остановки (заголовок Range), несколько попыток с паузой.
+export async function download(url, file, { fetchImpl = fetch, attempts = 8, wait = 30e3 } = {}) {
   if (fs.existsSync(file)) return false;
-  const r = await fetch(url, { headers: UA, signal: AbortSignal.timeout(20 * 60e3) });
-  if (!r.ok) throw new Error('скачивание ' + r.status);
   const tmp = file + '.part';
-  await pipeline(Readable.fromWeb(r.body), fs.createWriteStream(tmp));   // потоком: архивы до сотен мегабайт
-  fs.renameSync(tmp, file);
-  return true;
+  let err;
+  for (let i = 1; i <= attempts; i++) {
+    const have = fs.existsSync(tmp) ? fs.statSync(tmp).size : 0;
+    try {
+      const r = await fetchImpl(url, { headers: have ? { ...UA, Range: `bytes=${have}-` } : UA, signal: AbortSignal.timeout(60 * 60e3) });
+      if (r.status === 416 && have) { fs.renameSync(tmp, file); return true; }   // докачивать нечего: файл уже целиком
+      if (!r.ok) throw new Error('скачивание ' + r.status);
+      const resumed = r.status === 206;           // сервер не умеет Range — отдаёт весь файл заново (200), начинаем с нуля
+      const len = Number(r.headers.get('content-length')) || 0;
+      const total = resumed ? Number(String(r.headers.get('content-range') || '').split('/')[1]) || (len && have + len) : len;
+      await pipeline(Readable.fromWeb(r.body), fs.createWriteStream(tmp, { flags: resumed ? 'a' : 'w' }));
+      const size = fs.statSync(tmp).size;
+      if (total && size < total) throw new Error(`скачано ${size} из ${total} байт`);
+      fs.renameSync(tmp, file);
+      return true;
+    } catch (e) {
+      err = e;
+      if (i < attempts) { console.log(`  обрыв (${e.message}), продолжаю с ${fs.existsSync(tmp) ? fs.statSync(tmp).size : 0} байт, попытка ${i + 1} из ${attempts}`); await new Promise((ok) => setTimeout(ok, wait)); }
+    }
+  }
+  throw err;
 }
 
 async function main() {

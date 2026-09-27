@@ -2,11 +2,12 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import os from 'node:os';
+import crypto from 'node:crypto';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import { Readable } from 'node:stream';
 import { createApp } from './index.mjs';
-import { openFnsDb, importStream } from '../scripts/fns-import.mjs';
+import { openFnsDb, importStream, download } from '../scripts/fns-import.mjs';
 import { openData, fnsData, pbSummary } from './fns.mjs';
 import { ogSvg } from './og-image.mjs';
 
@@ -150,6 +151,33 @@ await t('страницы компаний: название из ФНС, нал
     const sm = await (await get('/sitemap-companies-1.xml')).text();
     assert.deepEqual([...sm.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]), ['https://innfact.ru/organizacii/2804011398/', 'https://innfact.ru/organizacii/7700000000/']);
   } finally { srv.close(); fs.rmSync(dist, { recursive: true }); }
+});
+
+await t('скачивание архива: обрывы посреди файла — докачка с места остановки', async () => {
+  const data = crypto.randomBytes(3 * 1024 * 1024);
+  let hits = 0, ranges = [];
+  const srv = http.createServer((req, res) => {
+    hits++;
+    const m = /bytes=(\d+)-/.exec(req.headers.range || '');
+    const from = m ? Number(m[1]) : 0;
+    ranges.push(from);
+    res.writeHead(m ? 206 : 200, { 'content-length': data.length - from, ...(m ? { 'content-range': `bytes ${from}-${data.length - 1}/${data.length}` } : {}) });
+    if (hits <= 2) { res.write(data.subarray(from, from + 1024 * 1024)); setTimeout(() => res.destroy(), 20); }   // обрыв после 1 МБ
+    else res.end(data.subarray(from));
+  });
+  await new Promise((r) => srv.listen(0, r));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dl-')), file = path.join(dir, 'a.zip');
+  try {
+    assert.equal(await download(`http://127.0.0.1:${srv.address().port}/a.zip`, file, { wait: 0 }), true);
+    assert.equal(ranges.length, 3, 'два обрыва — три попытки');
+    assert.ok(ranges[0] === 0 && ranges[1] > 0 && ranges[2] > ranges[1], 'каждая попытка продолжает с места обрыва, а не с нуля');
+    assert.ok(fs.readFileSync(file).equals(data), 'файл собран без искажений');
+    assert.ok(!fs.existsSync(file + '.part'));
+    assert.equal(await download('http://127.0.0.1:1/never', file), false, 'уже скачан — не качаем');
+    hits = 0; ranges = [];
+    await assert.rejects(download(`http://127.0.0.1:${srv.address().port}/b.zip`, path.join(dir, 'b.zip'), { wait: 0, attempts: 2 }), /terminated|скачано|aborted|closed/i);
+    assert.ok(fs.statSync(path.join(dir, 'b.zip.part')).size > 0, 'недокачанное остаётся в .part для следующего запуска');
+  } finally { srv.close(); fs.rmSync(dir, { recursive: true }); }
 });
 
 console.log(`\nВсе тесты ФНС прошли: ${n}`);
