@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT, readJson } from '../src/lib/content.mjs';
 import { validateCard } from '../src/lib/schema.mjs';
+import { preSkip } from './news-filter.mjs';
 
 const args = process.argv.slice(2);
 const MOCK = args.includes('--mock');
@@ -212,10 +213,16 @@ async function draftOne(raw) {
 const files = fs.readdirSync(RAW).filter((f) => f.endsWith('.json')).sort();
 const maxAgeMs = (cfg.maxAgeHours || 48) * 3600e3; // старше этого срока новости не берём: сайт про свежее
 const pending = [];
+let preSkipped = 0;
 for (const f of files) {
   const raw = JSON.parse(fs.readFileSync(path.join(RAW, f), 'utf8'));
-  if (!raw.drafted && Date.now() - Date.parse(raw.publishedAt) <= maxAgeMs) pending.push({ f, raw });
+  if (raw.drafted || Date.now() - Date.parse(raw.publishedAt) > maxAgeMs) continue;
+  // очевидно бесполезное отсеиваем без запроса к ИИ (scripts/news-filter.mjs) — место в пачке достаётся остальным
+  const why = MOCK ? null : preSkip(raw);
+  if (why) { raw.drafted = true; raw.skipReason = 'отсеяно до ИИ: ' + why; fs.writeFileSync(path.join(RAW, f), JSON.stringify(raw, null, 2) + '\n'); preSkipped++; continue; }
+  pending.push({ f, raw });
 }
+if (preSkipped) console.log(`Отсеяно до ИИ: ${preSkipped}`);
 // Сначала ведомства (их новостей мало, но они важнее всего читателю), затем СМИ; внутри — от свежих к старым.
 // Иначе многословные ленты СМИ каждый час занимали бы все места в пачке и новости ФНС или Соцфонда не доходили бы до черновика.
 pending.sort((a, b) => (a.raw.official === false) - (b.raw.official === false) || Date.parse(b.raw.publishedAt) - Date.parse(a.raw.publishedAt));
