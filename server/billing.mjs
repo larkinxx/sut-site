@@ -1,4 +1,4 @@
-// Подписка ИННфакт Про: оплата через ЮKassa. Продавец — ИП на УСН: кассовые чеки (54-ФЗ) передаём в ЮKassa
+// Подписка СверкаИНН Про: оплата через ЮKassa. Продавец — ИП на УСН: кассовые чеки (54-ФЗ) передаём в ЮKassa
 // вместе с платежом (YOOKASSA_RECEIPT=1), чек уходит на почту покупателя. Для самозанятого чеки не нужны — ЮKassa
 // сама отправляет их в «Мой налог», тогда YOOKASSA_RECEIPT не задаётся.
 // Включается, когда заданы YOOKASSA_SHOP_ID и YOOKASSA_SECRET_KEY; без них всё бесплатно, как раньше.
@@ -16,8 +16,8 @@ import crypto from 'node:crypto';
 
 const DAY = 864e5;
 export const PLANS = {
-  month: { price: 290, days: 30, title: 'месяц', desc: 'Подписка ИННфакт Про на 1 месяц' },
-  year: { price: 2490, days: 365, title: 'год', desc: 'Подписка ИННфакт Про на 1 год' }
+  month: { price: 290, days: 30, title: 'месяц', desc: 'Подписка СверкаИНН Про на 1 месяц' },
+  year: { price: 2490, days: 365, title: 'год', desc: 'Подписка СверкаИНН Про на 1 год' }
 };
 export const FREE = { courts: 3, watch: 3 };
 const PRO_WATCH = 50;
@@ -30,7 +30,7 @@ export function createBilling({ env, db, fetchImpl, now = () => Date.now(), noti
     recurring: env.YOOKASSA_RECURRING === '1',
     // чеки: система налогообложения по справочнику ЮKassa — 2 УСН «доходы», 3 УСН «доходы минус расходы»
     receipt: env.YOOKASSA_RECEIPT === '1', taxSystem: Number(env.YOOKASSA_TAX_SYSTEM || 2),
-    site: (env.SITE_URL || 'https://innfact.ru').replace(/\/$/, ''),
+    site: (env.SITE_URL || 'https://sverkainn.ru').replace(/\/$/, ''),
     freeCourts: Number(env.FREE_COURTS_PER_DAY || FREE.courts)
   };
   const enabled = !!(cfg.shopId && cfg.secret);
@@ -146,7 +146,7 @@ export function createBilling({ env, db, fetchImpl, now = () => Date.now(), noti
       const u = q('SELECT * FROM users WHERE id = ?').get(s.user_id);
       const plan = PLANS[s.plan];
       q('UPDATE subscriptions SET noticed_until = paid_until WHERE user_id = ?').run(s.user_id);
-      if (u) await notify(u, `Подписка ИННфакт Про заканчивается ${new Date(s.paid_until).toLocaleDateString('ru-RU')}. Мы продлим её автоматически и спишем ${plan.price} ₽ с сохранённой карты. Отключить автопродление: ${cfg.site}/kabinet/`).catch((e) => log('предупреждение', e.message));
+      if (u) await notify(u, `Подписка СверкаИНН Про заканчивается ${new Date(s.paid_until).toLocaleDateString('ru-RU')}. Мы продлим её автоматически и спишем ${plan.price} ₽ с сохранённой карты. Отключить автопродление: ${cfg.site}/kabinet/`).catch((e) => log('предупреждение', e.message));
     }
     let charged = 0;
     for (const s of q('SELECT * FROM subscriptions WHERE autorenew = 1 AND method_id IS NOT NULL AND paid_until < ? AND renew_tries < 3 AND (renew_at IS NULL OR renew_at < ?)').all(t + DAY, t - 12 * 3600e3)) {
@@ -165,7 +165,7 @@ export function createBilling({ env, db, fetchImpl, now = () => Date.now(), noti
       if (s.renew_tries + 1 >= 3 && !isPro({ id: s.user_id })) {
         q('UPDATE subscriptions SET autorenew = 0 WHERE user_id = ?').run(s.user_id);
         const u = q('SELECT * FROM users WHERE id = ?').get(s.user_id);
-        if (u) await notify(u, `Не получилось продлить подписку ИННфакт Про: платёж по карте не прошёл. Оформить заново: ${cfg.site}/tarify/`).catch(() => {});
+        if (u) await notify(u, `Не получилось продлить подписку СверкаИНН Про: платёж по карте не прошёл. Оформить заново: ${cfg.site}/tarify/`).catch(() => {});
       }
     }
     return { charged };

@@ -1,4 +1,4 @@
-/* ИННфакт: проверка организации по ИНН.
+/* СверкаИНН: проверка организации по ИНН.
    Данные берём из открытых реестров через DaData (метод «Найти по ИНН»), памятку строим по простым правилам.
    Если у страницы задан data-api (наш сервер, см. server/index.mjs), запросы идут через него: ключи не видны в браузере,
    а после данных реестра сервер присылает ИИ-разбор простым языком. Без data-api — старый режим, прямо в DaData. */
@@ -228,7 +228,7 @@
     return out;
   }
 
-  /* ---------- Индекс надёжности ИННфакт: 0–100 по открытым данным ----------
+  /* ---------- Индекс надёжности СверкаИНН: 0–100 по открытым данным ----------
      Это мнение, основанное на фактах, а не утверждение о компании. Каждая поправка видна пользователю,
      методика опубликована на странице /indeks/ (строится из INDEX_RULES при сборке сайта).
      Вход: x = { status, ageYears, invalid, disqualified, fns: {debt, taxes, staff, last, prev},
@@ -254,7 +254,7 @@
     false_info: -15, address_false_info: -15, managers_false_info: -15, owner_false_info: -10, disqualified_managers: -20, disqualified_owners: -10, disqualified_individual: -20,
     unscrupulous_supplier44: -15, unscrupulous_supplier223: -15, fssp_debt: -15, has_bankruptcy_messages: -15,
     tax_offences: -5, has_fines_debts: -5, owners_offshore: -5, in_sanctions_list: -10, foreigner_agent: -10 };
-  function innfactIndex(x) {
+  function sverkaIndex(x) {
     var f = [], score = 60, rub = function (n) { return Math.round(n).toLocaleString('ru-RU') + ' ₽'; };
     var add = function (pts, text) { if (pts) { f.push({ pts: pts, text: text }); score += pts; } };
     if (x.status === 'LIQUIDATED' || x.status === 'BANKRUPT') {
@@ -307,7 +307,7 @@
   }
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { innValid: innValid, advise: advise, taxIdeas: taxIdeas, innfactIndex: innfactIndex, INDEX_RULES: INDEX_RULES };
+    module.exports = { innValid: innValid, advise: advise, taxIdeas: taxIdeas, sverkaIndex: sverkaIndex, INDEX_RULES: INDEX_RULES };
     return;
   }
 
@@ -438,13 +438,13 @@
   function updateIndex() {
     var box = document.getElementById('idx-box');
     if (!box || !IDX) return;
-    var r = innfactIndex(indexInput());
+    var r = sverkaIndex(indexInput());
     box.textContent = '';
     box.className = 'idx idx-' + r.cls;
     var num = el('div', 'idx-num'); num.appendChild(el('b', null, String(r.score))); num.appendChild(el('span', null, '/100'));
     box.appendChild(num);
     var t = el('div', 'idx-text');
-    t.appendChild(el('div', 'idx-t', 'Индекс надёжности ИННфакт: ' + r.level));
+    t.appendChild(el('div', 'idx-t', 'Индекс надёжности СверкаИНН: ' + r.level));
     var note = el('div', 'note-sm', (r.partial ? 'Предварительная оценка: ' + (!IDX.fns ? 'данные ФНС ещё загружаются. ' : !IDX.courts ? 'суды не загружены — откройте их ниже, и оценка уточнится. ' : 'часть данных недоступна. ') : '') + 'Это мнение по открытым данным, а не гарантия. ');
     var how = el('a', null, 'Как считаем'); how.href = '/indeks/'; note.appendChild(how);
     t.appendChild(note);
@@ -868,7 +868,7 @@
         if (k.limited) { b.disabled = false; msgc.textContent = 'Сегодня лимит запросов к судам исчерпан. Попробуйте завтра или посмотрите сами: kad.arbitr.ru и fssp.gov.ru.'; return; }
         if (k.paywall) {
           b.remove(); msgc.textContent = 'Бесплатно — суды по ' + k.free + ' новым компаниям в день, на сегодня они закончились. ';
-          var pa = el('a', null, 'ИННфакт Про — без ограничений, от 290 ₽ в месяц'); pa.href = '/tarify/';
+          var pa = el('a', null, 'СверкаИНН Про — без ограничений, от 290 ₽ в месяц'); pa.href = '/tarify/';
           msgc.appendChild(pa); msgc.appendChild(document.createTextNode('. Или загляните завтра.'));
           return;
         }
