@@ -30,6 +30,7 @@
 //                       из него берётся шаблон страниц компаний GET /organizacii/<ИНН>/ и карты сайта /sitemap-companies.xml
 //   SSR_DADATA_DAILY  — сколько раз в сутки страницы компаний могут спросить DaData (по умолчанию 2000)
 //   FNS_DB            — база открытых данных ФНС (scripts/fns-import.mjs), например /var/lib/sut/fns.db
+//   ADMIN_TOKEN       — ключ панели владельца /admin/ (GET /api/admin/stats), не короче 24 символов; без него панели нет
 //   PORT              — порт, по умолчанию 3000
 // Аккаунты (включаются, только если задан ACCOUNTS_DB; по 152-ФЗ — только на сервере в России):
 //   ACCOUNTS_DB       — путь к файлу базы SQLite, например /var/lib/sut/sut.db
@@ -57,6 +58,7 @@ import { checkSite, siteNotes } from './site-check.mjs';
 import { createCompanyPages } from './company-page.mjs';
 import { fnsData } from './fns.mjs';
 import { marketStats, orgPeers, okvedOf } from './market.mjs';
+import { createAdmin } from './admin.mjs';
 import { DatabaseSync } from 'node:sqlite';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -442,6 +444,8 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
   // база открытых данных ФНС открывается только на чтение; если её ещё нет — работаем без неё
   let fdb = fnsDb;
   if (fdb === undefined && env.FNS_DB) { try { fdb = new DatabaseSync(env.FNS_DB, { readOnly: true }); } catch (e) { console.error('FNS_DB:', e.message); fdb = null; } }
+  // панель владельца (server/admin.mjs): счётчики использования по дням и GET /api/admin/stats по ключу ADMIN_TOKEN
+  const admin = createAdmin({ env, db, fdb, dn, now });
   const ipHits = new Map();
   const relayHits = new Map();
   let day = { key: '', count: 0 };
@@ -453,7 +457,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
       res.setHeader('Vary', 'Origin');
       res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
       res.setHeader('Access-Control-Allow-Credentials', 'true');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
       res.setHeader('Access-Control-Max-Age', '86400');
     }
   }
@@ -552,6 +556,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
     const url = new URL(req.url, 'http://x');
     try {
       if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
+      if (admin.handle(req, res, url, { send, ipOf })) return;
       if (req.method === 'GET' && (url.pathname === '/health' || url.pathname === '/')) {
         return send(res, 200, { ok: true, dadata: !!cfg.dadataToken, dadataToday: dadataDay.n, datanewtonToday: dn.used(), ai: aiProvider(cfg), accounts: !!accounts, datanewton: !!cfg.dnKey });
       }
@@ -577,6 +582,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
         if (hits.length >= 120) return send(res, 429, { error: 'Слишком много запросов. Подождите несколько минут.' });
         hits.push(t); marketHits.set(ip, hits);
         if (marketHits.size > 20000) marketHits.clear();
+        admin.count('market');
         const m = marketStats(fdb, { okved: body.okved, region: body.region });
         return send(res, 200, m ? { available: true, ...m } : { available: false });
       }
@@ -629,6 +635,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
           if (billing && !billing.allowCourts(u, ipOf(req), inn)) return send(res, 200, { available: true, paywall: true, free: billing.state(u).freeCourts, signedIn: !!u });
           if (!dnAllow(ipOf(req), inn.length === 10 ? 3 : 2, pro)) return send(res, 200, { available: true, limited: true });
           k = await dnCourts(inn, cfg, fetchImpl);
+          admin.count('courts');
           if (k.courts || k.arbitration || k.fssp) dn.set('courts:' + inn, k);
         }
         return send(res, 200, { available: true, ...k });
@@ -646,6 +653,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
       if (url.pathname === '/api/org') {
         const u = accounts && accounts.userOf(req);
         if (u) accounts.recordHistory(u, inn, s.data?.name?.short_with_opf || s.value);
+        admin.count('checks');
         return send(res, 200, { suggestion: s, advice: advise(s.data || {}, now()), signedIn: !!u, pro: !!(billing && billing.enabled && billing.isPro(u)), billing: !!(billing && billing.enabled) });
       }
 
@@ -675,6 +683,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
         ai = await analyze(s, cfg, fetchImpl, f, dnCached(inn));   // сайт запрашивает разбор после /api/org/more
       }
       aiCache.set(inn, ai);
+      admin.count('ai');   // только новые разборы — они стоят денег
       return send(res, 200, { ai });
     } catch (e) {
       console.error(new Date().toISOString(), req.method, url.pathname, e.message);
