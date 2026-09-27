@@ -49,5 +49,7 @@ curl https://api.fin-check.shop/health   # должно быть "accounts":true
 - Логи: `journalctl -u sut-api -f`
 - Копии базы: каждый день в 04:30 в `/var/backups/sut/`, хранятся 14 дней.
 - Данные ФНС о налогах и численности (`/var/lib/sut/fns.db`): обновляются 26-го числа каждого месяца, лог — `/var/log/sut-fns-import.log`.
-  Первый раз после установки запустите вручную: `runuser -u sut -- node /opt/sut-site/scripts/fns-import.mjs /var/lib/sut/fns.db` (10–15 минут).
+  Первый раз после установки (или чтобы обновить вне расписания) запустите вручную — отдельной системной задачей, она не зависит от SSH:
+  `systemd-run --unit=fns-import -p User=sut /usr/bin/node /opt/sut-site/scripts/fns-import.mjs /var/lib/sut/fns.db` (от 15 минут до часа: реестр МСП — архив больше 2 ГБ).
+  Ход: `journalctl -u fns-import -f`. Не запускайте через `runuser … &` — при обрыве SSH импорт зависает и держит базу.
 - Слежение за компаниями запускается само раз в сутки после 08:00 по Москве.
