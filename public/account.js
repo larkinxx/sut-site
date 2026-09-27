@@ -1,4 +1,4 @@
-/* СверкаИНН: страницы «Вход» и «Кабинет». Сервер аккаунтов — server/accounts.mjs (адрес в <html data-acct>).
+/* ИННсайдер: страницы «Вход» и «Кабинет». Сервер аккаунтов — server/accounts.mjs (адрес в <html data-acct>).
    Сессия — cookie на общем домене, поэтому все запросы идут с credentials: 'include'. */
 (function () {
   'use strict';
@@ -125,7 +125,7 @@
         // Подписка
         var b = r[4] || {};
         if (b.enabled) {
-          var ps = section('Подписка СверкаИНН Про');
+          var ps = section('Подписка ИННсайдер Про');
           if (b.pro) {
             ps.appendChild(el('p', null, 'Действует до ' + dateRu(b.paid_until) + (b.autorenew ? ', затем продлится автоматически.' : '.')));
             if (b.autorenew) ps.appendChild(smallBtn('Отключить автопродление', function () {
@@ -235,7 +235,7 @@
       var tries = 0;
       (function check() {
         api('POST', '/api/billing/check', {}).then(function (j) {
-          if (j.pro && j.payment === 'succeeded') { note.textContent = 'Оплата прошла. Подписка СверкаИНН Про действует до ' + dateRu(j.paid_until) + '.'; render(); history.replaceState(null, '', '/kabinet/'); }
+          if (j.pro && j.payment === 'succeeded') { note.textContent = 'Оплата прошла. Подписка ИННсайдер Про действует до ' + dateRu(j.paid_until) + '.'; render(); history.replaceState(null, '', '/kabinet/'); }
           else if (j.payment === 'canceled') note.textContent = 'Оплата не прошла. Попробуйте ещё раз на странице тарифов.';
           else if (++tries < 10) setTimeout(check, 3000);
           else note.textContent = 'Платёж ещё обрабатывается. Обновите страницу через пару минут.';

@@ -15,7 +15,7 @@ NEW=$($G rev-parse HEAD)
 if [ "$OLD" = "$NEW" ] && [ -f "$OUT/index.html" ] && [ -z "$FORCE" ]; then exit 0; fi
 # настройки сборки: адрес сайта, адрес API, страницы компаний
 if [ ! -f /etc/sut/site.env ]; then
-  printf 'SITE_URL=https://sverkainn.ru\nORG_API_URL=https://api.sverkainn.ru\nACCOUNT_API_URL=https://api.sverkainn.ru\nCOMPANY_PAGES=1\n' > /etc/sut/site.env
+  printf 'SITE_URL=https://inn-saider.ru\nORG_API_URL=https://api.inn-saider.ru\nACCOUNT_API_URL=https://api.inn-saider.ru\nCOMPANY_PAGES=1\n' > /etc/sut/site.env
 fi
 set -a; . /etc/sut/site.env; set +a
 sudo -u sut -E node src/build.mjs >/dev/null

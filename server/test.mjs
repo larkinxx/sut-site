@@ -1,7 +1,7 @@
 // Тесты сервера без сети: DaData и Gemini подменены заглушками.  Запуск: node server/test.mjs
 import http from 'node:http';
 import assert from 'node:assert/strict';
-import { createApp, innValid, validateAi, factsForAi, moreFactsForAi, sverkaIndex } from './index.mjs';
+import { createApp, innValid, validateAi, factsForAi, moreFactsForAi, innIndex } from './index.mjs';
 import { normCard, normArbitration, normCourts, normFssp } from './datanewton.mjs';
 import { checkSite, siteNotes } from './site-check.mjs';
 
@@ -159,7 +159,7 @@ try {
       assert.equal(seen.length, 1, 'второй раз — из кеша');
       assert.deepEqual(seen[0].body, { inn: '7707083893' });
       assert.equal(seen[0].url, 'https://up.example/api/org/ai');
-      assert.equal(seen[0].origin, 'https://sverkainn.ru');
+      assert.equal(seen[0].origin, 'https://inn-saider.ru');
     } finally { srv.close(); }
   });
 
@@ -319,14 +319,14 @@ try {
   });
 
   await t('индекс надёжности: плюсы и минусы, ликвидация, пределы 0–100, предварительная оценка', () => {
-    const good = sverkaIndex({ status: 'ACTIVE', ageYears: 23, fns: { taxes: 6e6, staff: 7, debt: 0, last: { year: 2025, revenue: 54e6, profit: 1e6, equity: 2e6 } }, flags: [], fssp: { open: 0 }, arb: { lostDef: 0, openDef: 0 }, courts: { defendant: 0 } });
+    const good = innIndex({ status: 'ACTIVE', ageYears: 23, fns: { taxes: 6e6, staff: 7, debt: 0, last: { year: 2025, revenue: 54e6, profit: 1e6, equity: 2e6 } }, flags: [], fssp: { open: 0 }, arb: { lostDef: 0, openDef: 0 }, courts: { defendant: 0 } });
     assert.deepEqual([good.score, good.level, good.partial], [90, 'высокая', false]);
     assert.ok(good.factors.some((f) => f.text === 'Работает 23 года'));
-    const bad = sverkaIndex({ status: 'ACTIVE', ageYears: 0.5, invalid: true, fns: { debt: 2e6 }, flags: ['fssp_debt', 'fns_accounts_blocked'] });
+    const bad = innIndex({ status: 'ACTIVE', ageYears: 0.5, invalid: true, fns: { debt: 2e6 }, flags: ['fssp_debt', 'fns_accounts_blocked'] });
     assert.equal(bad.score, 0, 'не ниже нуля');
     assert.equal(bad.partial, true, 'суды не загружены');
     assert.equal(bad.factors[0].pts < 0, true, 'сначала самые тяжёлые');
-    assert.equal(sverkaIndex({ status: 'LIQUIDATED' }).level, 'закрыта');
+    assert.equal(innIndex({ status: 'LIQUIDATED' }).level, 'закрыта');
   });
 
   await t('в ИИ не уходят ФИО и адрес', () => {

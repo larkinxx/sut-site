@@ -1,4 +1,4 @@
-// Аккаунты СверкаИНН: необязательный вход (Яндекс ID, Telegram, код на почту), кабинет и слежение за компаниями.
+// Аккаунты ИННсайдер: необязательный вход (Яндекс ID, Telegram, код на почту), кабинет и слежение за компаниями.
 // Почта, Яндекс ID и Telegram ID — персональные данные: по 152-ФЗ храним их только на сервере в России
 // (Timeweb), поэтому модуль включается переменной ACCOUNTS_DB и не работает на Render.
 //
@@ -129,7 +129,7 @@ export function smtpMailer({ host, port = 465, user, pass, from }) {
       const b64 = (s) => Buffer.from(s, 'utf8').toString('base64');
       const body = b64(text).replace(/.{1,76}/g, '$&\r\n');
       const msg = [
-        `From: =?UTF-8?B?${b64('СверкаИНН')}?= <${from}>`, `To: <${to}>`, `Subject: =?UTF-8?B?${b64(subject)}?=`,
+        `From: =?UTF-8?B?${b64('ИННсайдер')}?= <${from}>`, `To: <${to}>`, `Subject: =?UTF-8?B?${b64(subject)}?=`,
         `Date: ${new Date().toUTCString()}`, `Message-ID: <${crypto.randomUUID()}@${from.split('@')[1]}>`,
         'MIME-Version: 1.0', 'Content-Type: text/plain; charset=utf-8', 'Content-Transfer-Encoding: base64', '', body
       ].join('\r\n');
@@ -148,9 +148,9 @@ export function smtpMailer({ host, port = 465, user, pass, from }) {
 /* ---------- модуль аккаунтов ---------- */
 export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.now(), watchLimit = () => LIMITS.watch }) {
   const cfg = {
-    site: (env.SITE_URL || 'https://sverkainn.ru').replace(/\/$/, ''),
-    api: (env.PUBLIC_API_URL || 'https://api.sverkainn.ru').replace(/\/$/, ''),
-    cookieDomain: env.COOKIE_DOMAIN || '',              // .sverkainn.ru — чтобы сессия была общей для сайта и api
+    site: (env.SITE_URL || 'https://inn-saider.ru').replace(/\/$/, ''),
+    api: (env.PUBLIC_API_URL || 'https://api.inn-saider.ru').replace(/\/$/, ''),
+    cookieDomain: env.COOKIE_DOMAIN || '',              // .inn-saider.ru — чтобы сессия была общей для сайта и api
     yandexId: env.YANDEX_CLIENT_ID || '', yandexSecret: env.YANDEX_CLIENT_SECRET || '',
     tgToken: env.TELEGRAM_BOT_TOKEN || '', tgBot: env.TELEGRAM_BOT_NAME || '',
     // Timeweb не пускает сервер к api.telegram.org — ходим через наш сервер на Render (маршрут /tg/ в index.mjs)
@@ -280,7 +280,7 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
     if (ch === 'telegram' && cfg.tgToken) {
       await tgCall('sendMessage', { chat_id: u.telegram_id, text, link_preview_options: { is_disabled: true } });
     } else if (ch === 'email' && mailer) {
-      await mailer({ to: u.email, subject: 'СверкаИНН: изменения у компаний, за которыми вы следите', text });
+      await mailer({ to: u.email, subject: 'ИННсайдер: изменения у компаний, за которыми вы следите', text });
     }
   }
 
@@ -451,7 +451,7 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
          ON CONFLICT(email) DO UPDATE SET code_hash = excluded.code_hash, expires_at = excluded.expires_at, attempts = 0, sent_at = excluded.sent_at, sent_count = excluded.sent_count`)
         .run(email, sha(email + ':' + code), now() + 10 * 60e3, now(), count);
       try {
-        await mailer({ to: email, subject: `Код для входа: ${code}`, text: `Ваш код для входа на ${host}: ${code}\n\nКод действует 10 минут. Если вы не запрашивали вход, просто проигнорируйте это письмо.\n\n— СверкаИНН` });
+        await mailer({ to: email, subject: `Код для входа: ${code}`, text: `Ваш код для входа на ${host}: ${code}\n\nКод действует 10 минут. Если вы не запрашивали вход, просто проигнорируйте это письмо.\n\n— ИННсайдер` });
       } catch (e) {
         log('почта — письмо с кодом не отправлено:', e.message);
         return send(res, 502, { error: 'Не получилось отправить письмо. Попробуйте позже или войдите другим способом.' }), true;
@@ -525,7 +525,7 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
         if (!innValid(inn)) return send(res, 400, { error: 'Проверьте ИНН.' }), true;
         const n = q('SELECT COUNT(*) AS n FROM watch WHERE user_id = ?').get(u.id).n;
         const lim = watchLimit(u);
-        if (n >= lim) return send(res, 400, { error: `Можно следить не больше чем за ${lim} компаниями.` + (lim < LIMITS.watch ? ' С подпиской СверкаИНН Про — до ' + LIMITS.watch + '.' : ''), paywall: lim < LIMITS.watch }), true;
+        if (n >= lim) return send(res, 400, { error: `Можно следить не больше чем за ${lim} компаниями.` + (lim < LIMITS.watch ? ' С подпиской ИННсайдер Про — до ' + LIMITS.watch + '.' : ''), paywall: lim < LIMITS.watch }), true;
         const s = await getParty(inn);
         if (!s) return send(res, 404, { error: 'По этому ИНН ничего не найдено.' }), true;
         const snap = snapshotOf(s);
