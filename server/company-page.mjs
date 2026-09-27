@@ -5,6 +5,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { ogSvg, ogFacts, svgToPng } from './og-image.mjs';
+import { orgPeers } from './market.mjs';
 
 const PER_SITEMAP = 50000;
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -41,7 +42,22 @@ export function fnsRow(db, inn) {
 }
 
 // Собираем страницу из шаблона сайта: заголовок, описание, канонический адрес, краткая сводка и JSON-LD
-export function renderCompany(tpl, { inn, siteUrl, f, party, more = null }) {
+// Компания против похожих (та же отрасль, регион и возраст) — своя строка в описании и блок на странице.
+// Этого нет у справочников-конкурентов: не только цифры компании, но и где она среди своих.
+const pluralRu = (n, a, b, c) => { const m = n % 100, k = n % 10; return m > 10 && m < 20 ? c : k === 1 ? a : k > 1 && k < 5 ? b : c; };
+function peersHtml(pr) {
+  if (!pr) return '';
+  const g = pr.peers, where = pr.scope === 'region' ? 'в том же регионе' : 'по России';
+  const stat = (label, pct) => (pct == null ? '' : `<div class="bigstat"><span class="bs-label">${esc(label)}</span><strong class="bs-val">выше, чем у ${pct}%</strong></div>`);
+  const cells = stat(`Доходы ${money(pr.income)}`, pr.incomePercentile) + stat(`Прибыль ${money(pr.profit)}`, pr.profitPercentile);
+  return `<p class="fns-sub">Среди похожих компаний</p>
+<p class="note-sm">Сравнение с организациями той же отрасли (ОКВЭД ${esc(pr.okved)}) ${where}, которые работают ${esc(pr.ageLabel)}, по доходам и расходам за ${pr.year} год: ${g.withReports} ${pluralRu(g.withReports, 'компания', 'компании', 'компаний')} с отчётностью. Прибыль — доходы минус расходы до налога.</p>
+${cells ? `<div class="bigstats">${cells}</div>` : ''}
+<div class="result cols"><div><span>Доходы у середины</span><strong>${esc(money(g.income[2]))}</strong></div><div><span>Прибыль у середины</span><strong>${esc(money(g.profit[2]))}</strong></div><div><span>Похожих в плюсе</span><strong>${Math.round(g.profitableShare * 100)}%</strong></div></div>
+<p class="note-sm"><a href="/kalkulyatory/perspektivy-biznesa/#calc=prospects&amp;code=${encodeURIComponent(pr.okved)}&amp;region=${encodeURIComponent(pr.scope === 'region' ? pr.region : '00')}">Перспективы этой отрасли по годам работы</a></p>`;
+}
+
+export function renderCompany(tpl, { inn, siteUrl, f, party, more = null, peers = null }) {
   const d = (party && party.data) || {};
   const name = (d.name && d.name.short_with_opf) || (f && f.name) || `Организация ИНН ${inn}`;
   const url = `${siteUrl}/organizacii/${inn}/`;
@@ -58,7 +74,8 @@ export function renderCompany(tpl, { inn, siteUrl, f, party, more = null }) {
     ['Налоговая задолженность', f ? (f.debt > 0 ? money(f.debt) : 'нет') : null]
   ].filter(([, v]) => v);
   const descParts = [`${name}: ИНН ${inn}`, d.ogrn ? `ОГРН ${d.ogrn}` : '', d.address ? d.address.value : '',
-    f && f.tax ? `налоги за ${f.tax.year} год — ${money(f.tax.total)}` : '', f && f.staff ? `сотрудников: ${f.staff.n}` : '',
+    f && f.tax ? `налоги за ${f.tax.year} год — ${money(f.tax.total)}` : '',
+    peers && peers.incomePercentile != null ? `доходы выше, чем у ${peers.incomePercentile}% похожих компаний` : '', f && f.staff ? `сотрудников: ${f.staff.n}` : '',
     more && more.arbitration ? `арбитражных дел: ${more.arbitration.total}` : '', more && more.card ? (more.card.flags.length ? `отметок в реестрах: ${more.card.flags.length}` : 'отметок в реестрах нет') : ''].filter(Boolean);
   const desc = (descParts.join(', ') + '. Суды, арбитраж, учредители, финансы и советы — бесплатная проверка.').slice(0, 300);
   const title = `${name} — ИНН ${inn}: проверка, налоги, суды`;
@@ -66,6 +83,7 @@ export function renderCompany(tpl, { inn, siteUrl, f, party, more = null }) {
     ...(d.address ? { address: d.address.value } : {}), ...(st.registration_date ? { foundingDate: new Date(st.registration_date).toISOString().slice(0, 10) } : {}) };
   const summary = `<section class="dcard ssr-card"><h2>${esc(name)}</h2>
 <div class="result cols">${facts.map(([k, v]) => `<div><span>${esc(k)}</span><strong>${esc(v)}</strong></div>`).join('')}</div>
+${peersHtml(peers)}
 ${f && f.tax && f.tax.items.length ? `<p class="fns-sub">Крупнейшие налоги за ${f.tax.year} год</p><ul>${f.tax.items.map((x) => `<li>${esc(x.name)}: ${esc(money(x.sum))}</li>`).join('')}</ul>` : ''}
 <p class="note-sm">Сведения из открытых данных ФНС${party ? ' и ЕГРЮЛ' : ''}. Суды, арбитраж, приставы, учредители, отчётность и советы загружаются ниже.</p></section>`;
 
@@ -148,7 +166,9 @@ export function createCompanyPages({ env, fdb, getParty, cachedParty, getMore = 
         if (day.n < dadataDaily) { day.n++; party = await getParty(inn).catch(() => null); } else party = null;
       }
       if (!f && !party) { html(res, 404, renderCompany(template(), { inn, siteUrl, f: null, party: null }).replace('</head>', '<meta name="robots" content="noindex">\n</head>')); return true; }
-      html(res, 200, renderCompany(template(), { inn, siteUrl, f, party, more: getMore(inn) }));
+      let peers = null;
+      try { peers = orgPeers(fdb, inn); } catch { peers = null; }
+      html(res, 200, renderCompany(template(), { inn, siteUrl, f, party, more: getMore(inn), peers }));
       return true;
     }
     if (p === '/sitemap-companies.xml') {

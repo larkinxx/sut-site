@@ -7,6 +7,7 @@ import { createApp } from './index.mjs';
 import { openFnsDb, importStream } from '../scripts/fns-import.mjs';
 import { buildPeers } from '../scripts/fns-peers.mjs';
 import { marketStats, orgPeers, percentile, MIN_GROUP } from './market.mjs';
+import { renderCompany } from './company-page.mjs';
 
 let n = 0;
 const t = async (name, fn) => { await fn(); n++; console.log('ok  ', name); };
@@ -113,6 +114,17 @@ await t('компания против похожих', () => {
   assert.equal(orgPeers(db, inn(k - 1)), null, 'нет отчётности');
   assert.equal(orgPeers(db, '7700000000'), null);
   assert.equal(orgPeers(openFnsDb(':memory:'), inn(0)), null, 'пустая база');
+});
+
+await t('страница компании: сравнение с отраслью видно поисковикам', () => {
+  const tpl = '<head><title>x</title><meta name="description" content=""></head><div id="org-out" aria-live="polite"></div>';
+  const h = renderCompany(tpl, { inn: inn(59), siteUrl: 'https://inn-sider.ru', f: { name: 'ООО "ТЕСТ"', regime: 'УСН' }, party: null, peers: orgPeers(db, inn(59)) });
+  assert.match(h, /Среди похожих компаний/);
+  assert.match(h, /выше, чем у \d+%/);
+  assert.match(h, /<meta name="description" content="[^"]*доходы выше, чем у \d+% похожих компаний/);
+  assert.match(h, /perspektivy-biznesa\/#calc=prospects&amp;code=/);
+  const plain = renderCompany(tpl, { inn: inn(59), siteUrl: 'https://inn-sider.ru', f: { name: 'ООО "ТЕСТ"', regime: 'УСН' }, party: null });
+  assert.doesNotMatch(plain, /Среди похожих/, 'без статистики блока нет');
 });
 
 await t('API /api/market: без DaData, проверка ввода, пустая база', async () => {
