@@ -122,7 +122,7 @@ export function createResearch({ env, fdb, now = () => Date.now(), min = 300, mi
       .replace(/<!--ssr:intro-->[\s\S]*?<!--\/ssr:intro-->/, `<h1 class="page">${esc(h1)}</h1>${lede ? `<p class="lede">${esc(lede)}</p>` : ''}`)
       .replace(/<!--ssr:body-->[\s\S]*?<!--\/ssr:body-->/, body)
       .replace('</head>', code === 404 ? '<meta name="robots" content="noindex">\n</head>' : '</head>');
-    cache.set(url.pathname, { at: now(), code, body: html });
+    if (code === 200) cache.set(url.pathname, { at: now(), code, body: html });   // 404 не кешируем: иначе перебор адресов раздувал бы память
     res.writeHead(code, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': code === 200 ? 'public, max-age=86400' : 'no-store' });
     res.end(html);
     return true;
