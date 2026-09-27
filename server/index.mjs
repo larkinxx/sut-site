@@ -59,6 +59,7 @@ import { createCompanyPages, shortName, similarCompanies } from './company-page.
 import { createIndustryPages } from './industry-pages.mjs';
 import { createLawyer } from './lawyer.mjs';
 import { createCerts, certSnapshot } from './certs.mjs';
+import { createResearch } from './research.mjs';
 import { fnsData } from './fns.mjs';
 import { marketStats, orgPeers, orgForecast, okvedOf } from './market.mjs';
 import { createAdmin } from './admin.mjs';
@@ -564,6 +565,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
     } catch { return []; }
   }
   const industryPages = createIndustryPages({ env, fdb, now });
+  const research = createResearch({ env, fdb, now });   // «Исследования INNSIDER» (server/research.mjs)
   const certs = db ? createCerts({ env, db, now }) : null;   // сертификаты проверки (server/certs.mjs)
   const companyPages = createCompanyPages({ env, fdb, getParty: (inn) => getParty(inn, { fallback: false }), cachedParty: (inn) => partyCache.get(inn), getMore: dnCached, now });
 
@@ -604,6 +606,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
       }
       if (await companyPages(req, res, url, innValid)) return;
       if (industryPages(req, res, url)) return;
+      if (research(req, res, url)) return;
       if (certs && certs.handle(req, res, url)) return;
       if (req.method !== 'GET' && req.headers.origin && !cfg.origins.includes(req.headers.origin)) return send(res, 403, { error: 'Запрос с чужого сайта' });
       if (await lawyer.handle(req, res, url, { send, readBody })) return;

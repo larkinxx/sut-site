@@ -141,7 +141,7 @@ ${body}
 </main>
 <footer class="wrap">
   ${POLICY ? `<p class="seller">${esc((OP_TITLE.charAt(0).toUpperCase() + OP_TITLE.slice(1)))} · ИНН ${esc(site.operator.inn)}${site.operator.ogrnip ? ` · ОГРНИП ${esc(site.operator.ogrnip)}` : ''}</p>` : ''}
-  <p class="fine">${esc(site.disclaimer)} Как мы готовим новости: <a href="${url('/kak-my-rabotaem/')}">как мы работаем</a>. <a href="${url('/o-proekte/')}">О проекте</a>. <a href="${url('/pravovaya-informaciya/')}">Правовая информация</a>.${COMPANY_PAGES ? ` <a href="${url('/otrasli/')}">Отрасли: сколько зарабатывают</a>.` : ''}${POLICY ? ` <a href="${url('/politika/')}">Политика конфиденциальности</a>.` : ''}${ACCT && POLICY ? ` <a href="${url('/tarify/')}">Тарифы</a>. <a href="${url('/oferta/')}">Оферта</a>.` : ''}${site.contactEmail ? ` Нашли ошибку? Напишите: <a href="mailto:${esc(site.contactEmail)}">${esc(site.contactEmail)}</a>.` : ''}</p>
+  <p class="fine">${esc(site.disclaimer)} Как мы готовим новости: <a href="${url('/kak-my-rabotaem/')}">как мы работаем</a>. <a href="${url('/o-proekte/')}">О проекте</a>. <a href="${url('/pravovaya-informaciya/')}">Правовая информация</a>.${COMPANY_PAGES ? ` <a href="${url('/otrasli/')}">Отрасли: сколько зарабатывают</a>. <a href="${url('/issledovaniya/')}">Исследования</a>.` : ''}${POLICY ? ` <a href="${url('/politika/')}">Политика конфиденциальности</a>.` : ''}${ACCT && POLICY ? ` <a href="${url('/tarify/')}">Тарифы</a>. <a href="${url('/oferta/')}">Оферта</a>.` : ''}${site.contactEmail ? ` Нашли ошибку? Напишите: <a href="mailto:${esc(site.contactEmail)}">${esc(site.contactEmail)}</a>.` : ''}</p>
 </footer>
 ${body.includes('data-calc=') || body.includes('id="org"') ? `<script type="application/json" id="fin">${JSON.stringify(FIN).replace(/</g, '\\u003c')}</script>\n` : ''}<script src="${url('/app.js')}?v=${jsV}" defer></script>${scripts}
 <script>
@@ -645,6 +645,17 @@ ${card('Как не попасть под блокировку', [
 }));
 
 // Опасные налоговые схемы: не инструкция, а предупреждение — в чём схема, как её находят и чем она кончается
+// «Исследования INNSIDER» /issledovaniya/… — страницы собирает сервер (server/research.mjs) из этого шаблона
+const STUDY_SLUGS = ['pribylnye-otrasli', 'gde-otkryvayut-biznes', 'gde-bolshe-zarabatyvayut', 'pribylnost-po-vozrastu'];   // как STUDIES в server/research.mjs
+if (COMPANY_PAGES) {
+  write('issledovaniya/index.html', layout({
+    title: 'Исследования INNSIDER', path: '/issledovaniya/', current: '',
+    desc: 'Обзоры малого и среднего бизнеса России по открытым данным ФНС: прибыльные отрасли, где открывают бизнес, доходы и прибыльность по возрасту.',
+    body: `<!--ssr:intro--><h1 class="page">Исследования</h1><!--/ssr:intro-->
+<section class="prose research"><!--ssr:body--><p>Исследования загружаются…</p><!--/ssr:body--></section>`
+  }));
+}
+
 // Сертификат проверки /sertifikat/<номер>/ — страницу собирает сервер (server/certs.mjs) из этого шаблона
 if (ACCT && COMPANY_PAGES) {
   write('sertifikat/index.html', layout({
@@ -1064,7 +1075,7 @@ if (!site.siteUrl.includes('example')) {
   // lastmod: у ленты — время свежей новости, у карточки — время последней правки; у статичных страниц не ставим
   const fresh = cards.length ? cards[0].publishedAt : '';
   const urls = [
-    ['/', fresh], ['/arhiv/', fresh], ['/kalkulyatory/'], ...CALCS.map((c) => [`/kalkulyatory/${c.slug}/`]), ['/organizacii/'], ['/indeks/'], ['/fizlica/'], ['/nalogi/'], ...[...TAX, ...TAX_P].map((t) => [`/nalogi/${t.slug}/`]), ['/nalogovye-shemy/'], ['/nalogi/blokirovka-scheta/'], ...(process.env.ORG_API_URL ? [['/prognoz/']] : []), ['/yurist/'], ['/yurist/dokumenty/'], ...LAW.map((g) => [`/yurist/${g.slug}/`]), ['/fizlica/dropy/'], ['/kak-my-rabotaem/'], ['/o-proekte/'], ['/pravovaya-informaciya/'], ...(POLICY ? [['/politika/']] : []), ...(ACCT && POLICY ? [['/tarify/'], ['/oferta/']] : []),
+    ['/', fresh], ['/arhiv/', fresh], ['/kalkulyatory/'], ...CALCS.map((c) => [`/kalkulyatory/${c.slug}/`]), ['/organizacii/'], ['/indeks/'], ['/fizlica/'], ['/nalogi/'], ...[...TAX, ...TAX_P].map((t) => [`/nalogi/${t.slug}/`]), ['/nalogovye-shemy/'], ['/nalogi/blokirovka-scheta/'], ...(process.env.ORG_API_URL ? [['/prognoz/']] : []), ...(COMPANY_PAGES ? [['/issledovaniya/'], ...STUDY_SLUGS.map((x) => [`/issledovaniya/${x}/`])] : []), ['/yurist/'], ['/yurist/dokumenty/'], ...LAW.map((g) => [`/yurist/${g.slug}/`]), ['/fizlica/dropy/'], ['/kak-my-rabotaem/'], ['/o-proekte/'], ['/pravovaya-informaciya/'], ...(POLICY ? [['/politika/']] : []), ...(ACCT && POLICY ? [['/tarify/'], ['/oferta/']] : []),
     ...cards.map((c) => [`/n/${c.id}/`, (c.review && c.review.at) || c.publishedAt])
   ];
   write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(([u, m]) => `<url><loc>${site.siteUrl}${u}</loc>${m ? `<lastmod>${new Date(m).toISOString()}</lastmod>` : ''}</url>`).join('\n')}\n</urlset>\n`);

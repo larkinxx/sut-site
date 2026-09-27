@@ -526,3 +526,4 @@ input[type=date]:focus,textarea:focus{outline:none;border-color:var(--ink)}
 .cert .cert-facts{margin:18px 0}
 @media screen{.cert-print{display:block}}
 .similar{list-style:none;padding:0;margin:6px 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:4px 24px}.similar li{padding:6px 0;border-bottom:1px solid var(--line)}
+.study{padding:6px 0 14px;border-bottom:1px solid var(--line)}.study-finding{font:400 22px/1.4 var(--font-display);margin:8px 0 20px}

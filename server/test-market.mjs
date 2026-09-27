@@ -9,6 +9,7 @@ import { buildPeers } from '../scripts/fns-peers.mjs';
 import { marketStats, orgPeers, orgForecast, valueAt, percentile, MIN_GROUP } from './market.mjs';
 import { renderCompany, similarCompanies } from './company-page.mjs';
 import { createIndustryPages, topCompanies, industryUrls } from './industry-pages.mjs';
+import { createResearch, STUDIES } from './research.mjs';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -189,6 +190,28 @@ await t('прогноз компании: то же место среди све
     assert.equal((await post({ inn: '123' }))[0], 400);
     assert.equal((await post({ inn: '540000000001' }))[0], 400, 'ИНН ИП — нет отчётности');
   } finally { srv.close(); }
+});
+
+await t('исследования: рейтинги отраслей и регионов, страница для прессы, 404', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'res-'));
+  fs.mkdirSync(path.join(dir, 'issledovaniya'));
+  fs.writeFileSync(path.join(dir, 'issledovaniya', 'index.html'), '<head><title>x</title><meta name="description" content=""><link rel="canonical" href="x"></head><!--ssr:intro--><h1>x</h1><!--/ssr:intro--><!--ssr:body--><p>…</p><!--/ssr:body-->');
+  const handle = createResearch({ env: { SITE_DIST: dir, SITE_URL: 'https://inn-sider.ru' }, fdb: db, min: 1, minRegion: 1, minList: 2 });
+  const get = (p) => { let code, body = ''; const res = { writeHead: (c) => { code = c; }, end: (b) => { body = b || ''; } }; const ok = handle({ method: 'GET' }, res, new URL('https://x' + p)); return { ok, code, body }; };
+  const idx = get('/issledovaniya/');
+  assert.equal(idx.code, 200);
+  assert.match(idx.body, /Самые прибыльные отрасли/);
+  const p = get('/issledovaniya/pribylnye-otrasli/');
+  assert.equal(p.code, 200);
+  assert.match(p.body, /Для публикации/);
+  assert.match(p.body, /по данным INNSIDER на основе открытых данных ФНС/);
+  assert.match(p.body, /href="\/otrasli\/56\/">/);
+  assert.equal(get('/issledovaniya/gde-otkryvayut-biznes/').code, 200);
+  assert.equal(get('/issledovaniya/net-takogo/').code, 404);
+  assert.equal(get('/otrasli/').ok, false);
+  const build = fs.readFileSync(new URL('../src/build.mjs', import.meta.url), 'utf8');
+  for (const st of STUDIES) assert.ok(build.includes(`'${st.slug}'`), `${st.slug} есть в STUDY_SLUGS (карта сайта)`);
+  fs.rmSync(dir, { recursive: true });
 });
 
 await t('API /api/market: без DaData, проверка ввода, пустая база', async () => {
