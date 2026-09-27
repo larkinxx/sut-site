@@ -57,7 +57,32 @@ ${cells ? `<div class="bigstats">${cells}</div>` : ''}
 <p class="note-sm"><a href="/otrasli/${encodeURIComponent(pr.okved)}/${pr.scope === 'region' ? encodeURIComponent(pr.region) + '/' : ''}">Сколько зарабатывает отрасль и крупнейшие компании</a> · <a href="/kalkulyatory/perspektivy-biznesa/#calc=prospects&amp;code=${encodeURIComponent(pr.okved)}&amp;region=${encodeURIComponent(pr.scope === 'region' ? pr.region : '00')}">Перспективы по годам работы</a></p>`;
 }
 
-export function renderCompany(tpl, { inn, siteUrl, f, party, more = null, peers = null }) {
+// Похожие компании той же отрасли и региона с близкими доходами — перелинковка для поиска и для человека:
+// «с кем ещё сравнить». Только организации из реестра МСП с отчётностью (ИП — без имён).
+export function similarCompanies(db, inn, limit = 6) {
+  if (!db) return [];
+  try {
+    const m = db.prepare('SELECT okved, region FROM fns_msp WHERE inn = ?').get(inn);
+    const ok = m && (String(m.okved || '').match(/^(\d{2})/) || [])[1];
+    if (!ok || !m.region) return [];
+    const next = String(Number(ok) + 1).padStart(2, '0');
+    const own = db.prepare('SELECT income FROM fns_finance WHERE inn = ?').get(inn);
+    const order = own && own.income > 0 ? 'abs(f.income - ?)' : 'f.income DESC';
+    const args = [m.region, ok, next, inn, ...(own && own.income > 0 ? [own.income] : []), limit];
+    return db.prepare(`SELECT m.inn, n.name, f.income FROM fns_msp m JOIN fns_finance f ON f.inn = m.inn JOIN fns_name n ON n.inn = m.inn
+                       WHERE m.region = ? AND m.okved >= ? AND m.okved < ? AND m.inn <> ? AND f.income > 0 ORDER BY ${order} LIMIT ?`).all(...args)
+      .map((r) => ({ inn: r.inn, name: shortName(r.name), income: r.income, okved: ok, region: m.region }));
+  } catch { return []; }
+}
+function similarHtml(list) {
+  if (!list || !list.length) return '';
+  const { okved, region } = list[0];
+  return `<p class="fns-sub">Похожие компании</p>
+<ul class="similar">${list.map((c) => `<li><a href="/organizacii/${c.inn}/">${esc(c.name)}</a> <span class="note-sm">${esc(money(c.income).replace(/ /g, '\u00a0'))}</span></li>`).join('')}</ul>
+<p class="note-sm"><a href="/otrasli/${okved}/${region}/">Все крупные компании этой отрасли в регионе</a></p>`;
+}
+
+export function renderCompany(tpl, { inn, siteUrl, f, party, more = null, peers = null, similar = null }) {
   const d = (party && party.data) || {};
   const name = (d.name && d.name.short_with_opf) || (f && f.name) || `Организация ИНН ${inn}`;
   const url = `${siteUrl}/organizacii/${inn}/`;
@@ -89,7 +114,9 @@ export function renderCompany(tpl, { inn, siteUrl, f, party, more = null, peers 
   const summary = `<section class="dcard ssr-card"><h2>${esc(name)}</h2>
 <div class="result cols">${facts.map(([k, v]) => `<div><span>${esc(k)}</span><strong>${esc(v)}</strong></div>`).join('')}</div>
 ${peersHtml(peers)}
+${similarHtml(similar)}
 ${f && f.tax && f.tax.items.length ? `<p class="fns-sub">Крупнейшие налоги за ${f.tax.year} год</p><ul>${f.tax.items.map((x) => `<li>${esc(x.name)}: ${esc(money(x.sum))}</li>`).join('')}</ul>` : ''}
+${inn.length === 10 ? `<p class="note-sm"><a href="/sravnenie/#a=${esc(inn)}">Сравнить с другой компанией</a> · <a href="/prognoz/#inn=${esc(inn)}">Прогноз на три года</a></p>` : ''}
 <p class="note-sm">Сведения из открытых данных ФНС${party ? ' и ЕГРЮЛ' : ''}. Суды, арбитраж, приставы, учредители, отчётность и советы загружаются ниже.</p></section>`;
 
   let h = tpl
@@ -173,7 +200,7 @@ export function createCompanyPages({ env, fdb, getParty, cachedParty, getMore = 
       if (!f && !party) { html(res, 404, renderCompany(template(), { inn, siteUrl, f: null, party: null }).replace('</head>', '<meta name="robots" content="noindex">\n</head>')); return true; }
       let peers = null;
       try { peers = orgPeers(fdb, inn); } catch { peers = null; }
-      html(res, 200, renderCompany(template(), { inn, siteUrl, f, party, more: getMore(inn), peers }));
+      html(res, 200, renderCompany(template(), { inn, siteUrl, f, party, more: getMore(inn), peers, similar: similarCompanies(fdb, inn) }));
       return true;
     }
     if (p === '/sitemap-companies.xml') {

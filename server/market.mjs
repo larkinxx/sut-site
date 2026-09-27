@@ -124,3 +124,22 @@ export function orgForecast(db, inn) {
     steps
   };
 }
+
+// Карточка для сравнения компаний (/sravnenie/) — только наша база ФНС: быстро, бесплатно, без лимитов DaData
+export function compareFacts(db, inn) {
+  if (!db) return null;
+  const q = (t) => { try { return st(db, `SELECT * FROM ${t} WHERE inn = ?`).get(inn); } catch { return undefined; } };
+  const name = q('fns_name'), msp = q('fns_msp'), fin = q('fns_finance'), rg = q('fns_regime'), sf = q('fns_staff'), tx = q('fns_tax'), dt = q('fns_debt');
+  if (!name && !msp && !fin && !tx) return null;
+  const regime = rg ? [['usn', 'УСН'], ['ausn', 'АУСН'], ['eshn', 'ЕСХН'], ['srp', 'СРП']].filter(([k]) => rg[k]).map(([, n]) => n) : [];
+  const peers = orgPeers(db, inn);
+  return {
+    inn, name: name ? name.name : null, okved: msp ? okvedOf(msp.okved) : null, region: msp ? msp.region : null,
+    since: msp ? msp.since : null, category: msp ? msp.category : null,
+    regime: rg || tx ? (regime.length ? regime.join(', ') : 'общая система') : null,
+    staff: sf ? sf.n : null, taxes: tx ? tx.total : null, debt: dt ? dt.total : (tx ? 0 : null),
+    income: fin ? fin.income : null, expense: fin ? fin.expense : null, profit: fin ? Math.round((fin.income - fin.expense) * 100) / 100 : null,
+    year: fin ? Number(String(fin.asof).slice(0, 4)) : null,
+    incomePercentile: peers ? peers.incomePercentile : null, profitPercentile: peers ? peers.profitPercentile : null
+  };
+}

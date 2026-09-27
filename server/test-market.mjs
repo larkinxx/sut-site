@@ -6,9 +6,10 @@ import { Readable } from 'node:stream';
 import { createApp } from './index.mjs';
 import { openFnsDb, importStream } from '../scripts/fns-import.mjs';
 import { buildPeers } from '../scripts/fns-peers.mjs';
-import { marketStats, orgPeers, orgForecast, valueAt, percentile, MIN_GROUP } from './market.mjs';
-import { renderCompany } from './company-page.mjs';
+import { marketStats, orgPeers, orgForecast, compareFacts, valueAt, percentile, MIN_GROUP } from './market.mjs';
+import { renderCompany, similarCompanies } from './company-page.mjs';
 import { createIndustryPages, topCompanies, industryUrls } from './industry-pages.mjs';
+import { createResearch, STUDIES } from './research.mjs';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -131,6 +132,16 @@ await t('страница компании: сравнение с отрасль
   assert.match(h, /perspektivy-biznesa\/#calc=prospects&amp;code=/);
   const plain = renderCompany(tpl, { inn: inn(59), siteUrl: 'https://inn-sider.ru', f: { name: 'ООО "ТЕСТ"', regime: 'УСН' }, party: null });
   assert.doesNotMatch(plain, /Среди похожих/, 'без статистики блока нет');
+  const sim = similarCompanies(db, inn(59));
+  assert.equal(sim.length, 6);
+  assert.ok(sim.every((c) => c.inn !== inn(59) && c.okved === '56' && c.region === '54'), 'та же отрасль и регион, без самой компании');
+  const own = db.prepare('SELECT income FROM fns_finance WHERE inn = ?').get(inn(59)).income;
+  const d = sim.map((c) => Math.abs(c.income - own));
+  assert.deepEqual(d, [...d].sort((a, b) => a - b), 'ближайшие по доходам — первыми');
+  const withSim = renderCompany(tpl, { inn: inn(59), siteUrl: 'https://inn-sider.ru', f: { name: 'ООО "ТЕСТ"', regime: 'УСН' }, party: null, similar: sim });
+  assert.match(withSim, /Похожие компании/);
+  assert.match(withSim, /href="\/otrasli\/56\/54\/">Все крупные компании/);
+  assert.deepEqual(similarCompanies(db, '7700000000'), []);
 });
 
 await t('страницы отраслей: статистика, крупнейшие компании, карта сайта', async () => {
@@ -178,6 +189,45 @@ await t('прогноз компании: то же место среди све
     const post = (body) => fetch(`http://127.0.0.1:${srv.address().port}/api/forecast`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).then(async (r) => [r.status, await r.json()]);
     assert.equal((await post({ inn: '123' }))[0], 400);
     assert.equal((await post({ inn: '540000000001' }))[0], 400, 'ИНН ИП — нет отчётности');
+  } finally { srv.close(); }
+});
+
+await t('исследования: рейтинги отраслей и регионов, страница для прессы, 404', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'res-'));
+  fs.mkdirSync(path.join(dir, 'issledovaniya'));
+  fs.writeFileSync(path.join(dir, 'issledovaniya', 'index.html'), '<head><title>x</title><meta name="description" content=""><link rel="canonical" href="x"></head><!--ssr:intro--><h1>x</h1><!--/ssr:intro--><!--ssr:body--><p>…</p><!--/ssr:body-->');
+  const handle = createResearch({ env: { SITE_DIST: dir, SITE_URL: 'https://inn-sider.ru' }, fdb: db, min: 1, minRegion: 1, minList: 2 });
+  const get = (p) => { let code, body = ''; const res = { writeHead: (c) => { code = c; }, end: (b) => { body = b || ''; } }; const ok = handle({ method: 'GET' }, res, new URL('https://x' + p)); return { ok, code, body }; };
+  const idx = get('/issledovaniya/');
+  assert.equal(idx.code, 200);
+  assert.match(idx.body, /Самые прибыльные отрасли/);
+  const p = get('/issledovaniya/pribylnye-otrasli/');
+  assert.equal(p.code, 200);
+  assert.match(p.body, /Для публикации/);
+  assert.match(p.body, /по данным INNSIDER на основе открытых данных ФНС/);
+  assert.match(p.body, /href="\/otrasli\/56\/">/);
+  assert.equal(get('/issledovaniya/gde-otkryvayut-biznes/').code, 200);
+  assert.equal(get('/issledovaniya/net-takogo/').code, 404);
+  assert.equal(get('/otrasli/').ok, false);
+  const build = fs.readFileSync(new URL('../src/build.mjs', import.meta.url), 'utf8');
+  for (const st of STUDIES) assert.ok(build.includes(`'${st.slug}'`), `${st.slug} есть в STUDY_SLUGS (карта сайта)`);
+  fs.rmSync(dir, { recursive: true });
+});
+
+await t('сравнение компаний: карточка из базы ФНС и проверка ввода', async () => {
+  const c = compareFacts(db, inn(59));
+  assert.equal(c.okved, '56');
+  assert.ok(c.income > 0 && c.profit != null && c.year === 2025);
+  assert.ok(c.incomePercentile >= 90);
+  assert.equal(compareFacts(db, '7700000000'), null);
+  const srv = http.createServer(createApp({ env: {}, fnsDb: db })); await new Promise((r) => srv.listen(0, r));
+  try {
+    const post = (body) => fetch(`http://127.0.0.1:${srv.address().port}/api/compare`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }).then(async (r) => [r.status, await r.json()]);
+    assert.equal((await post({ inns: ['7707083893'] }))[0], 400, 'одна компания — нечего сравнивать');
+    assert.equal((await post({ inns: ['7707083893', '7707083893'] }))[0], 400, 'одинаковые ИНН');
+    const [code, j] = await post({ inns: ['7707083893', '7736207543'] });
+    assert.equal(code, 200);
+    assert.deepEqual(j.items.map((x) => x.missing), [true, true], 'нет в базе — пометка, а не ошибка');
   } finally { srv.close(); }
 });
 

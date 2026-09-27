@@ -631,6 +631,7 @@
       if (b.url) { var a = el('a', null, 'Отчётность полностью на bo.nalog.gov.ru'); a.href = b.url; a.target = '_blank'; a.rel = 'noopener'; var pp = el('p', 'note-sm'); pp.appendChild(a); fin.appendChild(pp); }
     }
     if (j.peers) peersBlock(fin || box, j.peers);
+    if (j.similar && j.similar.length) similarBlock(fin || box, j.similar);
 
     box.appendChild(el('h2', null, 'Налоги и сотрудники'));
     box.appendChild(el('p', 'note-sm', 'Официальные данные ФНС: ' + (p && p.source === 'opendata' ? 'открытые данные о налогах и численности' : 'сервис «Прозрачный бизнес»') + '.'));
@@ -670,6 +671,18 @@
     sig.forEach(function (x) { box.appendChild(tip(x[0], x[1])); });
   }
   // Компания среди похожих: та же отрасль (две цифры ОКВЭД), регион и возраст — server/market.mjs
+  // похожие компании той же отрасли и региона с близкими доходами — с кем ещё сравнить
+  function similarBlock(parent, list) {
+    parent.appendChild(el('p', 'fns-sub', 'Похожие компании'));
+    var ul = el('ul', 'similar');
+    list.forEach(function (c) {
+      var li = el('li'), a = el('a', null, c.name);
+      a.href = location.origin + '/organizacii/' + c.inn + '/';
+      li.appendChild(a); li.appendChild(document.createTextNode(' ')); li.appendChild(el('span', 'note-sm', money(c.income)));
+      ul.appendChild(li);
+    });
+    parent.appendChild(ul);
+  }
   function peersBlock(parent, pr) {
     var g = pr.peers, where = pr.scope === 'region' ? 'в том же регионе' : 'по России';
     parent.appendChild(el('p', 'fns-sub', 'Среди похожих компаний'));
@@ -1046,7 +1059,7 @@
       render(j.suggestion, j.advice);
       if (window.goal) window.goal('check');
       accountActions(j.suggestion, j.signedIn);
-      if (j.billing) pdfButton(j.pro);
+      if (j.billing) pdfButton(j.pro, j.suggestion.data && j.suggestion.data.inn);
       loadFns(inn, j.suggestion.data || {});
       var moreDone = loadMore(inn);
       var box = document.getElementById('org-ai');
@@ -1077,11 +1090,24 @@
     }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { j.status = r.status; return j; }); });
   }
   // Отчёт в PDF — печать страницы в файл (оформление для печати — в style.css, @media print). Для подписчиков
-  function pdfButton(pro) {
+  // Подписчику к отчёту выдаётся «Сертификат проверки» с номером (server/certs.mjs): номер и адрес для проверки подлинности
+  // печатаются в отчёте. Не получилось выдать — печатаем без сертификата, отчёт важнее.
+  function pdfButton(pro, inn) {
     var head = document.getElementById('card-head') || out;
-    var b = el('button', 'share', pro ? 'Скачать отчёт PDF' : 'Отчёт PDF — в Ultima'); b.type = 'button';
+    var b = el('button', 'share', pro ? 'Скачать отчёт PDF с сертификатом' : 'Отчёт PDF с сертификатом — в Ultima'); b.type = 'button';
     b.addEventListener('click', function () {
-      if (pro) window.print(); else location.href = '/tarify/';
+      if (!pro) { location.href = '/tarify/'; return; }
+      var old = document.getElementById('cert-print'); if (old) old.remove();
+      b.disabled = true;
+      acctCall('POST', '/api/cert', { inn: inn }).then(function (j) {
+        if (j.status === 200 && j.id) {
+          var c = el('div', 'cert-print'); c.id = 'cert-print';
+          var when = new Date(j.at).toLocaleString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Moscow' });
+          c.appendChild(el('p', 'cert-no', 'Сертификат проверки № ' + j.id));
+          c.appendChild(el('p', 'note-sm', 'Проверка проведена ' + when + ' (МСК). Подлинность и сведения на эту дату: ' + j.url.replace(/^https?:\/\//, '')));
+          out.insertBefore(c, out.firstChild);
+        }
+      }).catch(function () {}).then(function () { b.disabled = false; window.print(); });
     });
     head.appendChild(b);
   }

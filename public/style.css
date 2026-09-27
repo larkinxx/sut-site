@@ -520,3 +520,18 @@ input[type=date]:focus,textarea:focus{outline:none;border-color:var(--ink)}
 .ychart .fcast{fill:var(--muted);opacity:.45}
 .ychart .neg{fill:var(--crit-line)}
 .checks{border:0;margin:0;padding:0;display:grid;gap:8px}.checks label{display:flex;gap:10px;align-items:flex-start;font:400 14px/1.4 var(--font-ui)}.checks input{margin-top:3px}
+/* сертификат проверки (server/certs.mjs): номер крупной антиквой с разрядкой, как гравировка */
+.cert-no{font:400 22px/1.2 var(--font-display);letter-spacing:.18em;text-transform:uppercase;margin:0 0 8px}
+.cert-print{border-top:1px solid var(--ink);border-bottom:1px solid var(--ink);padding:14px 0;margin:0 0 18px}
+.cert .cert-facts{margin:18px 0}
+@media screen{.cert-print{display:block}}
+.similar{list-style:none;padding:0;margin:6px 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:4px 24px}.similar li{padding:6px 0;border-bottom:1px solid var(--line)}
+.study{padding:6px 0 14px;border-bottom:1px solid var(--line)}.study-finding{font:400 22px/1.4 var(--font-display);margin:8px 0 20px}
+.cmp-table th:first-child{width:34%}.cmp-table td.best{font-weight:500}.cmp-table td.best::after{content:' ●';font-size:9px;vertical-align:middle}
+/* линейки дома на главной */
+.lines{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));border-top:1px solid var(--line);margin:0 0 8px}
+.lines a{display:grid;gap:6px;align-content:start;padding:22px 20px 24px;border-bottom:1px solid var(--line);border-right:1px solid var(--line);color:var(--ink);text-decoration:none;transition:background .2s}
+.lines a:hover{background:var(--accent-soft)}
+.lines .label{margin:0}
+.lines b{font:400 22px/1.25 var(--font-display)}
+.lines a>span:last-child{font:300 14px/1.5 var(--font-ui);color:var(--muted)}

@@ -282,12 +282,13 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
   }
 
   /* ----- уведомления ----- */
-  async function notify(u, text) {
+  // subject — тема письма (в Telegram не нужна); в письмах — подпись дома
+  async function notify(u, text, subject = 'INNSIDER: изменения у компаний, за которыми вы следите') {
     const ch = channelOf(u);
     if (ch === 'telegram' && cfg.tgToken) {
       await tgCall('sendMessage', { chat_id: u.telegram_id, text, link_preview_options: { is_disabled: true } });
     } else if (ch === 'email' && mailer) {
-      await mailer({ to: u.email, subject: 'INNSIDER: изменения у компаний, за которыми вы следите', text });
+      await mailer({ to: u.email, subject, text: `${text}\n\n—\nINNSIDER · ${host}\nНастроить уведомления: ${cfg.site}/kabinet/` });
     }
   }
 
@@ -347,6 +348,51 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
       }
     };
     return setInterval(() => tick().catch((e) => console.error('слежение', e.message)), 10 * 60e3);
+  }
+
+  /* ----- личная недельная сводка подписчику (как у персонального консультанта модного дома) ----- */
+  // isPro(u) — есть ли подписка; companyLine(inn) — строка о компании пользователя (место среди сверстников) или null
+  function digestText(u, { companyLine = () => null, day = new Date(now() + 3 * 3600e3) } = {}) {
+    const weekAgo = now() - 7 * 864e5;
+    const items = q(`SELECT w.inn, COALESCE(s.data, '{}') AS data, s.changed_at, s.last_change, w.name FROM watch w LEFT JOIN snapshots s ON s.inn = w.inn WHERE w.user_id = ? ORDER BY w.added_at`).all(u.id);
+    const own = u.company_inn ? companyLine(u.company_inn) : null;
+    if (!items.length && !own) return null;
+    const changed = items.filter((r) => r.changed_at && r.changed_at >= weekAgo && r.last_change);
+    const nameOf = (r) => JSON.parse(r.data).name || r.name || `ИНН ${r.inn}`;
+    const lines = [`Ваша неделя с INNSIDER, ${day.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', timeZone: 'UTC' })}`];
+    if (items.length) {
+      lines.push('', `Компании в слежении: ${items.length}.`);
+      if (changed.length) { lines.push('Изменения за неделю:'); for (const r of changed) lines.push(`• ${nameOf(r)}: ${r.last_change}`); }
+      else lines.push('За неделю изменений не было: статус, руководители, суды и долги — без новостей.');
+    }
+    if (own) lines.push('', own);
+    // единые сроки с 2023 года: уведомления об исчисленных налогах — до 25-го, уплата единым налоговым платежом — до 28-го
+    const d = day.getUTCDate();
+    if (d >= 18 && d <= 28) lines.push('', `Сроки: ${d <= 25 ? 'до 25-го — уведомления об исчисленных налогах, ' : ''}до 28-го — уплата налогов единым налоговым платежом.`);
+    lines.push('', `Кабинет: ${cfg.site}/kabinet/`);
+    return lines.join('\n');
+  }
+  async function runDigest(isPro, opts = {}) {
+    let sent = 0;
+    for (const u of q("SELECT * FROM users WHERE notify <> 'none'").all()) {
+      if (!isPro(u)) continue;
+      const text = digestText(u, opts);
+      if (!text) continue;
+      try { await notify(u, text, 'INNSIDER: ваша неделя'); sent++; } catch (e) { console.error('сводка', u.id, e.message); }
+    }
+    return { sent };
+  }
+  // по понедельникам после 09:00 по Москве, один раз в неделю
+  function scheduleDigest(isPro, opts = {}) {
+    const tick = async () => {
+      const msk = new Date(now() + 3 * 3600e3), week = msk.toISOString().slice(0, 10);
+      const last = q("SELECT value FROM meta WHERE key = 'digest_day'").get();
+      if (msk.getUTCDay() === 1 && msk.getUTCHours() >= 9 && (!last || last.value !== week)) {
+        q("INSERT INTO meta (key, value) VALUES ('digest_day', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(week);
+        console.log(new Date().toISOString(), 'сводка:', JSON.stringify(await runDigest(isPro, opts)));
+      }
+    };
+    return setInterval(() => tick().catch((e) => console.error('сводка', e.message)), 10 * 60e3);
   }
 
   function recordHistory(u, inn, name) {
@@ -566,5 +612,5 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
     return true;
   }
 
-  return { handle, userOf, recordHistory, runWatch, scheduleWatch, notify, cfg };
+  return { handle, userOf, recordHistory, runWatch, scheduleWatch, runDigest, scheduleDigest, digestText, notify, cfg };
 }

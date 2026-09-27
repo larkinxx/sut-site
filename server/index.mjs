@@ -55,11 +55,13 @@ import { createBilling } from './billing.mjs';
 import { dnCard, dnCourts, partyOfCard } from './datanewton.mjs';
 import { createDnStore } from './dn-store.mjs';
 import { checkSite, siteNotes } from './site-check.mjs';
-import { createCompanyPages, shortName } from './company-page.mjs';
+import { createCompanyPages, shortName, similarCompanies } from './company-page.mjs';
 import { createIndustryPages } from './industry-pages.mjs';
 import { createLawyer } from './lawyer.mjs';
+import { createCerts, certSnapshot } from './certs.mjs';
+import { createResearch } from './research.mjs';
 import { fnsData } from './fns.mjs';
-import { marketStats, orgPeers, orgForecast, okvedOf } from './market.mjs';
+import { marketStats, orgPeers, orgForecast, compareFacts, okvedOf } from './market.mjs';
 import { createAdmin } from './admin.mjs';
 import { DatabaseSync } from 'node:sqlite';
 
@@ -419,7 +421,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
   const cfg = config(env);
   const accounts = db ? createAccounts({ env, db, fetchImpl, mailer, now, watchLimit: (u) => billing.watchLimit(u) }) : null;
   // подписка: нужна база аккаунтов (платёж привязан к пользователю)
-  const billing = db ? createBilling({ env, db, fetchImpl, now, notify: (u, text) => accounts.notify(u, text) }) : null;
+  const billing = db ? createBilling({ env, db, fetchImpl, now, notify: (u, text) => accounts.notify(u, text, 'INNSIDER Ultima: подписка') }) : null;
   const partyCache = makeCache(24 * 3600e3, 20000);   // сведения из ЕГРЮЛ за сутки почти не меняются; слежение берёт свежие отдельно
   const aiCache = makeCache(DAY);
   const fnsCache = makeCache(DAY);
@@ -563,6 +565,8 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
     } catch { return []; }
   }
   const industryPages = createIndustryPages({ env, fdb, now });
+  const research = createResearch({ env, fdb, now });   // «Исследования INNSIDER» (server/research.mjs)
+  const certs = db ? createCerts({ env, db, now }) : null;   // сертификаты проверки (server/certs.mjs)
   const companyPages = createCompanyPages({ env, fdb, getParty: (inn) => getParty(inn, { fallback: false }), cachedParty: (inn) => partyCache.get(inn), getMore: dnCached, now });
 
   // Пересылка к api.telegram.org для нашего сервера в России. Секретов не хранит: токен приходит в адресе и дальше не пишется
@@ -584,6 +588,13 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
   }
 
   handler.watchExtra = watchExtra;
+  // строка недельной сводки о компании пользователя: место среди сверстников и ссылка на прогноз
+  handler.companyLine = (inn) => {
+    const p = orgPeers(fdb, inn);
+    if (!p || p.incomePercentile == null) return null;
+    const site = (env.SITE_URL || 'https://inn-sider.ru').replace(/\/$/, '');
+    return `Ваша компания: доходы за ${p.year} год выше, чем у ${p.incomePercentile}% сверстников — компаний той же отрасли${p.scope === 'region' ? ' и региона' : ''}, которые работают ${p.ageLabel}. Прогноз на три года: ${site}/prognoz/#inn=${inn}`;
+  };
   return handler;
   async function handler(req, res) {
     cors(req, res);
@@ -602,12 +613,41 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
       }
       if (await companyPages(req, res, url, innValid)) return;
       if (industryPages(req, res, url)) return;
+      if (research(req, res, url)) return;
+      if (certs && certs.handle(req, res, url)) return;
       if (req.method !== 'GET' && req.headers.origin && !cfg.origins.includes(req.headers.origin)) return send(res, 403, { error: 'Запрос с чужого сайта' });
       if (await lawyer.handle(req, res, url, { send, readBody })) return;
+      if (url.pathname === '/api/cert') {
+        // сертификат к отчёту PDF — только подписчикам: снимок того, что они видели о компании
+        if (req.method !== 'POST' || !certs) return send(res, 404, { error: 'Не найдено' });
+        const u = accounts && accounts.userOf(req);
+        if (!u) return send(res, 401, { error: 'Войдите, чтобы получить сертификат.' });
+        if (!(billing && billing.enabled && billing.isPro(u))) return send(res, 403, { error: 'Сертификат проверки — в подписке INNSIDER Ultima.', needPro: true });
+        let body; try { body = await readBody(req); } catch { return send(res, 400, { error: 'Не удалось прочитать запрос.' }); }
+        const inn = String((body && body.inn) || '').replace(/\D/g, '');
+        if (!innValid(inn)) return send(res, 400, { error: 'Неверный ИНН.' });
+        const s = partyCache.get(inn) || await getParty(inn).catch(() => null);
+        if (!s) return send(res, 404, { error: 'По этому ИНН ничего не найдено.' });
+        const f = fnsCache.get(inn) || null, more = dnCached(inn);
+        const c = certs.issue(u.id, certSnapshot({ inn, suggestion: s, fns: f, more, index: innIndex(indexInputFor(s, f, more)) }));
+        return c ? send(res, 200, c) : send(res, 429, { error: 'На сегодня сертификатов достаточно. Попробуйте завтра.' });
+      }
       if (billing && await billing.handle(req, res, url, { send, readBody, user: url.pathname.startsWith('/api/billing') ? accounts.userOf(req) : null })) return;
       if (accounts && await accounts.handle(req, res, url, { send, readBody, getParty, innValid, ip: ipOf(req) })) return;
-      if (req.method !== 'POST' || !['/api/org', '/api/org/ai', '/api/org/fns', '/api/org/more', '/api/org/courts', '/api/org/suggest', '/api/market', '/api/forecast'].includes(url.pathname)) return send(res, 404, { error: 'Не найдено' });
+      if (req.method !== 'POST' || !['/api/org', '/api/org/ai', '/api/org/fns', '/api/org/more', '/api/org/courts', '/api/org/suggest', '/api/market', '/api/forecast', '/api/compare'].includes(url.pathname)) return send(res, 404, { error: 'Не найдено' });
       if (req.headers.origin && !cfg.origins.includes(req.headers.origin)) return send(res, 403, { error: 'Запрос с чужого сайта' });
+      if (url.pathname === '/api/compare') {
+        // сравнение 2–3 организаций бок о бок — только база ФНС
+        const body = await readBody(req);
+        const inns = (Array.isArray(body && body.inns) ? body.inns : []).map((x) => String(x).replace(/\D/g, '')).filter((x) => /^\d{10}$/.test(x) && innValid(x));
+        if (inns.length < 2 || inns.length > 3 || new Set(inns).size !== inns.length) return send(res, 400, { error: 'Укажите от двух до трёх разных ИНН организаций (10 цифр).' });
+        const ip = ipOf(req), t = now();
+        const hits = (marketHits.get(ip) || []).filter((x) => t - x < 600e3);
+        if (hits.length >= 120) return send(res, 429, { error: 'Слишком много запросов. Подождите несколько минут.' });
+        hits.push(t); marketHits.set(ip, hits);
+        admin.count('market');
+        return send(res, 200, { items: inns.map((inn) => { const c = compareFacts(fdb, inn); return c ? { ...c, name: c.name ? shortName(c.name) : null } : { inn, missing: true }; }) });
+      }
       if (url.pathname === '/api/forecast') {
         // прогноз действующей организации по месту среди сверстников — тоже только наша база ФНС
         const body = await readBody(req);
@@ -694,7 +734,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
       if (url.pathname === '/api/org/fns') {
         let f = fnsCache.get(inn);
         if (!f) { f = await fnsData(inn, fetchImpl, fnsPause, fdb, now); if (f.pb || f.bo) fnsCache.set(inn, f); }
-        return send(res, 200, { ...f, peers: orgPeers(fdb, inn) });
+        return send(res, 200, { ...f, peers: orgPeers(fdb, inn), similar: similarCompanies(fdb, inn) });
       }
 
       const s = await getParty(inn);
@@ -759,9 +799,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   if (db) {
     // слежение: раз в сутки свежие данные из DaData (без кеша)
     const accounts = createAccounts({ env, db, fetchImpl: globalThis.fetch, mailer });
-    const bill = createBilling({ env, db, fetchImpl: globalThis.fetch, notify: (u, text) => accounts.notify(u, text) });
+    const bill = createBilling({ env, db, fetchImpl: globalThis.fetch, notify: (u, text) => accounts.notify(u, text, 'INNSIDER Ultima: подписка') });
     accounts.scheduleWatch((inn) => findParty(inn, cfg, globalThis.fetch),
       (inn, prev, uids) => app.watchExtra(inn, prev, bill.enabled && uids.some((id) => bill.isPro({ id }))));
+    accounts.scheduleDigest((u) => bill.enabled && bill.isPro(u), { companyLine: (inn) => app.companyLine(inn) });
     bill.scheduleRenew();
   }
 }

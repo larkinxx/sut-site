@@ -141,7 +141,7 @@ ${body}
 </main>
 <footer class="wrap">
   ${POLICY ? `<p class="seller">${esc((OP_TITLE.charAt(0).toUpperCase() + OP_TITLE.slice(1)))} · ИНН ${esc(site.operator.inn)}${site.operator.ogrnip ? ` · ОГРНИП ${esc(site.operator.ogrnip)}` : ''}</p>` : ''}
-  <p class="fine">${esc(site.disclaimer)} Как мы готовим новости: <a href="${url('/kak-my-rabotaem/')}">как мы работаем</a>. <a href="${url('/o-proekte/')}">О проекте</a>. <a href="${url('/pravovaya-informaciya/')}">Правовая информация</a>.${COMPANY_PAGES ? ` <a href="${url('/otrasli/')}">Отрасли: сколько зарабатывают</a>.` : ''}${POLICY ? ` <a href="${url('/politika/')}">Политика конфиденциальности</a>.` : ''}${ACCT && POLICY ? ` <a href="${url('/tarify/')}">Тарифы</a>. <a href="${url('/oferta/')}">Оферта</a>.` : ''}${site.contactEmail ? ` Нашли ошибку? Напишите: <a href="mailto:${esc(site.contactEmail)}">${esc(site.contactEmail)}</a>.` : ''}</p>
+  <p class="fine">${esc(site.disclaimer)} Как мы готовим новости: <a href="${url('/kak-my-rabotaem/')}">как мы работаем</a>. <a href="${url('/o-proekte/')}">О проекте</a>. <a href="${url('/pravovaya-informaciya/')}">Правовая информация</a>.${COMPANY_PAGES ? ` <a href="${url('/otrasli/')}">Отрасли: сколько зарабатывают</a>. <a href="${url('/issledovaniya/')}">Исследования</a>.` : ''}${POLICY ? ` <a href="${url('/politika/')}">Политика конфиденциальности</a>.` : ''}${ACCT && POLICY ? ` <a href="${url('/tarify/')}">Тарифы</a>. <a href="${url('/oferta/')}">Оферта</a>.` : ''}${site.contactEmail ? ` Нашли ошибку? Напишите: <a href="mailto:${esc(site.contactEmail)}">${esc(site.contactEmail)}</a>.` : ''}</p>
 </footer>
 ${body.includes('data-calc=') || body.includes('id="org"') ? `<script type="application/json" id="fin">${JSON.stringify(FIN).replace(/</g, '\\u003c')}</script>\n` : ''}<script src="${url('/app.js')}?v=${jsV}" defer></script>${scripts}
 <script>
@@ -338,6 +338,15 @@ function macroWidget() {
     <p class="split-links"><a class="lnk" href="${url('/fizlica/')}">Физлицам</a><a class="lnk" href="${url('/kalkulyatory/')}">Калькуляторы</a><a class="lnk" href="${url('/nalogi/')}">Налоги</a></p>
   </div>
 </section>` : '';
+  // линейки дома: всё, что умеет сайт, одной строкой под первым экраном
+  const lines = hero ? `<section class="lines" aria-label="Разделы INNSIDER">
+  <a href="${url('/organizacii/')}"><span class="label">Проверка</span><b>Компания по ИНН</b><span>Налоги, суды, приставы, индекс надёжности и место среди конкурентов.</span></a>
+  <a href="${url('/sravnenie/')}"><span class="label">Сравнение</span><b>Две компании бок о бок</b><span>Доходы, прибыль, сотрудники, налоги и долги в одной таблице.</span></a>
+  <a href="${url('/prognoz/')}"><span class="label">Прогноз</span><b>Доходы на три года</b><span>По статистике похожих компаний отрасли и региона.</span></a>
+  ${COMPANY_PAGES ? `<a href="${url('/otrasli/')}"><span class="label">Отрасли</span><b>Сколько зарабатывают</b><span>Доходы, доля прибыльных и крупнейшие компании по регионам.</span></a>` : ''}
+  <a href="${url('/yurist/')}"><span class="label">Юрист</span><b>Документы по ИНН</b><span>Претензия с расчётом процентов, акт сверки, договор с самозанятым.</span></a>
+  ${COMPANY_PAGES ? `<a href="${url('/issledovaniya/')}"><span class="label">Исследования</span><b>Малый бизнес в цифрах</b><span>Прибыльные отрасли, где открывают бизнес, прибыльность по возрасту компании.</span></a>` : ''}
+</section>` : '';
   const trust = hero ? `<section class="trust" aria-label="Почему нам можно доверять">
   <p class="label">Сведения из открытых государственных источников</p>
   <p class="sources"><span>ФНС России</span><span>ЕГРЮЛ и ЕГРИП</span><span>ГИР БО</span><span>Картотека арбитражных дел</span><span>ФССП России</span></p>
@@ -350,7 +359,7 @@ function macroWidget() {
 </section>` : '';
   // окно ленты: 24 → «24 часа», 168 → «неделю», иначе — в днях или часах
   const win = site.windowHours % 168 === 0 ? (site.windowHours === 168 ? 'неделю' : `${site.windowHours / 168} недели`) : site.windowHours % 24 === 0 && site.windowHours > 24 ? `${site.windowHours / 24} дней` : `${site.windowHours} часа`;
-  const body = `${hero}${trust}${macroWidget()}<h1 class="page">Новости за ${win}</h1>
+  const body = `${hero}${lines}${trust}${macroWidget()}<h1 class="page">Новости за ${win}</h1>
 <div class="filters" id="filters" role="group" aria-label="Для кого показывать новости">
   <button type="button" class="chip" data-f="*" aria-pressed="true">Все</button>
   <button type="button" class="chip" data-f="borrowers" aria-pressed="false">${AUDIENCES.borrowers}</button>
@@ -645,6 +654,52 @@ ${card('Как не попасть под блокировку', [
 }));
 
 // Опасные налоговые схемы: не инструкция, а предупреждение — в чём схема, как её находят и чем она кончается
+// Сравнение компаний /sravnenie/ — public/compare.js → /api/compare (только база ФНС)
+if (process.env.ORG_API_URL) {
+  write('sravnenie/index.html', layout({
+    title: 'Сравнение компаний по ИНН', path: '/sravnenie/', current: 'org',
+    desc: 'Сравните две или три компании по ИНН бок о бок: доходы, прибыль, сотрудники, налоги, долги и место среди конкурентов. Бесплатно, по открытым данным ФНС.',
+    scripts: `\n<script src="${url('/compare.js')}?v=${hashOf('compare.js')}" defer></script>`,
+    body: `<a class="crumb" href="${url('/organizacii/')}">${icon('arrowLeft')} Проверка организации</a>
+<h1 class="page">Сравнение компаний</h1>
+<p class="lede">Две или три организации бок о бок: доходы, прибыль, сотрудники, налоги, долги и место среди конкурентов своей отрасли.</p>
+<section class="calc" id="cmp" data-api="${esc(process.env.ORG_API_URL)}">
+  <form id="cmp-form" novalidate>
+    <div class="row2">
+      <label class="f">Первая организация, ИНН<input type="text" class="cmp-inn" id="cmp-a" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="10 цифр"></label>
+      <label class="f">Вторая, ИНН<input type="text" class="cmp-inn" id="cmp-b" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="10 цифр"></label>
+      <label class="f">Третья, по желанию<input type="text" class="cmp-inn" id="cmp-c" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="10 цифр"></label>
+    </div>
+    <p><button class="btn" type="submit">Сравнить</button></p>
+  </form>
+  <p class="verdict warn" id="cmp-msg" aria-live="polite"></p>
+  <div id="cmp-out" aria-live="polite"></div>
+  <p class="note-sm">По открытым данным ФНС: реестр МСП, налоги, численность, долги, доходы и расходы. Только организации: по ИП налоговая не публикует отчётность.</p>
+</section>`
+  }));
+}
+
+// «Исследования INNSIDER» /issledovaniya/… — страницы собирает сервер (server/research.mjs) из этого шаблона
+const STUDY_SLUGS = ['pribylnye-otrasli', 'gde-otkryvayut-biznes', 'gde-bolshe-zarabatyvayut', 'pribylnost-po-vozrastu'];   // как STUDIES в server/research.mjs
+if (COMPANY_PAGES) {
+  write('issledovaniya/index.html', layout({
+    title: 'Исследования INNSIDER', path: '/issledovaniya/', current: '',
+    desc: 'Обзоры малого и среднего бизнеса России по открытым данным ФНС: прибыльные отрасли, где открывают бизнес, доходы и прибыльность по возрасту.',
+    body: `<!--ssr:intro--><h1 class="page">Исследования</h1><!--/ssr:intro-->
+<section class="prose research"><!--ssr:body--><p>Исследования загружаются…</p><!--/ssr:body--></section>`
+  }));
+}
+
+// Сертификат проверки /sertifikat/<номер>/ — страницу собирает сервер (server/certs.mjs) из этого шаблона
+if (ACCT && COMPANY_PAGES) {
+  write('sertifikat/index.html', layout({
+    title: 'Сертификат проверки', path: '/sertifikat/', current: '', noindex: true,
+    desc: 'Проверка подлинности сертификата проверки организации INNSIDER.',
+    body: `<!--ssr:intro--><h1 class="page">Сертификат проверки</h1><!--/ssr:intro-->
+<section class="cert"><!--ssr:body--><p class="lede">Откройте ссылку из отчёта или введите номер в адрес страницы: /sertifikat/7KQ2-M9XA/.</p><!--/ssr:body--></section>`
+  }));
+}
+
 // ---------- Прогноз бизнеса: действующая компания по ИНН (public/forecast.js → /api/forecast) и новый бизнес (калькулятор перспектив) ----------
 if (process.env.ORG_API_URL) {
   write('prognoz/index.html', layout({
@@ -870,7 +925,9 @@ ${ACCT ? `<h2>Оплата подписки</h2>
       <li>Всё, что в бесплатном</li>
       <li>Суды, арбитраж и приставы без дневного лимита</li>
       <li>Слежение за 50 компаниями: уведомления в Telegram или на почту о новых судах, долгах у приставов и налоговых долгах, смене руководителя и статуса</li>
+      <li>Личная сводка по понедельникам: ваши компании, ваша отрасль и ближайшие налоговые сроки</li>
       <li>Помощник юриста: ответы со ссылками на статьи закона</li>
+      <li>Сертификат проверки к каждому отчёту: номер и страница подтверждения</li>
       <li>Отчёт о проверке в PDF — отправить руководителю или приложить к договору</li>
     </ul>
     <div class="plan-buy">
@@ -918,7 +975,14 @@ ${ACCT ? `<h2>Оплата подписки</h2>
 // 404
 write('404.html', layout({
   title: 'Страница не найдена', path: '/404.html', current: '',
-  body: `<h1 class="page">Страница не найдена</h1><p class="lede">Возможно, адрес изменился. <a href="${url('/')}" style="color:var(--accent)">Вернуться к новостям</a>.</p>`
+  body: `<h1 class="page">Страница не найдена</h1>
+<p class="lede">Возможно, адрес изменился или в нём опечатка. Вот с чего обычно начинают.</p>
+<div class="prose"><ul>
+<li><a href="${url('/organizacii/')}">Проверить организацию по ИНН</a> — реквизиты, налоги, суды и индекс надёжности.</li>
+${process.env.ORG_API_URL ? `<li><a href="${url('/prognoz/')}">Прогноз бизнеса</a> — доходы вашей компании на три года вперёд.</li>` : ''}
+<li><a href="${url('/yurist/')}">Юрист</a> — претензия, акт сверки, договор с самозанятым по ИНН.</li>
+<li><a href="${url('/')}">Новости</a> — что изменилось за неделю и что с этим делать.</li>
+</ul></div>`
 }));
 
 // Правовая информация: на каком основании работает сайт, какие законы и открытые данные
@@ -1054,7 +1118,7 @@ if (!site.siteUrl.includes('example')) {
   // lastmod: у ленты — время свежей новости, у карточки — время последней правки; у статичных страниц не ставим
   const fresh = cards.length ? cards[0].publishedAt : '';
   const urls = [
-    ['/', fresh], ['/arhiv/', fresh], ['/kalkulyatory/'], ...CALCS.map((c) => [`/kalkulyatory/${c.slug}/`]), ['/organizacii/'], ['/indeks/'], ['/fizlica/'], ['/nalogi/'], ...[...TAX, ...TAX_P].map((t) => [`/nalogi/${t.slug}/`]), ['/nalogovye-shemy/'], ['/nalogi/blokirovka-scheta/'], ...(process.env.ORG_API_URL ? [['/prognoz/']] : []), ['/yurist/'], ['/yurist/dokumenty/'], ...LAW.map((g) => [`/yurist/${g.slug}/`]), ['/fizlica/dropy/'], ['/kak-my-rabotaem/'], ['/o-proekte/'], ['/pravovaya-informaciya/'], ...(POLICY ? [['/politika/']] : []), ...(ACCT && POLICY ? [['/tarify/'], ['/oferta/']] : []),
+    ['/', fresh], ['/arhiv/', fresh], ['/kalkulyatory/'], ...CALCS.map((c) => [`/kalkulyatory/${c.slug}/`]), ['/organizacii/'], ['/indeks/'], ['/fizlica/'], ['/nalogi/'], ...[...TAX, ...TAX_P].map((t) => [`/nalogi/${t.slug}/`]), ['/nalogovye-shemy/'], ['/nalogi/blokirovka-scheta/'], ...(process.env.ORG_API_URL ? [['/prognoz/'], ['/sravnenie/']] : []), ...(COMPANY_PAGES ? [['/issledovaniya/'], ...STUDY_SLUGS.map((x) => [`/issledovaniya/${x}/`])] : []), ['/yurist/'], ['/yurist/dokumenty/'], ...LAW.map((g) => [`/yurist/${g.slug}/`]), ['/fizlica/dropy/'], ['/kak-my-rabotaem/'], ['/o-proekte/'], ['/pravovaya-informaciya/'], ...(POLICY ? [['/politika/']] : []), ...(ACCT && POLICY ? [['/tarify/'], ['/oferta/']] : []),
     ...cards.map((c) => [`/n/${c.id}/`, (c.review && c.review.at) || c.publishedAt])
   ];
   write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(([u, m]) => `<url><loc>${site.siteUrl}${u}</loc>${m ? `<lastmod>${new Date(m).toISOString()}</lastmod>` : ''}</url>`).join('\n')}\n</urlset>\n`);
