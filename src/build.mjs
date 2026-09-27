@@ -696,6 +696,21 @@ ${ACCT ? `<h2>Оплата подписки</h2>
 <p class="note-sm">Редакция от ${esc(new Date(FIN.checkedAt + 'T12:00:00+03:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Moscow' }))}.</p>
 </div>`
   }));
+  // Панель владельца: сводка с сервера (server/admin.mjs) по ключу ADMIN_TOKEN, который владелец вводит один раз
+  if (process.env.ORG_API_URL) {
+    write('admin/index.html', layout({
+      title: 'Панель владельца', path: '/admin/', current: '', noindex: true,
+      scripts: `\n<script src="${url('/admin.js')}?v=${hashOf('admin.js')}" defer></script>`,
+      body: `<h1 class="page">Панель владельца</h1>
+<section class="calc" id="admin" data-api="${esc(process.env.ORG_API_URL)}">
+  <form id="admin-login" hidden>
+    <label class="f">Ключ панели (ADMIN_TOKEN из настроек сервера)<input type="password" id="admin-key" autocomplete="current-password"></label>
+    <p><button class="btn" type="submit">Открыть</button></p>
+  </form>
+  <div id="admin-out" aria-live="polite"><p class="note-sm">Загружаем…</p></div>
+</section>`
+    }));
+  }
   if (ACCT) {
     const accJs = `\n<script src="${url('/account.js')}?v=${hashOf('account.js')}" defer></script>`;
     write('vhod/index.html', layout({
@@ -930,7 +945,7 @@ write('manifest.webmanifest', JSON.stringify({
 }, null, 2));
 
 // robots и sitemap
-write('robots.txt', `User-agent: *\nAllow: /\n${site.siteUrl.includes('example') ? '' : `Sitemap: ${site.siteUrl}/sitemap.xml\n${COMPANY_PAGES ? `Sitemap: ${site.siteUrl}/sitemap-companies.xml\n` : ''}`}`);
+write('robots.txt', `User-agent: *\nAllow: /\nDisallow: /admin/\n${site.siteUrl.includes('example') ? '' : `Sitemap: ${site.siteUrl}/sitemap.xml\n${COMPANY_PAGES ? `Sitemap: ${site.siteUrl}/sitemap-companies.xml\n` : ''}`}`);
 if (!site.siteUrl.includes('example')) {
   // lastmod: у ленты — время свежей новости, у карточки — время последней правки; у статичных страниц не ставим
   const fresh = cards.length ? cards[0].publishedAt : '';
