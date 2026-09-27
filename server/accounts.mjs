@@ -146,7 +146,7 @@ export function smtpMailer({ host, port = 465, user, pass, from }) {
 }
 
 /* ---------- модуль аккаунтов ---------- */
-export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.now() }) {
+export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.now(), watchLimit = () => LIMITS.watch }) {
   const cfg = {
     site: (env.SITE_URL || 'https://innfact.ru').replace(/\/$/, ''),
     api: (env.PUBLIC_API_URL || 'https://api.innfact.ru').replace(/\/$/, ''),
@@ -524,7 +524,8 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
         const inn = String(body.inn || '').replace(/\s/g, '');
         if (!innValid(inn)) return send(res, 400, { error: 'Проверьте ИНН.' }), true;
         const n = q('SELECT COUNT(*) AS n FROM watch WHERE user_id = ?').get(u.id).n;
-        if (n >= LIMITS.watch) return send(res, 400, { error: `Можно следить не больше чем за ${LIMITS.watch} компаниями.` }), true;
+        const lim = watchLimit(u);
+        if (n >= lim) return send(res, 400, { error: `Можно следить не больше чем за ${lim} компаниями.` + (lim < LIMITS.watch ? ' С подпиской ИННфакт Про — до ' + LIMITS.watch + '.' : ''), paywall: lim < LIMITS.watch }), true;
         const s = await getParty(inn);
         if (!s) return send(res, 404, { error: 'По этому ИНН ничего не найдено.' }), true;
         const snap = snapshotOf(s);
@@ -551,5 +552,5 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
     return true;
   }
 
-  return { handle, userOf, recordHistory, runWatch, scheduleWatch, cfg };
+  return { handle, userOf, recordHistory, runWatch, scheduleWatch, notify, cfg };
 }

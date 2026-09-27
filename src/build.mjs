@@ -10,6 +10,7 @@ import { ROOT, loadSite, loadCards, loadMaterials, readJson } from './lib/conten
 import { AUDIENCES, AUDIENCE_TABS, esc, markTitle, dateRu, agoRu } from './lib/util.mjs';
 import { SCHEMES, taxSections, personalSections } from './lib/taxes.mjs';
 import { OKVED_COMMON, REGIONS } from './lib/market-lists.mjs';
+import { PLANS, FREE } from '../server/billing.mjs';
 
 const withExamples = process.argv.includes('--examples');
 const site = loadSite();
@@ -133,7 +134,7 @@ ${withExamples ? '<div class="wrap" style="padding:8px 16px 0;font:500 13px var(
 ${body}
 </main>
 <footer class="wrap">
-  <p class="fine">${esc(site.disclaimer)} Как мы готовим новости: <a href="${url('/kak-my-rabotaem/')}">как мы работаем</a>. <a href="${url('/o-proekte/')}">О проекте</a>. <a href="${url('/pravovaya-informaciya/')}">Правовая информация</a>.${POLICY ? ` <a href="${url('/politika/')}">Политика конфиденциальности</a>.` : ''}${site.contactEmail ? ` Нашли ошибку? Напишите: <a href="mailto:${esc(site.contactEmail)}">${esc(site.contactEmail)}</a>.` : ''}</p>
+  <p class="fine">${esc(site.disclaimer)} Как мы готовим новости: <a href="${url('/kak-my-rabotaem/')}">как мы работаем</a>. <a href="${url('/o-proekte/')}">О проекте</a>. <a href="${url('/pravovaya-informaciya/')}">Правовая информация</a>.${POLICY ? ` <a href="${url('/politika/')}">Политика конфиденциальности</a>.` : ''}${ACCT && POLICY ? ` <a href="${url('/tarify/')}">Тарифы</a>. <a href="${url('/oferta/')}">Оферта</a>.` : ''}${site.contactEmail ? ` Нашли ошибку? Напишите: <a href="mailto:${esc(site.contactEmail)}">${esc(site.contactEmail)}</a>.` : ''}</p>
 </footer>
 ${body.includes('data-calc=') || body.includes('id="org"') ? `<script type="application/json" id="fin">${JSON.stringify(FIN).replace(/</g, '\\u003c')}</script>\n` : ''}<script src="${url('/app.js')}?v=${jsV}" defer></script>${scripts}
 <script>
@@ -656,7 +657,9 @@ ${SCHEMES.filter((x) => x.who === 'person').map((x) => schemeBlock(x, 'h3')).joi
 <p>Данные вошедших пользователей хранятся на сервере в России (Новосибирск). Код для входа по почте хранится 10 минут, сессия — 90 дней, остальные данные — пока у вас есть аккаунт. Мы не продаём ваши данные и передаём их другим лицам только в той мере, в какой это нужно для работы сервиса: Яндекс подтверждает вход через Яндекс ID, почтовый сервис доставляет коды и уведомления.</p>
 <h2>Трансграничная передача при входе через Telegram</h2>
 <p>Если вы входите через Telegram или получаете уведомления в Telegram, ваш идентификатор и имя в Telegram, а также текст уведомления (названия и ИНН компаний, за которыми вы следите) передаются в Telegram Messenger (серверы за пределами России). Наш сервер обменивается данными с Telegram через промежуточный сервер компании Render Services, Inc. (США). Данные там не хранятся, только пересылаются. Если вы не хотите этой передачи — входите через Яндекс ID или по почте и выберите уведомления на почту.</p>
-<h2>Ваши права</h2>
+${ACCT ? `<h2>Оплата подписки</h2>
+<p>Оплату принимает сервис ЮKassa (ООО НКО «ЮМани»). Данные карты вы вводите на странице ЮKassa, мы их не видим и не храним. У нас хранятся номер платежа в ЮKassa, тариф, сумма, статус и дата оплаты. Если вы включили автопродление, ЮKassa передаёт нам только идентификатор сохранённого способа оплаты, без номера карты; при отключении автопродления мы его стираем. Сведения о платежах нужны для учёта доходов и хранятся и после удаления аккаунта, но без связи с вами.</p>
+` : ''}<h2>Ваши права</h2>
 <p>Вы можете в любой момент удалить аккаунт в кабинете: история, слежение, расчёты и сессии удаляются сразу и полностью. Отозвать согласие, уточнить или получить сведения о своих данных можно, написав на <a href="mailto:${mail}">${mail}</a>.</p>
 <p class="note-sm">Редакция от ${esc(new Date(FIN.checkedAt + 'T12:00:00+03:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Moscow' }))}.</p>
 </div>`
@@ -687,6 +690,75 @@ ${SCHEMES.filter((x) => x.who === 'person').map((x) => schemeBlock(x, 'h3')).joi
       title: 'Кабинет', path: '/kabinet/', current: '', noindex: true, scripts: accJs,
       body: `<h1 class="page">Кабинет</h1>
 <div id="cab"><p class="note-sm">Загружаем…</p></div>`
+    }));
+
+    // Подписка ИННфакт Про (server/billing.mjs). Цены на странице — из тех же PLANS, что и на сервере
+    const rubs = (n) => new Intl.NumberFormat('ru-RU').format(n) + ' ₽';
+    const perMonth = Math.round(PLANS.year.price / 12);
+    write('tarify/index.html', layout({
+      title: 'Тарифы: ИННфакт Про', path: '/tarify/', current: '', scripts: accJs,
+      desc: `Проверка компаний по ИНН бесплатно. ИННфакт Про — суды, арбитраж и приставы без ограничений, слежение за 50 компаниями и отчёт в PDF — за ${PLANS.month.price} ₽ в месяц.`,
+      body: `<h1 class="page">Тарифы</h1>
+<p class="lede">Проверка по ИНН, данные ФНС, индекс надёжности и разбор — бесплатно и без регистрации. Подписка нужна тем, кто проверяет контрагентов каждый день.</p>
+<div class="plans" id="tarify">
+  <section class="plan">
+    <h2>Бесплатно</h2>
+    <p class="plan-price">0 ₽</p>
+    <ul>
+      <li>Реестры ФНС, налоги, отчётность, сотрудники</li>
+      <li>Индекс надёжности и экспресс-разбор</li>
+      <li>Учредители, контакты, проверка сайта</li>
+      <li>Суды, арбитраж и приставы — ${FREE.courts} новые компании в день</li>
+      <li>Слежение за ${FREE.watch} компаниями</li>
+    </ul>
+  </section>
+  <section class="plan plan-pro">
+    <h2>ИННфакт Про</h2>
+    <p class="plan-price">${rubs(PLANS.month.price)} <span>в месяц</span></p>
+    <p class="note-sm">или ${rubs(PLANS.year.price)} за год — это ${rubs(perMonth)} в месяц</p>
+    <ul>
+      <li>Всё, что в бесплатном</li>
+      <li>Суды, арбитраж и приставы без дневного лимита</li>
+      <li>Слежение за 50 компаниями с уведомлениями в Telegram или на почту</li>
+      <li>Отчёт о проверке в PDF — отправить руководителю или приложить к договору</li>
+    </ul>
+    <div class="plan-buy">
+      <button class="btn" type="button" data-plan="month">${rubs(PLANS.month.price)} за месяц</button>
+      <button class="btn" type="button" data-plan="year">${rubs(PLANS.year.price)} за год</button>
+    </div>
+    <label class="consent" id="autorenew-row" hidden><input type="checkbox" id="autorenew"> Продлевать автоматически. Спишем оплату в конце срока, за 3 дня напомним; отключить можно в кабинете</label>
+    <p class="note-sm" id="pay-msg" aria-live="polite"></p>
+  </section>
+</div>
+<div class="prose">
+<p class="note-sm">Оплата картой или через СБП на странице ЮKassa. Нажимая кнопку оплаты, вы принимаете условия <a href="${url('/oferta/')}">оферты</a>. Подписка начинает действовать сразу после оплаты. Если сервис не заработал по нашей вине, вернём деньги: напишите на <a href="mailto:${esc(site.contactEmail || '')}">${esc(site.contactEmail || '')}</a>.</p>
+</div>`
+    }));
+
+    const op = site.operator || {};
+    write('oferta/index.html', layout({
+      title: 'Публичная оферта', path: '/oferta/', current: '',
+      desc: 'Условия подписки ИННфакт Про: что входит, цена, оплата, возврат и контакты.',
+      body: `<h1 class="page">Публичная оферта</h1>
+<div class="prose">
+<p>Исполнитель: ${esc(op.name || '')}, ИНН ${esc(op.inn || '')}, применяет налоговый режим «Налог на профессиональный доход». Электронная почта: <a href="mailto:${esc(site.contactEmail || '')}">${esc(site.contactEmail || '')}</a>. Сайт: ${esc(site.siteUrl)}.</p>
+<p>Этот документ — предложение заключить договор на условиях ниже (статья 437 ГК РФ). Оплата подписки означает согласие с ним (статья 438 ГК РФ).</p>
+<h2>1. Что мы предоставляем</h2>
+<p>Доступ к подписке «ИННфакт Про» на сайте ${esc(site.siteUrl)} на оплаченный срок: сведения о судебных делах, арбитраже и исполнительных производствах организаций и ИП без дневного ограничения; слежение за изменениями до 50 организаций с уведомлениями; выгрузка отчёта о проверке. Сведения берутся из открытых государственных источников и от поставщиков данных. Мы не гарантируем их полноту и не отвечаем за ошибки в самих источниках. Индекс надёжности и разбор — это наша оценка по открытым данным, а не юридическое заключение.</p>
+<h2>2. Цена и оплата</h2>
+<p>${rubs(PLANS.month.price)} за 30 дней или ${rubs(PLANS.year.price)} за 365 дней. НДС не облагается. Оплата банковской картой или через СБП с помощью сервиса ЮKassa. Чек формируется через приложение «Мой налог» и передаётся вам через ЮKassa.</p>
+<h2>3. Срок и автопродление</h2>
+<p>Подписка действует с момента оплаты до конца оплаченного срока. Если при оплате вы отметили автопродление, в конце срока оплата за тот же период спишется автоматически; за 3 дня до списания мы пришлём напоминание. Отключить автопродление можно в любой момент в кабинете, тогда подписка доработает до конца оплаченного срока.</p>
+<h2>4. Возврат</h2>
+<p>Если сервис был недоступен по нашей вине, вернём деньги пропорционально неиспользованному сроку. Если вы передумали в течение 14 дней после первой оплаты, вернём её полностью. Напишите на <a href="mailto:${esc(site.contactEmail || '')}">${esc(site.contactEmail || '')}</a> с почты или из аккаунта, с которого платили. Деньги вернутся тем же способом в течение 10 рабочих дней.</p>
+<h2>5. Ограничения</h2>
+<p>Подписка личная: нельзя передавать доступ другим, выгружать данные автоматически или перепродавать их. При нарушении мы можем приостановить подписку и вернуть деньги за неиспользованный срок.</p>
+<h2>6. Персональные данные</h2>
+<p>Обрабатываются по <a href="${url('/politika/')}">политике конфиденциальности</a>.</p>
+<h2>7. Споры</h2>
+<p>Сначала пишите нам: отвечаем в течение 10 рабочих дней. Если договориться не получится, спор решается по законодательству Российской Федерации.</p>
+<p class="note-sm">Редакция от 26 сентября 2026 года.</p>
+</div>`
     }));
   }
 }
@@ -829,7 +901,7 @@ if (!site.siteUrl.includes('example')) {
   // lastmod: у ленты — время свежей новости, у карточки — время последней правки; у статичных страниц не ставим
   const fresh = cards.length ? cards[0].publishedAt : '';
   const urls = [
-    ['/', fresh], ['/arhiv/', fresh], ['/kalkulyatory/'], ...CALCS.map((c) => [`/kalkulyatory/${c.slug}/`]), ['/organizacii/'], ['/indeks/'], ['/fizlica/'], ['/nalogi/'], ...[...TAX, ...TAX_P].map((t) => [`/nalogi/${t.slug}/`]), ['/nalogovye-shemy/'], ['/nalogi/blokirovka-scheta/'], ['/fizlica/dropy/'], ['/kak-my-rabotaem/'], ['/o-proekte/'], ['/pravovaya-informaciya/'], ...(POLICY ? [['/politika/']] : []),
+    ['/', fresh], ['/arhiv/', fresh], ['/kalkulyatory/'], ...CALCS.map((c) => [`/kalkulyatory/${c.slug}/`]), ['/organizacii/'], ['/indeks/'], ['/fizlica/'], ['/nalogi/'], ...[...TAX, ...TAX_P].map((t) => [`/nalogi/${t.slug}/`]), ['/nalogovye-shemy/'], ['/nalogi/blokirovka-scheta/'], ['/fizlica/dropy/'], ['/kak-my-rabotaem/'], ['/o-proekte/'], ['/pravovaya-informaciya/'], ...(POLICY ? [['/politika/']] : []), ...(ACCT && POLICY ? [['/tarify/'], ['/oferta/']] : []),
     ...cards.map((c) => [`/n/${c.id}/`, (c.review && c.review.at) || c.publishedAt])
   ];
   write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(([u, m]) => `<url><loc>${site.siteUrl}${u}</loc>${m ? `<lastmod>${new Date(m).toISOString()}</lastmod>` : ''}</url>`).join('\n')}\n</urlset>\n`);
