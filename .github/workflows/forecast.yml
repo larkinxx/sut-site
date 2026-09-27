@@ -1,0 +1,36 @@
+# Прогноз курсов USD, EUR и CNY на месяц моделью Google TimesFM 2.5 (scripts/forecast.py).
+# Запускается вручную: Actions → «Прогноз курсов (TimesFM)» → Run workflow. Результат — на странице запуска
+# (раздел Summary) и файлом forecast.json в Artifacts. В репозиторий и на сайт ничего не попадает.
+name: Прогноз курсов (TimesFM)
+
+on:
+  workflow_dispatch:
+    inputs:
+      horizon:
+        description: "На сколько рабочих дней вперёд"
+        default: "22"
+
+permissions:
+  contents: read
+
+jobs:
+  forecast:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Установка TimesFM (PyTorch для процессора)
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install "timesfm[torch]"
+      - name: Прогноз
+        run: |
+          python scripts/forecast.py --horizon "${{ inputs.horizon }}" | tee forecast.txt
+          { echo '### Прогноз курсов ЦБ (TimesFM 2.5)'; echo '```'; cat forecast.txt; echo '```';
+            echo 'Статистический прогноз, не инвестиционная рекомендация.'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: forecast
+          path: content/forecast.json
