@@ -1,12 +1,17 @@
 #!/bin/sh
 # Действия на сервере для задачи GitHub Actions «Сервер: команда» (.github/workflows/server.yml).
-# Ключ этой задачи в /root/.ssh/authorized_keys привязан к скрипту (command="/opt/sut-site/deploy/ops.sh"):
-# по нему нельзя выполнить ничего, кроме действий ниже, даже если ключ утечёт. Настройка — deploy/README.md.
+# Работает от root, поэтому ставится отдельной копией в /usr/local/sbin/sut-ops (владелец root): папку /opt/sut-site
+# может менять пользователь сайта sut, и если бы root запускал скрипт прямо оттуда, взлом сайта давал бы root.
+# По той же причине скрипт не вызывает от root ничего из /opt/sut-site — код сайта запускается только от sut.
+# Ключ задачи в /root/.ssh/authorized_keys привязан к этой копии (restrict,command="/usr/local/sbin/sut-ops"):
+# по нему нельзя выполнить ничего, кроме действий ниже. Новая версия скрипта начинает работать, только когда root
+# сам поставит её заново (deploy/README.md) — status подскажет, что копия устарела.
 # Репозиторий публичный, вывод виден всем в логе GitHub Actions: только статусы и счётчики,
 # без журналов сайта, данных пользователей и секретов.
 set -u
 DB=/var/lib/sut/fns.db
 DATA=/var/lib/sut/opendata
+REPO=/opt/sut-site
 ACTION=${SSH_ORIGINAL_COMMAND:-status}
 
 counts() {
@@ -22,7 +27,10 @@ counts() {
 
 case "$ACTION" in
   status)
-    echo "== $(date -u '+%Y-%m-%d %H:%M UTC'), код: $(runuser -u sut -- git -C /opt/sut-site log -1 --format='%h %s')"
+    echo "== $(date -u '+%Y-%m-%d %H:%M UTC'), код: $(runuser -u sut -- git -C "$REPO" log -1 --format='%h %s')"
+    if [ "$0" != "$REPO/deploy/ops.sh" ] && ! cmp -s "$0" "$REPO/deploy/ops.sh"; then
+      echo "== внимание: установленная копия $0 отличается от $REPO/deploy/ops.sh — root должен поставить новую (deploy/README.md)"
+    fi
     echo "== службы: сайт $(systemctl is-active sut-api), импорт ФНС $(systemctl is-active fns-import 2>/dev/null || true)"
     echo "== журнал импорта ФНС (последние строки)"
     journalctl -u fns-import --no-pager -o short-iso -n 12 2>/dev/null | sed -E 's/^([^ ]+) [^ ]+ [^ ]+: /\1 /' || true
@@ -40,22 +48,24 @@ case "$ACTION" in
     ;;
   import-stop)
     systemctl stop fns-import 2>/dev/null || true
-    pkill -f "unzip -p $DATA" || true
+    pkill -f "unzip-stream.py $DATA" || true
     echo "Импорт остановлен."
     ;;
   update)
-    sh /opt/sut-site/deploy/update.sh 2>&1 | grep -vE 'Main PID|CGroup|Tasks|Memory|CPU' | tail -8
+    # то же, что deploy/update.sh, но без запуска файлов из репозитория от root
+    out=$(runuser -u sut -- git -C "$REPO" pull --ff-only 2>&1); code=$?
+    echo "$out" | tail -6
+    if [ $code -ne 0 ]; then echo "Обновление не удалось (git pull, код $code)."; exit $code; fi
+    systemctl restart sut-api || { echo "Сайт не перезапустился."; exit 1; }
+    echo "Сайт перезапущен: $(systemctl is-active sut-api)."
     ;;
   archive-check)
     echo "== архивы ФНС"
     ls -la "$DATA" | tail -n +2 | awk '{print $5, $6, $7, $8, $9}'
-    if [ -f "$DATA/check.txt" ]; then
-      echo "== проверка архива реестра МСП (unzip -t)"
-      tail -4 "$DATA/check.txt"
-      echo "повреждённых файлов: $(grep -c 'bad zipfile' "$DATA/check.txt" || true)"
-    else
-      echo "Проверки архива не было."
-    fi
+    echo "== скачивание и распаковка по журналу импорта (перепроверки частей, битые файлы, итоги)"
+    journalctl -u fns-import --no-pager -o short-iso -n 400 2>/dev/null \
+      | grep -E 'ИТОГО|битый|повреждён|контрольная|перепроверяю|заменено|испорчен|скачан' | tail -15 \
+      | sed -E 's/^([^ ]+) [^ ]+ [^ ]+: /\1 /' || true
     ;;
   *)
     echo "Неизвестное действие: $ACTION. Можно: status, import, import-stop, update, archive-check."

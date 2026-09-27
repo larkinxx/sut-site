@@ -342,4 +342,61 @@ await t('скачивание частями: испорченные при пе
   } finally { srv.close(); fs.rmSync(dir, { recursive: true }); }
 });
 
+await t('скачивание частями: неоднозначный размер части и оборванный HEAD не ломают загрузку, ошибка части останавливает остальные', async () => {
+  const MiB = 1024 * 1024, data = crypto.randomBytes(3 * MiB + 7);
+  const md5 = (b) => crypto.createHash('md5').update(b).digest('hex');
+  let etag = `"${md5(data)}-2"`, failPart = -1, afterFail = 0, failed = false, head = true;
+  const srv = http.createServer((req, res) => {
+    if (req.method === 'HEAD') { if (!head) return req.socket.destroy(); res.writeHead(200, { etag, 'content-length': data.length, 'accept-ranges': 'bytes' }); return res.end(); }
+    const m = /bytes=(\d+)-(\d+)/.exec(req.headers.range || '');
+    if (!m) { res.writeHead(200, { etag, 'content-length': data.length }); return res.end(data); }
+    const a = Number(m[1]), b = Number(m[2]);
+    if (failed) afterFail++;
+    if (a === failPart * 8 * MiB) { failed = true; res.writeHead(500); return res.end(); }
+    res.writeHead(206, { etag, 'content-length': b - a + 1, 'content-range': `bytes ${a}-${b}/${data.length}` });
+    res.end(data.subarray(a, b + 1));
+  });
+  await new Promise((r) => srv.listen(0, r));
+  const url = `http://127.0.0.1:${srv.address().port}/x.zip`;
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rng2-')), f = (x) => path.join(dir, x);
+  try {
+    // ETag «md5-2» при 3 МиБ: подходят части 2 и 3 МиБ — сверить нельзя, целый файл не должен считаться битым
+    assert.equal(await downloadRanged(url, f('a.zip'), { wait: 0 }), true);
+    assert.ok(fs.readFileSync(f('a.zip')).equals(data));
+    // HEAD оборвался — null, импорт качает обычным способом
+    head = false;
+    assert.equal(await downloadRanged(url, f('b.zip'), { wait: 0 }), null);
+    head = true;
+  } finally { srv.close(); fs.rmSync(dir, { recursive: true }); }
+  // часть не качается: ошибка, после неё новые части не запрашиваются
+  const big = crypto.randomBytes(40 * MiB), parts = [];
+  for (let o = 0; o < big.length; o += MiB) parts.push(crypto.createHash('md5').update(big.subarray(o, o + MiB)).digest());
+  const etag2 = `"${crypto.createHash('md5').update(Buffer.concat(parts)).digest('hex')}-40"`;
+  let asked = 0, broken = false;
+  const srv2 = http.createServer((req, res) => {
+    if (req.method === 'HEAD') { res.writeHead(200, { etag: etag2, 'content-length': big.length, 'accept-ranges': 'bytes' }); return res.end(); }
+    const [, a, b] = /bytes=(\d+)-(\d+)/.exec(req.headers.range).map(Number);
+    asked++;
+    if (a === 2 * MiB) { broken = true; res.writeHead(500); return res.end(); }
+    res.writeHead(206, { etag: etag2, 'content-length': b - a + 1, 'content-range': `bytes ${a}-${b}/${big.length}` });
+    setTimeout(() => res.end(big.subarray(a, b + 1)), 5);
+  });
+  await new Promise((r) => srv2.listen(0, r));
+  const dir2 = fs.mkdtempSync(path.join(os.tmpdir(), 'rng3-'));
+  try {
+    await assert.rejects(downloadRanged(`http://127.0.0.1:${srv2.address().port}/y.zip`, path.join(dir2, 'y.zip'), { wait: 0, concurrency: 2 }), /часть 3 из 40/);
+    assert.ok(asked < 40, `после ошибки остальные части не качаются (запросов ${asked})`);
+    assert.ok(!fs.existsSync(path.join(dir2, 'y.zip.part')));
+  } finally { srv2.close(); fs.rmSync(dir2, { recursive: true }); }
+});
+
+await t('нечитаемый архив удаляется, даже когда из него не прочиталось ни одной записи', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bad-')), z = path.join(dir, 'x.zip');
+  try {
+    fs.writeFileSync(z, crypto.randomBytes(5000));
+    await assert.rejects(importZip(openFnsDb(':memory:'), 'sshr2019', z), /архив повреждён/);
+    assert.ok(!fs.existsSync(z), 'следующий запуск скачает заново');
+  } finally { fs.rmSync(dir, { recursive: true }); }
+});
+
 console.log(`\nВсе тесты ФНС прошли: ${n}`);

@@ -130,9 +130,9 @@ export async function importStream(db, name, stream, { check } = {}) {
   buf += dec.end();
   flush(true);
   db.exec('COMMIT');
+  if (check) await check();   // сначала — цел ли источник (битый архив удаляется), потом — годятся ли данные
   if (rows === 0) throw new Error(name + ': ни одной записи — формат изменился?');
   if (missing > rows / 2) throw new Error(`${name}: у ${missing} из ${rows} записей нет нужных полей — формат изменился?`);
-  if (check) await check();
   db.exec(`BEGIN; DROP TABLE ${ds.table}; ALTER TABLE ${tmp} RENAME TO ${ds.table}; COMMIT`);
   return rows;
 }
@@ -205,14 +205,16 @@ export async function etagCheck(file, etag) {
 // качаем каждую часть ещё раз и сравниваем: где копии различаются, берём третью и оставляем вариант, совпавший дважды.
 export async function downloadRanged(url, file, { fetchImpl = fetch, concurrency = 4, wait = 5e3, rounds = 3 } = {}) {
   if (fs.existsSync(file)) return false;
-  const head = await fetchImpl(url, { method: 'HEAD', headers: UA, signal: AbortSignal.timeout(60e3) });
+  let head;
+  try { head = await fetchImpl(url, { method: 'HEAD', headers: UA, signal: AbortSignal.timeout(60e3) }); }
+  catch { return null; }                                       // HEAD не ответил — пусть качает download()
   const size = Number(head.headers.get('content-length')) || 0;
   const etag = head.headers.get('etag') || '';
   if (!head.ok || !size || head.headers.get('accept-ranges') !== 'bytes') return null;   // кусками нельзя — пусть качает download()
   const m = /^(?:W\/)?"?([0-9a-f]{32})(?:-(\d+))?"?$/i.exec(etag.trim());
   const MiB = 1024 * 1024, want = m && Number(m[2] || 0);
-  let part = 8 * MiB;
-  if (want) { const fits = []; for (let q = 1; q <= 5120; q++) if (Math.ceil(size / (q * MiB)) === want) fits.push(q * MiB); if (fits.length === 1) part = fits[0]; }
+  let part = 8 * MiB, partKnown = false;
+  if (want) { const fits = []; for (let q = 1; q <= 5120; q++) if (Math.ceil(size / (q * MiB)) === want) fits.push(q * MiB); if (fits.length === 1) { part = fits[0]; partKnown = true; } }
   const count = Math.ceil(size / part);
   const md5 = (b) => crypto.createHash('md5').update(b).digest();
   const getPart = async (i) => {
@@ -235,11 +237,20 @@ export async function downloadRanged(url, file, { fetchImpl = fetch, concurrency
   };
   const tmp = file + '.part', fd = fs.openSync(tmp, 'w');
   const sums = new Array(count);
-  const each = async (fn) => { let next = 0; await Promise.all(Array.from({ length: concurrency }, async () => { while (next < count) { const i = next++; await fn(i); } })); };
+  // параллельно по concurrency частей; ошибка одной останавливает остальных, и выходим, только когда все закончили —
+  // иначе запоздавшие записали бы кусок в уже закрытый (и, возможно, переиспользованный) дескриптор
+  const each = async (fn) => {
+    let next = 0, failed = null;
+    await Promise.allSettled(Array.from({ length: concurrency }, async () => {
+      while (next < count && !failed) { const i = next++; try { await fn(i); } catch (e) { failed = failed || e; } }
+    }));
+    if (failed) throw failed;
+  };
   const put = (i, b) => { fs.writeSync(fd, b, 0, b.length, i * part); sums[i] = md5(b); };
   const matches = () => {
     if (!m) return null;
     if (!want) return null;                                   // ETag целого файла сверит etagCheck() ниже
+    if (!partKnown) return null;                              // размер части не определить — сверить нельзя (как etagCheck)
     return md5(Buffer.concat(sums)).toString('hex') === m[1].toLowerCase();
   };
   try {

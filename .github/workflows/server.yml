@@ -31,6 +31,7 @@ jobs:
           KEY: ${{ secrets.SERVER_SSH_KEY }}
           ACTION: ${{ inputs.action }}
           HOST: 5.129.207.51
+          HOST_KEY: ${{ vars.SERVER_HOST_KEY }}
         run: |
           if [ -z "$KEY" ]; then
             echo "::error::Секрет SERVER_SSH_KEY не задан — см. deploy/README.md, раздел «Команды на сервере из GitHub»."
@@ -38,4 +39,10 @@ jobs:
           fi
           install -m 700 -d ~/.ssh
           printf '%s\n' "$KEY" > ~/.ssh/ops && chmod 600 ~/.ssh/ops
-          ssh -i ~/.ssh/ops -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 "root@$HOST" "$ACTION"
+          # ключ сервера закреплён в переменной SERVER_HOST_KEY — иначе чужой сервер на пути смог бы выдать себя за наш
+          if [ -n "$HOST_KEY" ]; then
+            printf '%s %s\n' "$HOST" "$HOST_KEY" > ~/.ssh/known_hosts; CHECK=yes
+          else
+            echo "::warning::Переменная SERVER_HOST_KEY не задана — ключ сервера не проверяется (deploy/README.md)."; CHECK=accept-new
+          fi
+          ssh -i ~/.ssh/ops -o BatchMode=yes -o StrictHostKeyChecking=$CHECK -o ConnectTimeout=20 "root@$HOST" "$ACTION"

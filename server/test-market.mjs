@@ -119,6 +119,13 @@ await t('API /api/market: без DaData, проверка ввода, пуста
   assert.equal((await call(createApp({ env: {}, fnsDb: db }), { okved: 'кафе' }))[0], 400);
   assert.deepEqual((await call(createApp({ env: {}, fnsDb: openFnsDb(':memory:') }), { okved: '56' }))[1], { available: false });
   assert.deepEqual((await call(createApp({ env: {}, fnsDb: null }), { okved: '56' }))[1], { available: false });
+  assert.equal((await call(createApp({ env: {}, fnsDb: db }), null))[0], 400, 'тело null — 400, а не 502');
+  const app = createApp({ env: {}, fnsDb: db }), srv = http.createServer(app); await new Promise((r) => srv.listen(0, r));
+  try {
+    const codes = [];
+    for (let i = 0; i < 122; i++) codes.push((await fetch(`http://127.0.0.1:${srv.address().port}/api/market`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"okved":"56"}' })).status);
+    assert.equal(codes.filter((c) => c === 429).length, 2, 'после 120 запросов за 10 минут — 429');
+  } finally { srv.close(); }
 });
 
 console.log(`\nВсе тесты статистики прошли: ${n}`);

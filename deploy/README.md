@@ -60,16 +60,24 @@ curl https://api.fin-check.shop/health   # должно быть "accounts":true
 `status` (службы, ход импорта ФНС, число записей в базе, диск и память), `import` (запустить импорт ФНС), `import-stop`,
 `update` (то же, что `deploy/update.sh`), `archive-check` (архивы ФНС и итог проверки архива). Её может запускать и Claude.
 
-Ключ задачи привязан к `ops.sh`: по нему нельзя выполнить ничего, кроме этих действий. Репозиторий публичный, поэтому
-`ops.sh` выводит в лог только статусы и счётчики. Настройка — один раз, на сервере под root (после `update.sh`, чтобы `ops.sh` уже был):
+Скрипт работает от root, поэтому ставится отдельной копией, которую может менять только root: папку `/opt/sut-site`
+меняет пользователь сайта `sut`, и запуск скрипта прямо оттуда означал бы, что взлом сайта даёт root. Ключ задачи
+привязан к этой копии: по нему нельзя выполнить ничего, кроме действий из списка. Репозиторий публичный, поэтому
+скрипт выводит в лог только статусы и счётчики. Настройка — один раз, на сервере под root:
 
 ```
+install -o root -g root -m 755 /opt/sut-site/deploy/ops.sh /usr/local/sbin/sut-ops
 ssh-keygen -t ed25519 -N "" -C github-ops -f /root/github-ops
-echo "command=\"/opt/sut-site/deploy/ops.sh\",no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-pty $(cat /root/github-ops.pub)" >> /root/.ssh/authorized_keys
+sed -i '/github-ops/d' /root/.ssh/authorized_keys
+echo "restrict,command=\"/usr/local/sbin/sut-ops\" $(cat /root/github-ops.pub)" >> /root/.ssh/authorized_keys
 cat /root/github-ops
 ```
 
-Скопируйте весь вывод последней команды (от `-----BEGIN` до `-----END … KEY-----` включительно) в GitHub:
-**Settings → Secrets and variables → Actions → New repository secret**, имя `SERVER_SSH_KEY`. Затем удалите ключ с сервера:
-`rm /root/github-ops /root/github-ops.pub`. Ключ никуда больше не отправляйте. Отозвать доступ — удалить строку с `github-ops`
+Весь вывод последней команды (от `-----BEGIN` до `-----END … KEY-----`) — в GitHub: **Settings → Secrets and variables →
+Actions → New repository secret**, имя `SERVER_SSH_KEY`. Затем `rm /root/github-ops /root/github-ops.pub`.
+Ключ сервера, чтобы задача проверяла, что говорит именно с ним: `cut -d' ' -f1,2 /etc/ssh/ssh_host_ed25519_key.pub` —
+вывод в **Settings → Secrets and variables → Actions → Variables → New repository variable**, имя `SERVER_HOST_KEY`.
+
+Когда в репозитории меняется `deploy/ops.sh`, новая версия начинает работать только после того, как root поставит её той же
+командой `install …` (действие `status` предупреждает, что копия устарела). Отозвать доступ — удалить строку с `github-ops`
 из `/root/.ssh/authorized_keys`.
