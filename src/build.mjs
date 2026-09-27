@@ -136,6 +136,7 @@ ${withExamples ? '<div class="wrap" style="padding:8px 16px 0;font:500 13px var(
 ${body}
 </main>
 <footer class="wrap">
+  ${POLICY ? `<p class="seller">${esc((OP_TITLE.charAt(0).toUpperCase() + OP_TITLE.slice(1)))} · ИНН ${esc(site.operator.inn)}${site.operator.ogrnip ? ` · ОГРНИП ${esc(site.operator.ogrnip)}` : ''}</p>` : ''}
   <p class="fine">${esc(site.disclaimer)} Как мы готовим новости: <a href="${url('/kak-my-rabotaem/')}">как мы работаем</a>. <a href="${url('/o-proekte/')}">О проекте</a>. <a href="${url('/pravovaya-informaciya/')}">Правовая информация</a>.${POLICY ? ` <a href="${url('/politika/')}">Политика конфиденциальности</a>.` : ''}${ACCT && POLICY ? ` <a href="${url('/tarify/')}">Тарифы</a>. <a href="${url('/oferta/')}">Оферта</a>.` : ''}${site.contactEmail ? ` Нашли ошибку? Напишите: <a href="mailto:${esc(site.contactEmail)}">${esc(site.contactEmail)}</a>.` : ''}</p>
 </footer>
 ${body.includes('data-calc=') || body.includes('id="org"') ? `<script type="application/json" id="fin">${JSON.stringify(FIN).replace(/</g, '\\u003c')}</script>\n` : ''}<script src="${url('/app.js')}?v=${jsV}" defer></script>${scripts}
@@ -333,7 +334,16 @@ function macroWidget() {
     <p class="split-links"><a class="lnk" href="${url('/fizlica/')}">Физлицам</a><a class="lnk" href="${url('/kalkulyatory/')}">Калькуляторы</a><a class="lnk" href="${url('/nalogi/')}">Налоги</a></p>
   </div>
 </section>` : '';
-  const body = `${hero}${macroWidget()}<h1 class="page">Новости за ${site.windowHours} ${site.windowHours === 24 ? 'часа' : 'часов'}</h1>
+  const trust = hero ? `<section class="trust" aria-label="Почему нам можно доверять">
+  <p class="label">Сведения из открытых государственных источников</p>
+  <p class="sources"><span>ФНС России</span><span>ЕГРЮЛ и ЕГРИП</span><span>ГИР БО</span><span>Картотека арбитражных дел</span><span>ФССП России</span></p>
+  <div class="pledges">
+    <div><h3>Открытая методика</h3><p>Индекс надёжности считается по опубликованным правилам, и у каждой оценки видны причины.</p><a class="lnk" href="${url('/indeks/')}">Как мы считаем</a></div>
+    <div><h3>Данные в России</h3><p>Аккаунты и история проверок хранятся на сервере в России, по закону о персональных данных.</p><a class="lnk" href="${url('/politika/')}">Политика</a></div>
+    <div><h3>Без рекламы</h3><p>Мы не показываем рекламу и не продаём данные пользователей. Сервис живёт на подписке.</p><a class="lnk" href="${url('/tarify/')}">Тарифы</a></div>
+  </div>
+</section>` : '';
+  const body = `${hero}${trust}${macroWidget()}<h1 class="page">Новости за ${site.windowHours} ${site.windowHours === 24 ? 'часа' : 'часов'}</h1>
 <div class="filters" id="filters" role="group" aria-label="Для кого показывать новости">
   <button type="button" class="chip" data-f="*" aria-pressed="true">Все</button>
   <button type="button" class="chip" data-f="borrowers" aria-pressed="false">${AUDIENCES.borrowers}</button>
@@ -808,14 +818,15 @@ write('404.html', layout({
 <h2>Персональные данные</h2>
 <p>${opLine ? opLine + ' ' : ''}Обработка персональных данных пользователей ведётся по Федеральному закону от 27.07.2006 № 152-ФЗ «О персональных данных». Пользоваться сайтом можно без регистрации и без передачи персональных данных. Если вы входите в кабинет, данные обрабатываются на основании вашего согласия и хранятся на сервере в России. Что именно мы обрабатываем, зачем и как это удалить — на странице <a href="${url('/politika/')}">«Политика конфиденциальности»</a>.</p>
 
-<h2>Откуда данные об организациях</h2>
+<h2 id="istochniki">Откуда данные об организациях</h2>
 <p>Сведения о компаниях и ИП мы показываем только из открытых официальных источников:</p>
 <ul>
 <li><a href="https://egrul.nalog.ru/" target="_blank" rel="noopener">ЕГРЮЛ/ЕГРИП</a> и открытые данные ФНС России;</li>
 <li>государственный информационный ресурс бухгалтерской отчётности (<a href="https://bo.nalog.gov.ru/" target="_blank" rel="noopener">ГИР БО</a>);</li>
-<li>сервис «<a href="https://pb.nalog.ru/" target="_blank" rel="noopener">Прозрачный бизнес</a>» ФНС России.</li>
+<li>сервис «<a href="https://pb.nalog.ru/" target="_blank" rel="noopener">Прозрачный бизнес</a>» ФНС России;</li>
+<li>суды, арбитраж и исполнительные производства — сведения <a href="https://kad.arbitr.ru/" target="_blank" rel="noopener">картотеки арбитражных дел</a>, судов общей юрисдикции и <a href="https://fssp.gov.ru/" target="_blank" rel="noopener">ФССП России</a>, которые мы получаем через сервис DataNewton.</li>
 </ul>
-<p>Эти данные публикуются в открытом доступе на условиях самих ведомств. Сведения о конкретных физических лицах (ФИО руководителей и учредителей, адреса) наружу мы не отдаём — показываем только обобщённые сведения об организации. ИНН, введённый в проверке, передаётся сервису DaData для поиска по реестрам и не сохраняется.</p>
+<p>Эти данные публикуются в открытом доступе на условиях самих ведомств. ФИО руководителя и учредителей показываем так, как они записаны в ЕГРЮЛ. ИНН физических лиц, их личные телефоны и адреса не показываем, а в автоматический разбор ФИО и точные адреса не передаём. ИНН, введённый в проверке, передаётся сервису DaData для поиска по реестрам и не сохраняется.</p>
 
 <h2>Новости</h2>
 <p>Новости готовятся по открытым публикациям официальных источников и деловых СМИ со ссылкой на первоисточник. Как именно — на странице <a href="${url('/kak-my-rabotaem/')}">«Как мы работаем»</a>.</p>

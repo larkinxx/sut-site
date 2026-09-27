@@ -447,3 +447,14 @@ nav a:hover::after,nav a[aria-current]::after{transform:scaleX(1)}
 .item summary:hover .h{color:inherit;opacity:.6}
 .share,.chip,.theme-btn{transition:background .25s,color .25s,border-color .25s}
 @media (prefers-reduced-motion:reduce){.split{animation:none}nav a::after{transition:none}}
+
+/* ---------- доверие: источники и обещания ---------- */
+.trust{margin:0 0 80px;text-align:center}
+.sources{display:flex;flex-wrap:wrap;justify-content:center;gap:10px 0;margin:0 0 56px;padding:22px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.sources span{font:400 13px/1.4 var(--font-display);letter-spacing:.12em;text-transform:uppercase;padding:0 18px}
+.sources span+span{border-left:1px solid var(--line)}
+.pledges{display:grid;grid-template-columns:repeat(3,1fr);gap:40px;text-align:left}
+.pledges h3{font:400 22px/1.25 var(--font-display);margin:0 0 10px}
+.pledges p{margin:0 0 14px;font-weight:300;color:var(--muted);font-size:15px}
+@media (max-width:760px){.pledges{grid-template-columns:1fr;gap:32px}.sources span{padding:0 12px;font-size:12px}.sources span+span{border-left:0}}
+footer .seller{text-align:center;margin:0 0 6px;font:400 11px/1.6 var(--font-ui);letter-spacing:.18em;text-transform:uppercase;color:var(--ink)}
