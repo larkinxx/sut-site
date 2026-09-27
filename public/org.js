@@ -630,6 +630,7 @@
       fin.appendChild(dt);
       if (b.url) { var a = el('a', null, 'Отчётность полностью на bo.nalog.gov.ru'); a.href = b.url; a.target = '_blank'; a.rel = 'noopener'; var pp = el('p', 'note-sm'); pp.appendChild(a); fin.appendChild(pp); }
     }
+    if (j.peers) peersBlock(fin || box, j.peers);
 
     box.appendChild(el('h2', null, 'Налоги и сотрудники'));
     box.appendChild(el('p', 'note-sm', 'Официальные данные ФНС: ' + (p && p.source === 'opendata' ? 'открытые данные о налогах и численности' : 'сервис «Прозрачный бизнес»') + '.'));
@@ -667,6 +668,22 @@
     if (p && p.managerOtherCompanies) sig.push(['info', 'Руководитель связан ещё с ' + p.managerOtherCompanies + ' организаци' + (p.managerOtherCompanies === 1 ? 'ей' : 'ями') + '.']);
     if (p && p.offenseYears && p.offenseYears.length) sig.push(['info', 'Штрафы за налоговые правонарушения в ' + p.offenseYears.slice().sort().join(', ') + ' годах.']);
     sig.forEach(function (x) { box.appendChild(tip(x[0], x[1])); });
+  }
+  // Компания среди похожих: та же отрасль (две цифры ОКВЭД), регион и возраст — server/market.mjs
+  function peersBlock(parent, pr) {
+    var g = pr.peers, where = pr.scope === 'region' ? 'в том же регионе' : 'по России';
+    parent.appendChild(el('p', 'fns-sub', 'Среди похожих компаний'));
+    parent.appendChild(el('p', 'note-sm', 'Сравнение с организациями той же отрасли (ОКВЭД ' + pr.okved + ') ' + where + ', которые работают ' + pr.ageLabel + ', по доходам и расходам за ' + pr.year + ' год (открытые данные ФНС, ' + g.withReports + ' ' + plural(g.withReports, 'компания', 'компании', 'компаний') + '). Прибыль здесь — доходы минус расходы до налога.'));
+    var t = el('div', 'result');
+    var beat = function (pct) { return pct == null ? '—' : 'больше, чем у ' + pct + '%'; };
+    row(t, 'Доходы ' + money(pr.income), beat(pr.incomePercentile));
+    row(t, 'Прибыль ' + money(pr.profit), beat(pr.profitPercentile));
+    row(t, 'У похожих в середине', 'доходы ' + money(g.income[2]) + ', прибыль ' + money(g.profit[2]));
+    row(t, 'Похожих компаний в плюсе', Math.round(g.profitableShare * 100) + '%');
+    parent.appendChild(t);
+    var a = el('a', null, 'Перспективы этой отрасли по годам работы');
+    a.href = location.origin + '/kalkulyatory/perspektivy-biznesa/#calc=prospects&code=' + encodeURIComponent(pr.okved) + '&region=' + encodeURIComponent(pr.scope === 'region' ? pr.region : '00');
+    var pp = el('p', 'note-sm'); pp.appendChild(a); parent.appendChild(pp);
   }
   function tip(level, text) {
     var q = el('p', 'tip'); q.style.margin = '8px 0';
