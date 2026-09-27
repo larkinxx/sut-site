@@ -1,4 +1,4 @@
-/* ИННсайдер: проверка организации по ИНН.
+/* INNSIDER: проверка организации по ИНН.
    Данные берём из открытых реестров через DaData (метод «Найти по ИНН»), памятку строим по простым правилам.
    Если у страницы задан data-api (наш сервер, см. server/index.mjs), запросы идут через него: ключи не видны в браузере,
    а после данных реестра сервер присылает ИИ-разбор простым языком. Без data-api — старый режим, прямо в DaData. */
@@ -228,7 +228,7 @@
     return out;
   }
 
-  /* ---------- Индекс надёжности ИННсайдер: 0–100 по открытым данным ----------
+  /* ---------- Индекс надёжности INNSIDER: 0–100 по открытым данным ----------
      Это мнение, основанное на фактах, а не утверждение о компании. Каждая поправка видна пользователю,
      методика опубликована на странице /indeks/ (строится из INDEX_RULES при сборке сайта).
      Вход: x = { status, ageYears, invalid, disqualified, fns: {debt, taxes, staff, last, prev},
@@ -444,7 +444,7 @@
     var num = el('div', 'idx-num'); num.appendChild(el('b', null, String(r.score))); num.appendChild(el('span', null, '/100'));
     box.appendChild(num);
     var t = el('div', 'idx-text');
-    t.appendChild(el('div', 'idx-t', 'Индекс надёжности ИННсайдер: ' + r.level));
+    t.appendChild(el('div', 'idx-t', 'Индекс надёжности INNSIDER: ' + r.level));
     var note = el('div', 'note-sm', (r.partial ? 'Предварительная оценка: ' + (!IDX.fns ? 'данные ФНС ещё загружаются. ' : !IDX.courts ? 'суды не загружены — откройте их ниже, и оценка уточнится. ' : 'часть данных недоступна. ') : '') + 'Это мнение по открытым данным, а не гарантия. ');
     var how = el('a', null, 'Как считаем'); how.href = '/indeks/'; note.appendChild(how);
     t.appendChild(note);
@@ -868,7 +868,7 @@
         if (k.limited) { b.disabled = false; msgc.textContent = 'Сегодня лимит запросов к судам исчерпан. Попробуйте завтра или посмотрите сами: kad.arbitr.ru и fssp.gov.ru.'; return; }
         if (k.paywall) {
           b.remove(); msgc.textContent = 'Бесплатно — суды по ' + k.free + ' новым компаниям в день, на сегодня они закончились. ';
-          var pa = el('a', null, 'ИННсайдер Про — без ограничений, от 290 ₽ в месяц'); pa.href = '/tarify/';
+          var pa = el('a', null, 'INNSIDER Pro — без ограничений, от 290 ₽ в месяц'); pa.href = '/tarify/';
           msgc.appendChild(pa); msgc.appendChild(document.createTextNode('. Или загляните завтра.'));
           return;
         }

@@ -1,8 +1,8 @@
-# Сайт inn-saider.ru на этом сервере: статические страницы из /var/www/fin-check.shop (имя папки осталось от старого адреса),
+# Сайт inn-sider.ru на этом сервере: статические страницы из /var/www/fin-check.shop (имя папки осталось от старого адреса),
 # страницы компаний, их картинки и карта сайта компаний — от server/index.mjs. Старый адрес fin-check.shop
-# и прежние innfact.ru и sverkainn.ru навсегда перенаправляются на inn-saider.ru (api.fin-check.shop и api.innfact.ru продолжают работать).
+# и прежние innfact.ru, sverkainn.ru и inn-saider.ru (то же название на слух) навсегда перенаправляются на inn-sider.ru (api.fin-check.shop и api.innfact.ru продолжают работать).
 # Подключается командой deploy/move-domain.sh.
-inn-saider.ru {
+inn-sider.ru {
 	encode zstd gzip
 	@company path_regexp company ^/(organizacii/[0-9]{10,12}(/|/og\.png)?|sitemap-companies(-[0-9]+)?\.xml)$
 	handle @company {
@@ -24,13 +24,13 @@ inn-saider.ru {
 		}
 	}
 }
-www.inn-saider.ru {
-	redir https://inn-saider.ru{uri} permanent
+www.inn-sider.ru {
+	redir https://inn-sider.ru{uri} permanent
 }
-api.inn-saider.ru, api.innfact.ru {
+api.inn-sider.ru, api.innfact.ru {
 	encode zstd gzip
 	reverse_proxy 127.0.0.1:3000
 }
-sverkainn.ru, www.sverkainn.ru, innfact.ru, www.innfact.ru, fin-check.shop, www.fin-check.shop {
-	redir https://inn-saider.ru{uri} permanent
+inn-saider.ru, www.inn-saider.ru, sverkainn.ru, www.sverkainn.ru, innfact.ru, www.innfact.ru, fin-check.shop, www.fin-check.shop {
+	redir https://inn-sider.ru{uri} permanent
 }

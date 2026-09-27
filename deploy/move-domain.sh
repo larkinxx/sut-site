@@ -1,9 +1,9 @@
 #!/bin/sh
-# Переезд сайта на новый адрес (по умолчанию inn-saider.ru) и включение сайта на этом сервере.
+# Переезд сайта на новый адрес (по умолчанию inn-sider.ru) и включение сайта на этом сервере.
 # Запускать, когда в DNS нового домена записи @, www и api указывают на этот сервер:
 #   sh /opt/sut-site/deploy/move-domain.sh            (или DOMAIN=другой.ru sh …)
 set -e
-DOMAIN=${DOMAIN:-inn-saider.ru}
+DOMAIN=${DOMAIN:-inn-sider.ru}
 OLD=fin-check.shop
 OLD2=innfact.ru
 set_env() {   # set_env файл КЛЮЧ значение — заменить строку или добавить в конец

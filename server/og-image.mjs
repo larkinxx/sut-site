@@ -1,4 +1,4 @@
-// Картинка-превью проверки компании (логотип «ИННсайдер.») для мессенджеров и соцсетей (1200×630): /organizacii/<ИНН>/og.png.
+// Картинка-превью проверки компании (логотип «INNSIDER.») для мессенджеров и соцсетей (1200×630): /organizacii/<ИНН>/og.png.
 // Рисуем SVG и переводим в PNG утилитой rsvg-convert (пакет librsvg2-bin; шрифты — fonts-paratype, PT Serif):
 // Telegram и WhatsApp SVG в превью не показывают. Нет утилиты — отдаём общую картинку сайта.
 import { spawn } from 'node:child_process';
@@ -21,7 +21,7 @@ function wrap(text, maxChars) {
 }
 
 // facts: [[подпись, значение, 'bad'?], ...] — до четырёх
-export function ogSvg({ name, inn, status, active, facts, host = 'inn-saider.ru' }) {
+export function ogSvg({ name, inn, status, active, facts, host = 'inn-sider.ru' }) {
   // заглавные буквы жирного шрифта шире строчных: ширину символа считаем с запасом
   const size = name.length > 50 ? 42 : name.length > 28 ? 50 : 62;
   const lines = wrap(name, Math.floor(1080 / (size * 0.68)));
@@ -45,7 +45,7 @@ text{font-family:'PT Serif','DejaVu Serif',serif;fill:#111111}
 </style>
 <rect width="1200" height="630" fill="#FFFFFF"/>
 <rect x="24" y="24" width="1152" height="582" fill="#FFFFFF" stroke="#E6E6E6" stroke-width="2"/>
-<text x="60" y="100" class="logo">ИНН<tspan class="lt">САЙДЕР</tspan></text>
+<text x="60" y="100" class="logo">INN<tspan class="lt">SIDER</tspan></text>
 <text x="1140" y="96" text-anchor="end" class="kicker">ПРОВЕРКА КОМПАНИИ</text>
 ${lines.map((l, i) => `<text x="60" y="${nameY + i * size * 1.12}" class="name" font-size="${size}">${esc(l)}</text>`).join('\n')}
 <text x="60" y="${infoY}" class="info">ИНН ${esc(inn)}${status ? ` · <tspan class="${active ? 'ok' : 'badst'}">${esc(status)}</tspan>` : ''}</text>

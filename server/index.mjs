@@ -1,4 +1,4 @@
-// ИННсайдер: сервер для проверки организаций и ИИ-разбора.
+// INNSIDER: сервер для проверки организаций и ИИ-разбора.
 // Зачем отдельный сервер: ключи DaData и Gemini нельзя держать в браузере — их увидит любой посетитель.
 //
 // Маршруты:
@@ -16,7 +16,7 @@
 //   GEMINI_MODEL      — модель, по умолчанию gemini-3.8-flash
 //   YANDEX_AI_KEY, YANDEX_FOLDER_ID — разбор через Yandex AI Studio (Алиса AI); если заданы — вместо Gemini, прямо из России
 //   YANDEX_AI_MODEL   — модель, по умолчанию aliceai-llm (дешевле: aliceai-llm-flash)
-//   ALLOWED_ORIGINS   — адреса сайта через запятую (CORS), по умолчанию inn-saider.ru и старые innfact.ru, fin-check.shop с www
+//   ALLOWED_ORIGINS   — адреса сайта через запятую (CORS), по умолчанию inn-sider.ru и старые innfact.ru, fin-check.shop с www
 //   AI_DAILY_LIMIT    — сколько ИИ-разборов в сутки максимум (защита бюджета), по умолчанию 300
 //   AI_PER_IP_HOUR    — сколько ИИ-разборов в час с одного адреса, по умолчанию 15
 //   AI_UPSTREAM_URL   — если задан, разбор делает другой наш сервер по этому адресу (например, https://sut-api.onrender.com):
@@ -33,12 +33,12 @@
 //   PORT              — порт, по умолчанию 3000
 // Аккаунты (включаются, только если задан ACCOUNTS_DB; по 152-ФЗ — только на сервере в России):
 //   ACCOUNTS_DB       — путь к файлу базы SQLite, например /var/lib/sut/sut.db
-//   SITE_URL, PUBLIC_API_URL, COOKIE_DOMAIN — https://inn-saider.ru, https://api.inn-saider.ru, .inn-saider.ru
+//   SITE_URL, PUBLIC_API_URL, COOKIE_DOMAIN — https://inn-sider.ru, https://api.inn-sider.ru, .inn-sider.ru
 //   YANDEX_CLIENT_ID, YANDEX_CLIENT_SECRET   — приложение на oauth.yandex.ru
 //   TELEGRAM_BOT_TOKEN, TELEGRAM_BOT_NAME    — бот для входа и уведомлений
 //   TELEGRAM_API_URL  — через что ходить к Telegram. Timeweb не пускает к api.telegram.org, поэтому по умолчанию
 //                       AI_UPSTREAM_URL + '/tg' (наш сервер на Render), а без него — напрямую
-// Пересылка к Telegram (на Render, где нет аккаунтов): POST /tg/bot<токен>/<метод> — только методы бота ИННсайдер;
+// Пересылка к Telegram (на Render, где нет аккаунтов): POST /tg/bot<токен>/<метод> — только методы бота INNSIDER;
 //   TELEGRAM_RELAY_BOTS — необязательно: номера ботов через запятую (часть токена до двоеточия), кому разрешена пересылка
 //   SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, MAIL_FROM — почта для кодов входа и уведомлений
 //
@@ -84,7 +84,7 @@ export function config(env = process.env) {
     yandexModel: env.YANDEX_AI_MODEL || 'aliceai-llm',
     yandexBase: env.YANDEX_AI_URL || 'https://ai.api.cloud.yandex.net/v1',
     geminiBase: env.GEMINI_API_URL || 'https://generativelanguage.googleapis.com',
-    origins: (env.ALLOWED_ORIGINS || 'https://inn-saider.ru,https://www.inn-saider.ru,https://innfact.ru,https://www.innfact.ru,https://fin-check.shop,https://www.fin-check.shop').split(',').map((s) => s.trim()).filter(Boolean),
+    origins: (env.ALLOWED_ORIGINS || 'https://inn-sider.ru,https://www.inn-sider.ru,https://innfact.ru,https://www.innfact.ru,https://fin-check.shop,https://www.fin-check.shop').split(',').map((s) => s.trim()).filter(Boolean),
     aiDailyLimit: Number(env.AI_DAILY_LIMIT || 300),
     aiPerIpHour: Number(env.AI_PER_IP_HOUR || 15),
     aiUpstream: (env.AI_UPSTREAM_URL || '').replace(/\/$/, ''),
@@ -201,11 +201,11 @@ const REGIMES = (() => {
 })();
 const mln = (n) => (n / 1e6).toLocaleString('ru-RU') + ' млн ₽';
 
-export const SYSTEM = `Ты — помощник сайта ИННсайдер. Тебе дают сведения об организации или ИП из открытых реестров (через DaData). Твоя задача — дать читателю развёрнутый, содержательный разбор именно этой организации: не общие слова, а то, что конкретно следует из переданных полей. Читатель — предприниматель, бухгалтер или человек, который собирается заключить договор с этой организацией, и ему нужно понять детали, а не шаблон.
+export const SYSTEM = `Ты — помощник сайта INNSIDER. Тебе дают сведения об организации или ИП из открытых реестров (через DaData). Твоя задача — дать читателю развёрнутый, содержательный разбор именно этой организации: не общие слова, а то, что конкретно следует из переданных полей. Читатель — предприниматель, бухгалтер или человек, который собирается заключить договор с этой организацией, и ему нужно понять детали, а не шаблон.
 
 ЖЁСТКИЕ ПРАВИЛА
 1. Опирайся только на переданные поля. В поле fns — официальные данные ФНС (налоговый режим, численность, уплаченные налоги, налоговый долг, отчётность по годам в рублях): используй их в первую очередь, называй год. В поле details — данные ЕГРЮЛ и судов: уставный капитал, численность по годам, отметки в реестрах (flags), суды общей юрисдикции (courts), арбитраж (arbitration: роли, суммы, исходы), исполнительные производства (fssp), проверка сайтов компании (sites) и число её контактов. Ничего не выдумывай сверх переданного: ни судов, ни долгов, ни новостей, ни репутации. Если поля нет или оно null — не делай по нему выводов; можешь сказать, что этих сведений в открытых данных нет.
-2. В поле index — индекс надёжности ИННсайдер (0–100), уровень и факторы, из которых он сложился. Обязательно дай общий вывод о надёжности по этому индексу: назови уровень и 2–3 главных фактора с цифрами. Формулируй как оценку по открытым данным («по открытым данным надёжность высокая: …»), а не как гарантию. Если index.partial — отметь, что оценка предварительная. Не называй компанию мошеннической или однодневкой и не обвиняй в преступлениях: только факты и вывод из них.
+2. В поле index — индекс надёжности INNSIDER (0–100), уровень и факторы, из которых он сложился. Обязательно дай общий вывод о надёжности по этому индексу: назови уровень и 2–3 главных фактора с цифрами. Формулируй как оценку по открытым данным («по открытым данным надёжность высокая: …»), а не как гарантию. Если index.partial — отметь, что оценка предварительная. Не называй компанию мошеннической или однодневкой и не обвиняй в преступлениях: только факты и вывод из них.
 3. Не давай инвестиционных советов и не обещай доход. Не пиши «покупайте», «продавайте», «вкладывайте», «гарантированно», «без риска».
 4. Это не юридическая и не налоговая консультация.
 5. Суммы, коды ОКВЭД, регион, дату регистрации, ИНН/ОГРН и другие числа бери из данных как есть и используй их в тексте (не пересказывай абстрактно, а называй конкретные значения: сумму долга, код и название вида деятельности, регион, возраст компании в годах). Если данные о финансах за старый год — отметь это явно и укажи год.
@@ -678,7 +678,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const app = createApp({ db, mailer });
   // HOST=127.0.0.1 на своём сервере за Caddy; на Render и Timeweb Apps — 0.0.0.0
   http.createServer(app).listen(cfg.port, env.HOST || '0.0.0.0', () => {
-    console.log(`ИННсайдер API: порт ${cfg.port}, DaData ${cfg.dadataToken ? 'есть' : 'НЕТ'}, ИИ ${{ yandex: 'Алиса (' + cfg.yandexModel + ')', gemini: cfg.geminiModel, upstream: 'через ' + cfg.aiUpstream }[aiProvider(cfg)] || 'выключен'}, аккаунты ${db ? env.ACCOUNTS_DB : 'выключены'}, сайты: ${cfg.origins.join(', ')}`);
+    console.log(`INNSIDER API: порт ${cfg.port}, DaData ${cfg.dadataToken ? 'есть' : 'НЕТ'}, ИИ ${{ yandex: 'Алиса (' + cfg.yandexModel + ')', gemini: cfg.geminiModel, upstream: 'через ' + cfg.aiUpstream }[aiProvider(cfg)] || 'выключен'}, аккаунты ${db ? env.ACCOUNTS_DB : 'выключены'}, сайты: ${cfg.origins.join(', ')}`);
   });
   if (db) {
     // слежение: раз в сутки свежие данные из DaData (без кеша)
