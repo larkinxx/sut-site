@@ -9,6 +9,7 @@ import vm from 'node:vm';
 import { ROOT, loadSite, loadCards, loadMaterials, readJson } from './lib/content.mjs';
 import { AUDIENCES, AUDIENCE_TABS, esc, markTitle, dateRu, agoRu } from './lib/util.mjs';
 import { SCHEMES, taxSections, personalSections } from './lib/taxes.mjs';
+import { OKVED_COMMON, REGIONS } from './lib/market-lists.mjs';
 import { PLANS, FREE } from '../server/billing.mjs';
 
 const withExamples = process.argv.includes('--examples');
@@ -279,6 +280,22 @@ function calcSelfEmployed(id = '') {
 </section>`;
 }
 
+// Перспективы бизнеса: статистика похожих компаний с нашего сервера (server/market.mjs, POST /api/market)
+function calcProspects(id = '') {
+  return `<section class="calc" data-calc="prospects" data-api="${esc(process.env.ORG_API_URL || '')}" aria-labelledby="cb${id}">
+  <h2 id="cb${id}">Перспективы бизнеса по статистике похожих компаний</h2>
+  <div class="fields">
+    <label class="f">Отрасль<select name="okved">${OKVED_COMMON.map(([c, n]) => `<option value="${c}">${esc(n)}</option>`).join('')}</select></label>
+    <label class="f">Или код ОКВЭД<input type="text" name="code" placeholder="например, 56.10" maxlength="8" inputmode="decimal"></label>
+    <label class="f">Регион<select name="region"><option value="00">Вся Россия</option>${REGIONS.map(([c, n]) => `<option value="${c}">${esc(n)}</option>`).join('')}</select></label>
+    <label class="f">Сколько готовы вложить, ₽<input type="number" name="budget" value="1500000" min="0" step="50000" inputmode="numeric"></label>
+    <label class="f">За сколько лет хотите вернуть<input type="number" name="years" value="3" min="1" max="5" step="1" inputmode="numeric"></label>
+  </div>
+  <div class="result" aria-live="polite"></div>
+  <p class="note-sm">Это статистика прошлого года по организациям той же отрасли и региона из открытых данных ФНС (реестр МСП и бухотчётность), а не прогноз вашего дохода. В неё попадают только компании, которые проработали год и сдали отчётность: закрывшиеся не учтены, поэтому реальные шансы ниже. Прибыль — доходы минус расходы до налога. Размер вложений похожих компаний неизвестен: окупаемость показывает, за сколько лет их типичная прибыль сравнялась бы с вашей суммой. ИП в статистику не входят — ФНС не публикует их отчётность.</p>
+</section>`;
+}
+
 // ---------- страницы ----------
 // Ключевая ставка, инфляция и ближайшее решение ЦБ (цифры обновляет scripts/rates.mjs, дату заседания выбирает app.js)
 function macroWidget() {
@@ -392,17 +409,21 @@ const CALCS = [
     desc: 'Сравнение налогов самозанятого (НПД) и ИП на УСН 6% с учётом страховых взносов при вашем доходе.',
     lede: 'Введите доход в месяц и долю оплат от компаний: сравним налог самозанятого и ИП на упрощёнке со взносами.' }
 ];
+// калькулятор перспектив работает через наш сервер — без него не показываем
+if (process.env.ORG_API_URL) CALCS.push({ slug: 'perspektivy-biznesa', fn: calcProspects, remote: true, title: 'Перспективы бизнеса: выручка, прибыль и окупаемость', short: 'Перспективы бизнеса',
+  desc: 'Сколько зарабатывают компании вашей отрасли и региона по годам работы, какая доля в плюсе, сколько конкурентов и за сколько лет окупятся вложения.',
+  lede: 'Выберите отрасль и регион: покажем выручку и прибыль похожих компаний на первом, втором и следующих годах работы, конкуренцию и окупаемость вашей суммы в трёх сценариях.' });
 for (const c of CALCS) {
   write(`kalkulyatory/${c.slug}/index.html`, layout({
     title: c.title, desc: c.desc, path: `/kalkulyatory/${c.slug}/`, current: 'calc',
     body: `<a class="crumb" href="${url('/kalkulyatory/')}">${icon('arrowLeft')} Все калькуляторы</a>
 <h1 class="page">${esc(c.title)}</h1><p class="lede">${esc(c.lede)}</p>${c.fn('p')}
-<p class="note-sm">Расчёт идёт у вас в браузере, данные никуда не отправляются. Цифры в правилах сверены ${esc(new Date(FIN.checkedAt + 'T12:00:00+03:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Moscow' }))}</p>`
+<p class="note-sm">${c.remote ? 'Суммы остаются у вас в браузере: на наш сервер уходят только отрасль и регион, чтобы найти статистику.' : 'Расчёт идёт у вас в браузере, данные никуда не отправляются.'} Цифры в правилах сверены ${esc(new Date(FIN.checkedAt + 'T12:00:00+03:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Moscow' }))}</p>`
   }));
 }
 write('kalkulyatory/index.html', layout({
   title: 'Калькуляторы', desc: 'Платёж по кредиту, досрочное погашение, доход и налог по вкладам, самозанятый или ИП.', path: '/kalkulyatory/', current: 'calc',
-  body: `<h1 class="page">Калькуляторы</h1><p class="lede">Подставьте свои цифры: расчёт происходит у вас в браузере, данные никуда не отправляются.</p>
+  body: `<h1 class="page">Калькуляторы</h1><p class="lede">Подставьте свои цифры: расчёт происходит у вас в браузере, введённые суммы никуда не отправляются.</p>
 <ul class="calcs">${CALCS.map((c) => `<li><a href="${url(`/kalkulyatory/${c.slug}/`)}"><b>${esc(c.short)}</b><span>${esc(c.desc)}</span></a></li>`).join('')}</ul>`
 }));
 

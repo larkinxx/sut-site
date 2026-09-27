@@ -285,6 +285,83 @@
     bind(root, run);
   });
 
+  // Перспективы бизнеса: статистика похожих компаний с сервера (POST /api/market), окупаемость считаем здесь
+  function money(n) {
+    if (n == null || !isFinite(n)) return '—';
+    var a = Math.abs(n), s = n < 0 ? '−' : '';
+    if (a >= 1e9) return s + (a / 1e9).toFixed(1).replace('.', ',') + ' млрд ₽';
+    if (a >= 1e6) return s + (a / 1e6).toFixed(1).replace('.', ',') + ' млн ₽';
+    if (a >= 1e3) return s + Math.round(a / 1e3) + ' тыс. ₽';
+    return s + Math.round(a) + ' ₽';
+  }
+  function pctRu(x) { return Math.round(x * 100) + '%'; }
+  function ageBucket(y) { return y < 3 ? y : y < 5 ? 3 : 5; }   // y — год работы с нуля; группы как в server/market.mjs
+  // За сколько лет накопленная прибыль сценария (квантиль qi) догонит бюджет; null — не за horizon лет
+  function payback(m, qi, budget, horizon) {
+    var sum = 0;
+    for (var y = 0; y < horizon; y++) {
+      var g = m.byAge.filter(function (a) { return a.age === ageBucket(y); })[0] || m.total;
+      sum += g.profit[qi];
+      if (sum >= budget) return { years: y + 1, sum: sum };
+    }
+    return { years: null, sum: sum };
+  }
+  $$('[data-calc=prospects]').forEach(function (root) {
+    var out = $('.result', root), api = root.getAttribute('data-api'), cache = {}, timer, seq = 0;
+    var draw = function (m) {
+      var budget = num(root, 'budget') || 0, horizon = Math.min(5, Math.max(1, Math.round(num(root, 'years') || 3)));
+      if (!m.available) {
+        out.innerHTML = '<p class="verdict">По этой отрасли мало компаний с отчётностью — статистика была бы случайной. Попробуйте более общий код ОКВЭД или всю Россию.</p>';
+        return;
+      }
+      var c = m.competition, where = m.region === '00' ? 'по России' : 'в регионе';
+      var hist = c.history || [], trend = '';
+      if (hist.length > 1 && hist[0].n > 0) {
+        var ch = hist[hist.length - 1].n / hist[0].n - 1;
+        trend = row('Число компаний с ' + hist[0].month.split('-').reverse().join('.'), (ch >= 0 ? '+' : '−') + Math.abs(Math.round(ch * 100)) + '%');
+      }
+      var rus = false;
+      var rows = m.byAge.map(function (a) {
+        var mark = a.scope === 'russia' ? '*' : '';
+        if (mark) rus = true;
+        return '<tr><td>' + a.label + mark + '</td><td>' + money(a.income[2]) + '<br><small>' + money(a.income[1]) + ' – ' + money(a.income[3]) + '</small></td>' +
+          '<td' + (a.profit[2] < 0 ? ' class="bad"' : '') + '>' + money(a.profit[2]) + '</td><td>' + pctRu(a.profitableShare) + '</td></tr>';
+      }).join('');
+      var sc = [['Как у лучших 25%', 3], ['Как у середины', 2], ['Как у худших 25%', 1]].map(function (s) {
+        var p = payback(m, s[1], budget, horizon);
+        var text = budget <= 0 ? 'прибыль за ' + horizon + ' ' + plural(horizon, ['год', 'года', 'лет']) + ': ' + money(p.sum)
+          : p.years ? 'окупится за ' + p.years + ' ' + plural(p.years, ['год', 'года', 'лет'])
+          : p.sum > 0 ? 'за ' + horizon + ' ' + plural(horizon, ['год', 'года', 'лет']) + ' вернётся ' + money(p.sum) + ' из ' + money(budget)
+          : 'убыток ' + money(p.sum) + ' за ' + horizon + ' ' + plural(horizon, ['год', 'года', 'лет']);
+        return row(s[0], text, p.years ? 'gain' : p.sum <= 0 ? 'warn' : '');
+      }).join('');
+      out.innerHTML =
+        row('Организаций этой отрасли ' + where, new Intl.NumberFormat('ru-RU').format(c.companies) + (m.total.scope === 'russia' && m.region !== '00' ? ' — мало для статистики, ниже данные по России' : '')) +
+        (c.newShare != null && c.companies ? row('Из них открылись за последний год', pctRu(c.newShare)) : '') + trend +
+        row('В плюсе по итогам ' + m.total.year + ' года', pctRu(m.total.profitableShare)) +
+        (m.total.marginMedian != null ? row('Типичная рентабельность', Math.round(m.total.marginMedian * 100) + '% от доходов') : '') +
+        '<figure style="overflow-x:auto;margin:0"><table class="fns-table all-cols"><tr><th>Год работы</th><th>Доходы: середина<br><small>и обычный разброс</small></th><th>Прибыль: середина</th><th>В плюсе</th></tr>' + rows + '</table></figure>' +
+        (rus ? '<p class="note-sm">* В регионе мало таких компаний — показана та же отрасль по России.</p>' : '') +
+        '<div class="opt"><h3>' + (budget > 0 ? 'Вернутся ли ' + money(budget) + ' за ' + horizon + ' ' + plural(horizon, ['год', 'года', 'лет']) : 'Прибыль за первые ' + horizon + ' ' + plural(horizon, ['год', 'года', 'лет'])) + '</h3>' + sc + '</div>' +
+        '<p class="verdict">Это не прогноз вашего дохода: у похожих компаний сейчас такой разброс результатов. ' + (m.total.profitableShare < 0.6 ? 'Заметная часть работает в минус — заложите запас на первые годы.' : 'Большинство компаний в плюсе, но первые годы обычно слабее.') + '</p>';
+    };
+    var run = function () {
+      var code = $('[name=code]', root).value.trim(), okved = (code.match(/^\d{2}/) || [])[0] || $('[name=okved]', root).value;
+      var region = $('[name=region]', root).value, key = okved + '|' + region, my = ++seq;
+      if (cache[key]) { draw(cache[key]); return; }
+      if (!api) { out.innerHTML = ''; return; }
+      clearTimeout(timer);
+      timer = setTimeout(function () {
+        out.innerHTML = '<p class="note-sm">Загружаем статистику…</p>';
+        fetch(api + '/api/market', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ okved: okved, region: region }) })
+          .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
+          .then(function (m) { cache[key] = m; if (my === seq) draw(m); })
+          .catch(function () { if (my === seq) out.innerHTML = '<p class="verdict warn">Не получилось загрузить статистику. Попробуйте позже.</p>'; });
+      }, 300);
+    };
+    bind(root, run);
+  });
+
   /* ---------- Поделиться расчётом: введённые цифры сохраняются в адресе после # ---------- */
   var calcs = $$('[data-calc]');
   function fieldsOf(root) { return $$('input[name], select[name]', root); }

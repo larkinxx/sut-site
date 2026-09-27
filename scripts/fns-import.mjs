@@ -3,6 +3,9 @@
 //   sshr2019 — среднесписочная численность
 //   paytax   — уплаченные налоги и взносы за год
 //   debtam   — налоговая задолженность, пени и штрафы
+//   revexp   — доходы и расходы по бухгалтерской отчётности за год
+//   rsmp     — реестр МСП: основной ОКВЭД, регион, дата включения в реестр (≈ возраст компании), категория
+// После загрузки считается статистика похожих компаний (scripts/fns-peers.mjs → fns_peers, fns_market).
 // Источник: https://www.nalog.gov.ru/opendata/  (наборы 7707329152-*). ФНС обновляет их раз в месяц, около 25 числа.
 // Запуск на сервере: node scripts/fns-import.mjs /var/lib/sut/fns.db   (нужна утилита unzip)
 // Данные только по юрлицам: по ИП ФНС такие наборы не публикует.
@@ -12,6 +15,7 @@ import { spawn } from 'node:child_process';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { DatabaseSync } from 'node:sqlite';
+import { buildPeers } from './fns-peers.mjs';
 
 const DB = process.argv[2] || '/var/lib/sut/fns.db';
 const DIR = process.env.FNS_OPENDATA_DIR || path.join(path.dirname(DB), 'opendata');
@@ -48,6 +52,25 @@ export const DATASETS = {
         .map((a) => ({ name: a.НаимНалог, arrear: money(a.СумНедНалог), penalty: money(a.СумПени), fine: money(a.СумШтраф), total: money(a.ОбщСумНедоим) })).filter((x) => x.total > 0);
       return [money(items.reduce((s, x) => s + x.total, 0)), JSON.stringify(items.sort((a, b) => b.total - a.total)), asof];
     }
+  },
+  revexp: {
+    table: 'fns_finance', columns: 'inn, income, expense, asof', required: [0, 1],
+    row: (doc, asof) => {
+      const a = attrs(doc.match(/<СведДохРасх[^>]*>/)?.[0] || '');
+      return [a.СумДоход != null ? money(a.СумДоход) : null, a.СумРасход != null ? money(a.СумРасход) : null, asof];
+    }
+  },
+  // В реестре МСП и организации, и ИП; берём только организации (как и остальные наборы)
+  rsmp: {
+    table: 'fns_msp', columns: 'inn, okved, region, since, category, asof', required: [0, 1, 2],
+    row: (doc, asof) => {
+      const d = attrs(doc.match(/<Документ [^>]*>/)[0]);
+      return [
+        attrs(doc.match(/<СвОКВЭДОсн[^>]*>/)?.[0] || '').КодОКВЭД || null,
+        attrs(doc.match(/<СведМН[^>]*>/)?.[0] || '').КодРегион || null,
+        date(d.ДатаВклМСП), Number(d.КатСубМСП) || null, asof
+      ];
+    }
   }
 };
 
@@ -56,6 +79,8 @@ const SCHEMA = {
   fns_staff: '(inn TEXT PRIMARY KEY, n INT, asof TEXT)',
   fns_tax: '(inn TEXT PRIMARY KEY, total REAL, items TEXT, asof TEXT)',
   fns_debt: '(inn TEXT PRIMARY KEY, total REAL, items TEXT, asof TEXT)',
+  fns_finance: '(inn TEXT PRIMARY KEY, income REAL, expense REAL, asof TEXT)',
+  fns_msp: '(inn TEXT PRIMARY KEY, okved TEXT, region TEXT, since TEXT, category INT, asof TEXT)',
   fns_name: '(inn TEXT PRIMARY KEY, name TEXT)'           // названия организаций — для страниц компаний и карты сайта
 };
 export function openFnsDb(file, readOnly = false) {
@@ -75,7 +100,7 @@ export async function importStream(db, name, stream) {
   db.exec(`DROP TABLE IF EXISTS ${tmp}; CREATE TABLE ${tmp} ${SCHEMA[ds.table]}`);
   const ins = db.prepare(`INSERT OR REPLACE INTO ${tmp} (${ds.columns}) VALUES (${ds.columns.split(',').map(() => '?').join(', ')})`);
   const insName = db.prepare('INSERT OR REPLACE INTO fns_name (inn, name) VALUES (?, ?)');
-  let buf = '', rows = 0;
+  let buf = '', rows = 0, missing = 0;
   db.exec('BEGIN');
   const flush = (final) => {
     let end;
@@ -85,8 +110,10 @@ export async function importStream(db, name, stream) {
       buf = buf.slice(end + 11);
       const inn = doc.match(/ИННЮЛ="(\d{10})"/)?.[1];
       if (!inn) continue;
-      ins.run(inn, ...ds.row(doc, date(attrs(doc.match(/<Документ [^>]*>/)[0]).ДатаСост)));
-      const org = attrs(doc.match(/<СведНП[^>]*>/)?.[0] || '').НаимОрг;
+      const vals = ds.row(doc, date(attrs(doc.match(/<Документ [^>]*>/)[0]).ДатаСост));
+      if (ds.required?.some((i) => vals[i] == null || vals[i] === '')) missing++;
+      ins.run(inn, ...vals);
+      const org = attrs(doc.match(/<(?:СведНП|ОргВклМСП)[^>]*>/)?.[0] || '').НаимОрг;
       if (org) insName.run(inn, org);
       if (++rows % 100000 === 0) { db.exec('COMMIT; BEGIN'); process.stdout.write(`  ${name}: ${rows}\r`); }
     }
@@ -97,6 +124,7 @@ export async function importStream(db, name, stream) {
   flush(true);
   db.exec('COMMIT');
   if (rows === 0) throw new Error(name + ': ни одной записи — формат изменился?');
+  if (missing > rows / 2) throw new Error(`${name}: у ${missing} из ${rows} записей нет нужных полей — формат изменился?`);
   db.exec(`BEGIN; DROP TABLE ${ds.table}; ALTER TABLE ${tmp} RENAME TO ${ds.table}; COMMIT`);
   return rows;
 }
@@ -122,6 +150,7 @@ async function download(url, file) {
 async function main() {
   fs.mkdirSync(DIR, { recursive: true });
   const db = openFnsDb(DB);
+  let fresh = false;
   for (const name of Object.keys(DATASETS)) {
     try {
       const link = await latestZip(name);
@@ -133,9 +162,14 @@ async function main() {
       const rows = await importStream(db, name, unzip.stdout);
       db.prepare('INSERT OR REPLACE INTO fns_meta (dataset, file, rows, loaded_at) VALUES (?, ?, ?, ?)').run(name, path.basename(file), rows, new Date().toISOString());
       console.log(`${name}: загружено ${rows} организаций`);
+      if (name === 'revexp' || name === 'rsmp') fresh = true;
       // старые архивы этого набора больше не нужны
       for (const f of fs.readdirSync(DIR)) if (f.startsWith(name + '-') && f !== path.basename(file)) fs.rmSync(path.join(DIR, f));
     } catch (e) { console.error(`${name}: ошибка — ${e.message}`); process.exitCode = 1; }
+  }
+  if (fresh || process.env.FORCE) {
+    try { console.log(`Статистика похожих компаний: ${buildPeers(db)} групп`); }
+    catch (e) { console.error(`Статистика похожих компаний: ошибка — ${e.message}`); process.exitCode = 1; }
   }
   db.close();
 }

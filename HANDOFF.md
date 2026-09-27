@@ -57,7 +57,7 @@ journalctl -u sut-api -f                   # логи
 - `server/index.mjs` — API: `/api/org`, `/api/org/ai`, `/api/org/fns`, `/api/org/suggest`, аккаунты.
 - `server/accounts.mjs` — вход (Яндекс ID, Telegram, код на почту), кабинет, слежение за компаниями, SMTP-клиент.
 - `server/fns.mjs` — данные ФНС: открытые данные (из `fns.db`), ГИР БО, «Прозрачный бизнес».
-- `scripts/` — `fetch.mjs`, `draft.mjs` (новости), `rates.mjs` (ставка ЦБ), `telegram.mjs`, `fns-import.mjs` (импорт открытых данных ФНС, cron 26-го числа).
+- `scripts/` — `fetch.mjs`, `draft.mjs` (новости), `rates.mjs` (ставка ЦБ), `telegram.mjs`, `fns-import.mjs` (импорт открытых данных ФНС, cron 26-го числа; в том числе реестр МСП и доходы/расходы — из них `fns-peers.mjs` считает статистику похожих компаний для калькулятора «Перспективы бизнеса» `/kalkulyatory/perspektivy-biznesa/`, `POST /api/market`, и блока «Среди похожих компаний» в проверке по ИНН; `server/market.mjs`).
 - `config/` — `site.json` (название, контакты, **operator** — пустой!), `finance.json` (все ставки и лимиты для калькуляторов и советов, сверены 25.09.2026), `sources.json`.
 - `deploy/` — установка и обслуживание сервера.
 - `Claude outputs/` (не в git) — логотипы, визитки (бумажная и металлические), PDF сравнения с конкурентами.
