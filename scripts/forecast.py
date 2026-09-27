@@ -2,7 +2,8 @@
 # Берёт историю курсов с cbr.ru за 3 года, прогнозирует на 22 рабочих дня вперёд (≈ месяц),
 # печатает таблицу и сохраняет content/forecast.json. Модель — TimesFM 2.5 (веса Apache-2.0, можно
 # использовать на сайте; веса TimesFM 3.0 пока только для некоммерческого использования).
-# Установка: pip install "timesfm[torch]"   Запуск: python scripts/forecast.py [--horizon 22]
+# Установка: pip install "timesfm[torch]"   Запуск: python scripts/forecast.py [--horizon 22] [--out файл.json]
+# Mac на Intel: там максимум torch 2.2.2, он работает только с numpy<2 → pip install "numpy<2" "timesfm[torch]"
 # Это статистический прогноз, а не инвестиционная рекомендация: он не знает о будущих решениях ЦБ и событиях.
 import argparse
 import datetime as dt
@@ -55,6 +56,14 @@ def load_model(max_context, horizon):
 
   torch.set_float32_matmul_precision("high")
   model = timesfm.TimesFM_2p5_200M_torch.from_pretrained("google/timesfm-2.5-200m-pytorch")
+  if tuple(int(x) for x in torch.__version__.split(".")[:2]) < (2, 5):
+    # До torch 2.5 встроенный scaled_dot_product_attention даёт NaN на полностью замаскированных строках
+    # (короткая история дополняется до max_context) — переключаем на обычное внимание из самого TimesFM.
+    from timesfm.torch import transformer
+
+    for module in model.model.modules():
+      if getattr(module, "attention_fn", None) is transformer._torch_dot_product_attention:
+        module.attention_fn = transformer._dot_product_attention
   model.compile(
     timesfm.ForecastConfig(
       max_context=max_context,
@@ -73,6 +82,7 @@ def main():
   ap = argparse.ArgumentParser(description=__doc__)
   ap.add_argument("--horizon", type=int, default=22, help="на сколько рабочих дней вперёд")
   ap.add_argument("--years", type=int, default=3, help="сколько лет истории брать")
+  ap.add_argument("--out", type=pathlib.Path, default=OUT, help="куда сохранить JSON")
   args = ap.parse_args()
 
   today = dt.date.today()
@@ -90,6 +100,8 @@ def main():
   point, quant = model.forecast(horizon=args.horizon, inputs=inputs)
   # quant[..., 0] — среднее, дальше квантили 0.1 … 0.9: берём 0.1 и 0.9 → интервал 80%
   lo, hi = quant[:, :, 1], quant[:, :, 9]
+  if np.isnan(point).any() or np.isnan(quant).any():
+    raise SystemExit("Модель вернула NaN — прогноз не сохраняю. Пришлите версии: python -c 'import torch, numpy; print(torch.__version__, numpy.__version__)'")
 
   result = {
     "_note": "Прогноз TimesFM 2.5 по официальным курсам ЦБ. Статистическая модель, не рекомендация.",
@@ -115,8 +127,9 @@ def main():
       f"({change:+.1f}%), интервал 80%: {end['low80']:.2f}–{end['high80']:.2f} ₽"
     )
 
-  OUT.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-  print(f"Сохранено: {OUT.relative_to(ROOT)}")
+  args.out.parent.mkdir(parents=True, exist_ok=True)
+  args.out.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+  print(f"Сохранено: {args.out}")
 
 
 if __name__ == "__main__":
