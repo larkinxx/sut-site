@@ -10,6 +10,7 @@ import { marketStats, orgPeers, orgForecast, compareFacts, valueAt, percentile, 
 import { renderCompany, similarCompanies } from './company-page.mjs';
 import { createIndustryPages, topCompanies, industryUrls } from './industry-pages.mjs';
 import { createResearch, STUDIES } from './research.mjs';
+import { peopleOf, commonPeople } from './links.mjs';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -270,6 +271,23 @@ await t('API /api/market: без DaData, проверка ввода, пуста
     for (let i = 0; i < 122; i++) codes.push((await fetch(`http://127.0.0.1:${srv.address().port}/api/market`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"okved":"56"}' })).status);
     assert.equal(codes.filter((c) => c === 429).length, 2, 'после 120 запросов за 10 минут — 429');
   } finally { srv.close(); }
+});
+
+await t('сравнение: руководитель, учредители и общие люди между компаниями', async () => {
+  const pa = peopleOf({ data: { management: { name: 'Иванов Иван Иванович', post: 'ГЕНЕРАЛЬНЫЙ ДИРЕКТОР' } } },
+    { managers: [], owners: [{ name: 'ИВАНОВ ИВАН ИВАНОВИЧ', kind: 'fl', share: '50' }, { name: 'ООО "ХОЛДИНГ"', kind: 'ul', inn: '7700000009', share: '50' }] });
+  assert.equal(pa.director.name, 'Иванов Иван Иванович');
+  assert.equal(pa.founders.length, 2);
+  assert.equal(pa.founders[0].inn, null, 'у людей ИНН не храним и не показываем');
+  const pb = peopleOf(null, { managers: [{ fio: 'Иванов Иван Иванович', position: 'Директор' }], owners: [{ name: 'ООО "ХОЛДИНГ"', kind: 'ul', inn: '7700000009' }] });
+  const pc = peopleOf({ data: { management: { name: 'Петров Пётр' }, founders: [{ name: 'ООО "А"', inn: '7700000001', type: 'LEGAL' }] } }, null);
+  const links = commonPeople([{ inn: '7700000001', name: 'ООО "А"', people: pa }, { inn: '7700000002', name: 'ООО "Б"', people: pb }, { inn: '7700000003', name: 'ООО "В"', people: pc }]);
+  const byName = Object.fromEntries(links.map((l) => [l.name, l]));
+  assert.equal(byName['Иванов Иван Иванович'].exact, false, 'человек — совпадение по ФИО');
+  assert.deepEqual(byName['Иванов Иван Иванович'].roles.map((r) => r.inn + ' ' + r.role), ['7700000001 руководитель', '7700000001 учредитель', '7700000002 руководитель']);
+  assert.equal(byName['ООО "ХОЛДИНГ"'].exact, true, 'компания-владелец — по ИНН');
+  assert.ok(byName['ООО "А"'].roles.some((r) => r.inn === '7700000003' && r.role === 'учредитель'), 'одна из сравниваемых компаний — учредитель другой');
+  assert.equal(commonPeople([{ inn: '1', people: pc }, { inn: '2', people: null }]).length, 0, 'нет общих — пусто');
 });
 
 console.log(`\nВсе тесты статистики прошли: ${n}`);
