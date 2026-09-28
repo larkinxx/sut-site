@@ -1,0 +1,14 @@
+{
+  "id": "tass-60a60aa1972c",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "\"Додо пицца\" подверглась кибератаке",
+  "url": "https://tass.ru/ekonomika/28160271",
+  "publishedAt": "2026-09-28T20:16:41.000Z",
+  "text": "В компании сообщили, что хакеры могли получить доступ к данным клиентов",
+  "fetchedAt": "2026-09-28T22:00:08.888Z",
+  "drafted": true
+}
