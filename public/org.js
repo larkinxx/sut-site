@@ -1106,7 +1106,7 @@
           var when = new Date(j.at).toLocaleString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Moscow' });
           c.appendChild(el('p', 'cert-no', 'Сертификат проверки № ' + j.id));
           c.appendChild(el('p', 'note-sm', 'Проверка проведена ' + when + ' (МСК). Подлинность и сведения на эту дату: ' + j.url.replace(/^https?:\/\//, '')));
-          if (j.qr && /^<svg class="qr"/.test(j.qr)) { var q = el('div', 'cert-qr'); q.innerHTML = j.qr; c.insertBefore(q, c.firstChild); }   // SVG собирает наш сервер из адреса сертификата
+          if (j.qr && /^<svg class="qr"/.test(j.qr)) { var q = el('div', 'cert-qr'); q.innerHTML = j.qr + (j.seal && /^<svg class="seal"/.test(j.seal) ? j.seal : ''); c.insertBefore(q, c.firstChild); }   // QR и печать собирает наш сервер
           out.insertBefore(c, out.firstChild);
         }
       }).catch(function () {}).then(function () { b.disabled = false; window.print(); });
