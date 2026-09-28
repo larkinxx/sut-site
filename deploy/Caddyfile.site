@@ -5,6 +5,13 @@
 inn-sider.ru {
 	encode zstd gzip
 	header Strict-Transport-Security "max-age=31536000"
+	# защита посетителя: не встраивать сайт в чужую рамку (кликджекинг), не угадывать тип файла,
+	# не отдавать полный адрес чужим сайтам, запретить доступ к камере, микрофону и геолокации
+	header X-Frame-Options "DENY"
+	header X-Content-Type-Options "nosniff"
+	header Referrer-Policy "strict-origin-when-cross-origin"
+	header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+	header -Server
 	@company path_regexp company ^/(organizacii/[0-9]{10,12}(/|/og\.png)?|sitemap-companies(-[0-9]+)?\.xml|otrasli(/.*)?|sitemap-otrasli\.xml|sertifikat(/.*)?|issledovaniya(/.*)?)$
 	handle @company {
 		reverse_proxy 127.0.0.1:3000
