@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { OKVED_ALL, REGIONS } from '../src/lib/market-lists.mjs';
 import { RUSSIA, ALL_AGES } from '../scripts/fns-peers.mjs';
-import { esc, money } from './company-page.mjs';
+import { esc, hbars, money } from './company-page.mjs';
 
 const OKVED = new Map(OKVED_ALL), REGION = new Map(REGIONS);
 const pct = (x) => (x == null ? '—' : Math.round(x * 100) + '%');
@@ -31,7 +31,8 @@ export const STUDIES = [
       const top = list.slice(0, 15), low = list.slice(-5).reverse();
       return {
         finding: `Чаще всего прибыль по итогам ${y} года получали компании отрасли «${top[0] && OKVED.get(top[0].okved)}» — ${pct(top[0].profitable)} из тех, кто сдал отчётность. Реже всего — «${OKVED.get(low[0].okved)}»: ${pct(low[0].profitable)}.`,
-        body: `<h2 class="h">Больше всего прибыльных компаний</h2>${table(['№', 'Отрасль', 'В плюсе', 'Доходы у середины', 'Компаний с отчётностью'],
+        body: `${hbars('Доля компаний в плюсе, 15 отраслей', top.map((r) => ({ label: OKVED.get(r.okved), value: r.profitable, text: pct(r.profitable) })))}
+<h2 class="h">Больше всего прибыльных компаний</h2>${table(['№', 'Отрасль', 'В плюсе', 'Доходы у середины', 'Компаний с отчётностью'],
           top.map((r, i) => [i + 1, `<a href="/otrasli/${r.okved}/">${esc(OKVED.get(r.okved))}</a>`, pct(r.profitable), nb(money(r.median)), int(r.nfin)]))}
 <h2 class="h">Меньше всего</h2>${table(['№', 'Отрасль', 'В плюсе', 'Доходы у середины', 'Компаний с отчётностью'],
           low.map((r, i) => [list.length - i, `<a href="/otrasli/${r.okved}/">${esc(OKVED.get(r.okved))}</a>`, pct(r.profitable), nb(money(r.median)), int(r.nfin)]))}`
@@ -48,7 +49,8 @@ export const STUDIES = [
       const top = all.slice(0, 15);
       return {
         finding: `Больше всего новых компаний — в регионе «${REGION.get(top[0].region)}»: ${pct(top[0].share)} организаций работают первый год. Меньше всего — «${REGION.get(all[all.length - 1].region)}»: ${pct(all[all.length - 1].share)}.`,
-        body: `<h2 class="h">Регионы с самой высокой долей новых компаний</h2>${table(['№', 'Регион', 'Новых', 'Организаций всего'],
+        body: `${hbars('Доля компаний первого года, 15 регионов', top.map((r) => ({ label: REGION.get(r.region), value: r.share, text: pct(r.share) })))}
+<h2 class="h">Регионы с самой высокой долей новых компаний</h2>${table(['№', 'Регион', 'Новых', 'Организаций всего'],
           top.map((r, i) => [i + 1, esc(REGION.get(r.region)), pct(r.share), int(r.total)]))}
 <p class="note-sm">Регионы, где меньше ${int(o.minRegion)} организаций в реестре, не участвуют. Новые — компании, которые на конец отчётного года были в реестре МСП меньше года. Возраст считается от даты включения в реестр: компания, которая выбыла из него и вернулась, тоже выглядит новой, поэтому в отдельных регионах доля может быть завышена.</p>`
       };
@@ -63,7 +65,8 @@ export const STUDIES = [
       const top = list.slice(0, 15);
       return {
         finding: `Самые большие доходы у середины — в отрасли «${OKVED.get(top[0].okved)}»: ${money(top[0].median)} за ${y} год. Для сравнения, у середины всех отраслей в этом списке — ${money(list[Math.floor(list.length / 2)].median)}.`,
-        body: `<h2 class="h">Доходы у середины</h2>${table(['№', 'Отрасль', 'Доходы у середины', 'Рентабельность', 'В плюсе'],
+        body: `${hbars('Доходы у середины за год, 15 отраслей', top.map((r) => ({ label: OKVED.get(r.okved), value: r.median, text: nb(money(r.median)) })))}
+<h2 class="h">Доходы у середины</h2>${table(['№', 'Отрасль', 'Доходы у середины', 'Рентабельность', 'В плюсе'],
           top.map((r, i) => [i + 1, `<a href="/otrasli/${r.okved}/">${esc(OKVED.get(r.okved))}</a>`, nb(money(r.median)), pct(r.margin), pct(r.profitable)]))}`
       };
     }
@@ -78,7 +81,8 @@ export const STUDIES = [
       const first = list[0], last = list[list.length - 1];
       return {
         finding: `На первом году с прибылью закончили ${y} год ${pct(first.share)} компаний, у компаний старше пяти лет — ${pct(last.share)}.`,
-        body: `<h2 class="h">Доля прибыльных по возрасту</h2>${table(['Возраст', 'В плюсе', 'Компаний с отчётностью'], list.map((r) => [AGE[r.age], pct(r.share), int(r.nfin)]))}
+        body: `${hbars('Доля компаний в плюсе по возрасту', list.map((r) => ({ label: AGE[r.age], value: r.share, text: pct(r.share) })))}
+<h2 class="h">Доля прибыльных по возрасту</h2>${table(['Возраст', 'В плюсе', 'Компаний с отчётностью'], list.map((r) => [AGE[r.age], pct(r.share), int(r.nfin)]))}
 <p>Подробнее по своей отрасли и региону — в <a href="/prognoz/">прогнозе бизнеса</a>.</p>`
       };
     }

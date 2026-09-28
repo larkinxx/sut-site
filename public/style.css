@@ -528,3 +528,13 @@ input[type=date]:focus,textarea:focus{outline:none;border-color:var(--ink)}
 .lines .label{margin:0}
 .lines b{font:400 22px/1.25 var(--font-display)}
 .lines a>span:last-child{font:300 14px/1.5 var(--font-ui);color:var(--muted)}
+.hbars{margin:18px 0 26px}
+.hbars figcaption{font:400 11px/1.4 var(--font-ui);letter-spacing:.26em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+.hbars ol{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
+.hbars li{display:grid;grid-template-columns:minmax(0,5fr) minmax(90px,6fr) 7.5em;gap:14px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line);font:400 14px/1.35 var(--font-body)}
+.hb-b{height:6px;background:var(--accent-soft)}
+.hb-b i{display:block;height:100%;background:var(--accent);transition:opacity .2s}
+.hb-v{font-family:var(--font-display);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.hbars li:hover .hb-b i{opacity:.7}
+@media (max-width:560px){.hbars li{grid-template-columns:minmax(0,1fr) auto;gap:4px 12px}.hb-l{grid-column:1/-1}.hb-b{grid-column:1}}
+@media print{.hb-b{border:1px solid #111}.hb-b i{background:#111!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}}

@@ -161,6 +161,7 @@ await t('страницы отраслей: статистика, крупней
   assert.equal(r.code, 200);
   assert.match(r.body, /<title>Кафе, рестораны, доставка еды — Республика|<title>Кафе, рестораны, доставка еды — [^<]+: сколько зарабатывают/);
   assert.match(r.body, /Крупнейшие организации по доходам/);
+  assert.match(r.body, /<figure class="hbars">.*Доходы у середины по возрасту.*style="width:100\.0%"/s, 'график по возрасту, самая длинная полоса — 100%');
   assert.match(r.body, /href="\/organizacii\/54000000\d\d\/"/);
   assert.match(r.body, /"@type":"BreadcrumbList"/);
   assert.match(r.body, /<link rel="canonical" href="https:\/\/inn-sider.ru\/otrasli\/56\/54\/"/);

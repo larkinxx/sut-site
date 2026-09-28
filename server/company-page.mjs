@@ -10,6 +10,12 @@ import { orgPeers } from './market.mjs';
 const PER_SITEMAP = 50000;
 // «$» тоже экранируем: готовый HTML вставляется в шаблон через String.replace, где «$'» и «$&» — спецпоследовательности
 export const esc = (s) => String(s ?? '').replace(/[&<>"'$]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', $: '&#36;' }[c]));
+// Горизонтальные полосы одной величины (доля, доходы) — HTML и CSS без скриптов: читаются с телефона,
+// печатаются и остаются текстом для поиска. rows: [{ label, value, text }], value ≥ 0
+export function hbars(caption, rows) {
+  const max = Math.max(0, ...rows.map((r) => r.value || 0)) || 1;
+  return `<figure class="hbars"><figcaption>${esc(caption)}</figcaption><ol>${rows.map((r) => `<li title="${esc(r.label)}: ${esc(r.text)}"><span class="hb-l">${esc(r.label)}</span><span class="hb-b" aria-hidden="true"><i style="width:${(Math.max(0, r.value || 0) / max * 100).toFixed(1)}%"></i></span><span class="hb-v">${esc(r.text)}</span></li>`).join('')}</ol></figure>`;
+}
 const STATUS = { ACTIVE: 'Действует', LIQUIDATING: 'Ликвидируется', LIQUIDATED: 'Ликвидирована', BANKRUPT: 'Банкротство', REORGANIZING: 'Реорганизация' };
 const dateRu = (ms) => new Date(ms).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Moscow' });
 export function money(n) {
