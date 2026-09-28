@@ -538,3 +538,9 @@ input[type=date]:focus,textarea:focus{outline:none;border-color:var(--ink)}
 .hbars li:hover .hb-b i{opacity:.7}
 @media (max-width:560px){.hbars li{grid-template-columns:minmax(0,1fr) auto;gap:4px 12px}.hb-l{grid-column:1/-1}.hb-b{grid-column:1}}
 @media print{.hb-b{border:1px solid #111}.hb-b i{background:#111!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+.cert-qr{margin:22px 0;display:flex;align-items:center;gap:16px}
+.cert-qr svg{display:block;flex:none;border:1px solid var(--line)}
+.cert-qr figcaption{font:400 13px/1.5 var(--font-ui);color:var(--muted);max-width:28ch}
+.cert-print{display:grid;grid-template-columns:auto 1fr;column-gap:18px;align-items:center}
+.cert-print .cert-qr{grid-row:span 2;margin:0}
+@media print{.cert-qr svg{border:0}}

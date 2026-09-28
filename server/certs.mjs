@@ -6,6 +6,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { esc } from './company-page.mjs';
+import { qrSvg } from './qr.mjs';
 
 const ABC = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';   // без 0/O и 1/I, чтобы номер легко читался с бумаги
 const STATUS = { ACTIVE: 'Действует', LIQUIDATING: 'Ликвидируется', LIQUIDATED: 'Ликвидирована', BANKRUPT: 'Банкротство', REORGANIZING: 'Реорганизация' };
@@ -46,7 +47,8 @@ export function createCerts({ env = {}, db, now = () => Date.now(), perUserDay =
       const id = newCertId();
       try {
         db.prepare('INSERT INTO certs (id, inn, data, user_id, created_at) VALUES (?, ?, ?, ?, ?)').run(id, snap.inn, JSON.stringify(snap), userId, now());
-        return { id, url: `${siteUrl}/sertifikat/${id}/`, at: now() };
+        const url = `${siteUrl}/sertifikat/${id}/`;
+        return { id, url, at: now(), qr: qrSvg(url, { size: 96, label: 'QR-код: проверить сертификат' }) };
       } catch (e) { if (!/UNIQUE/.test(e.message)) throw e; }
     }
     return null;
@@ -63,7 +65,7 @@ export function createCerts({ env = {}, db, now = () => Date.now(), perUserDay =
       ['Адрес', s.address],
       ['Индекс надёжности INNSIDER', s.index ? `${s.index.score} из 100 — ${s.index.level}` : null],
       ['Уплачено налогов и взносов', s.taxes ? `${money(s.taxes.total)} за ${s.taxes.year} год` : null],
-      ['Сотрудников', s.staff], ['Налоговая задолженность', s.debt != null ? (s.debt > 0 ? money(s.debt) : 'нет') : null],
+      ['Сотрудников', s.staff != null ? new Intl.NumberFormat('ru-RU').format(s.staff) : null], ['Налоговая задолженность', s.debt != null ? (s.debt > 0 ? money(s.debt) : 'нет') : null],
       ['Арбитраж, где компания — ответчик', s.arb ? `${s.arb.defendant}, из них идут сейчас: ${s.arb.open}` : null],
       ['Суды общей юрисдикции, ответчик', s.courtsDef],
       ['Производства у приставов', s.fssp ? (s.fssp.open ? `${s.fssp.open} на ${money(s.fssp.sum)}` : 'нет открытых') : null]
@@ -73,6 +75,7 @@ export function createCerts({ env = {}, db, now = () => Date.now(), perUserDay =
       body: `<p class="cert-no">№ ${esc(id)}</p>
 <p class="lede">Проверка организации проведена на сервисе INNSIDER ${esc(when)} (МСК). Ниже — сведения из открытых источников, которые были известны на этот момент.</p>
 <div class="result cols cert-facts">${rows.map(([k, v]) => `<div><span>${esc(k)}</span><strong>${esc(v)}</strong></div>`).join('')}</div>
+<figure class="cert-qr">${qrSvg(`${siteUrl}/sertifikat/${id}/`, { label: 'QR-код этой страницы' })}<figcaption>Наведите камеру телефона, чтобы открыть этот сертификат</figcaption></figure>
 <p class="note-sm">Сертификат подтверждает дату проверки и её результат: сведения зафиксированы на сервере и не меняются. Источники — ЕГРЮЛ, открытые данные ФНС, картотека арбитражных дел и банк данных ФССП. Это не заключение о надёжности компании и не юридическое мнение.</p>
 <p><a class="btn" href="/organizacii/${esc(s.inn)}/">Актуальные сведения о компании</a></p>`
     };
