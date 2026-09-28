@@ -279,6 +279,7 @@ await t('сравнение: руководитель, учредители и �
   assert.equal(pa.director.name, 'Иванов Иван Иванович');
   assert.equal(pa.founders.length, 2);
   assert.equal(pa.founders[0].inn, null, 'у людей ИНН не храним и не показываем');
+  assert.equal(peopleOf(null, { managers: [], owners: [{ name: 'А', kind: 'fl', share: '100.000000000000000' }, { name: 'Б', kind: 'fl', share: '33.33333' }] }).founders.map((f) => f.share).join(' '), '100 33,33', 'доля без лишних нулей');
   const pb = peopleOf(null, { managers: [{ fio: 'Иванов Иван Иванович', position: 'Директор' }], owners: [{ name: 'ООО "ХОЛДИНГ"', kind: 'ul', inn: '7700000009' }] });
   const pc = peopleOf({ data: { management: { name: 'Петров Пётр' }, founders: [{ name: 'ООО "А"', inn: '7700000001', type: 'LEGAL' }] } }, null);
   const links = commonPeople([{ inn: '7700000001', name: 'ООО "А"', people: pa }, { inn: '7700000002', name: 'ООО "Б"', people: pb }, { inn: '7700000003', name: 'ООО "В"', people: pc }]);
