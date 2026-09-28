@@ -56,10 +56,6 @@ export function loadCards({ withExamples = false } = {}) {
   return { cards, problems };
 }
 
-export function loadTopics() {
-  return readJson('content/topics.json');
-}
-
 // Курсы и видео сторонних авторов: без даты согласия автора материал не попадает на сайт.
 export function loadMaterials() {
   const list = readJson('content/courses.json', { items: [] }).items || [];

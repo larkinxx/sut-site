@@ -6,11 +6,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { marketStats, MIN_GROUP } from './market.mjs';
-import { money, shortName } from './company-page.mjs';
+import { esc, hbars, money, shortName } from './company-page.mjs';
 import { OKVED_COMMON, OKVED_ALL, REGIONS } from '../src/lib/market-lists.mjs';
 import { RUSSIA, ALL_AGES } from '../scripts/fns-peers.mjs';
 
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const OKVED = new Map(OKVED_ALL);
 const REGION = new Map(REGIONS);
 const TOP = 20;
@@ -61,6 +60,7 @@ ${stat('В плюсе', pct(t.profitableShare), `из ${int(t.withReports)} с �
 <p>Половина организаций отрасли «${esc(lower(oname))}» ${esc(where)} получила за ${t.year} год доходы больше ${esc(nb(money(t.income[2])))}, четверть — больше ${esc(nb(money(t.income[3])))}, а у каждой десятой — больше ${esc(nb(money(t.income[4])))}. Прибыль (доходы минус расходы до налога) у середины — ${esc(nb(money(t.profit[2])))}; в плюсе закончили год ${pct(t.profitableShare)} компаний${t.marginMedian != null ? `, типичная рентабельность — ${pct(t.marginMedian)}` : ''}.</p>`;
   if (s.byAge.length) {
     body += `<h2 class="h">По возрасту компании</h2>
+${hbars('Доходы у середины по возрасту', s.byAge.map((a) => ({ label: a.label, value: a.income[2], text: nb(money(a.income[2])) })))}
 <div class="tbl-wrap"><table class="fns-table all-cols"><tr><th>Возраст</th><th>С отчётностью</th><th>Доходы у середины</th><th>Прибыль у середины</th><th>В плюсе</th></tr>
 ${s.byAge.map((a) => `<tr><td>${esc(a.label)}</td><td>${int(a.withReports)}</td><td>${esc(nb(money(a.income[2])))}</td><td>${esc(nb(money(a.profit[2])))}</td><td>${pct(a.profitableShare)}${a.scope === 'russia' && region !== RUSSIA ? '*' : ''}</td></tr>`).join('\n')}
 </table></div>${s.byAge.some((a) => a.scope === 'russia') && region !== RUSSIA ? '<p class="note-sm">* В регионе мало компаний этого возраста с отчётностью — показана вся Россия.</p>' : ''}`;
@@ -147,7 +147,7 @@ export function createIndustryPages({ env, fdb, now = () => Date.now() }) {
       .replace(/(<meta property="og:url" content=")[^"]*"/, `$1${esc(abs(p.url))}"`)
       .replace(/<!--ssr:intro-->[\s\S]*?<!--\/ssr:intro-->/, `<h1 class="page">${esc(p.h1)}</h1><p class="lede">${esc(p.lede)}</p>`)
       .replace(/<!--ssr:body-->[\s\S]*?<!--\/ssr:body-->/, p.body)
-      .replace('</head>', ld.map((x) => `<script type="application/ld+json">${JSON.stringify(x).replace(/</g, '\\u003c')}</script>\n`).join('') + '</head>');
+      .replace('</head>', ld.map((x) => `<script type="application/ld+json">${JSON.stringify(x).replace(/</g, '\\u003c').replace(/\$/g, '\\u0024')}</script>\n`).join('') + '</head>');
   };
   const send = (res, code, type, body, maxAge) => { res.writeHead(code, { 'Content-Type': type, 'Cache-Control': code === 200 ? `public, max-age=${maxAge}` : 'no-store' }); res.end(body); };
 

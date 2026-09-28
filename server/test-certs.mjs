@@ -49,5 +49,13 @@ await t('выдача, публичная страница, неизвестны
   assert.ok(certs.issue(1, snap), 'на следующий день снова можно');
 });
 
+await t('знак $ в названии не ломает шаблон', () => {
+  const certs = createCerts({ env: { SITE_DIST: dir }, db: new DatabaseSync(':memory:') });
+  const c = certs.issue(1, { ...certSnapshot({ inn: '7707083893', suggestion: S }), name: "ООО \"$'$&\"" });
+  const r = get(certs, `/sertifikat/${c.id}/`);
+  assert.match(r.body, /ООО &quot;&#36;&#39;&#36;&amp;&quot;/);
+  assert.equal((r.body.match(/<\/head>/g) || []).length, 1);
+});
+
 fs.rmSync(dir, { recursive: true });
 console.log(`\nВсе тесты сертификатов прошли: ${n}`);

@@ -161,6 +161,7 @@ await t('страницы отраслей: статистика, крупней
   assert.equal(r.code, 200);
   assert.match(r.body, /<title>Кафе, рестораны, доставка еды — Республика|<title>Кафе, рестораны, доставка еды — [^<]+: сколько зарабатывают/);
   assert.match(r.body, /Крупнейшие организации по доходам/);
+  assert.match(r.body, /<figure class="hbars">.*Доходы у середины по возрасту.*style="width:100\.0%"/s, 'график по возрасту, самая длинная полоса — 100%');
   assert.match(r.body, /href="\/organizacii\/54000000\d\d\/"/);
   assert.match(r.body, /"@type":"BreadcrumbList"/);
   assert.match(r.body, /<link rel="canonical" href="https:\/\/inn-sider.ru\/otrasli\/56\/54\/"/);
@@ -206,6 +207,10 @@ await t('исследования: рейтинги отраслей и реги
   assert.match(p.body, /Для публикации/);
   assert.match(p.body, /по данным INNSIDER на основе открытых данных ФНС/);
   assert.match(p.body, /href="\/otrasli\/56\/">/);
+  assert.match(p.body, /<figure class="hbars">/, 'график в исследовании');
+  assert.match(p.body, /"@type":"Article".*"url":"https:\/\/inn-sider.ru\/issledovaniya\/pribylnye-otrasli\/"/s);
+  assert.match(p.body, /"@type":"BreadcrumbList"/);
+  assert.doesNotMatch(get('/issledovaniya/net-takogo/').body, /ld\+json/, 'у 404 нет разметки');
   assert.equal(get('/issledovaniya/gde-otkryvayut-biznes/').code, 200);
   assert.equal(get('/issledovaniya/net-takogo/').code, 404);
   assert.equal(get('/otrasli/').ok, false);

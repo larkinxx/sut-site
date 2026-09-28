@@ -160,7 +160,6 @@ input[type=number],input[type=text],input[type=email],select{font:inherit;font-f
 .grp{margin:36px 0 0}
 .grp h2{font:500 11px/1.4 var(--font-ui);letter-spacing:.2em;text-transform:uppercase;color:var(--accent);margin:0 0 2px}
 .grp>p{margin:0;font-size:14px;color:var(--muted)}
-.tl .h{font-size:17px}
 .mats{display:grid;gap:8px}
 .mat{display:grid;grid-template-columns:56px 1fr;gap:0 8px;font-size:15px;line-height:1.4}
 .mat b{font:600 12px/1.9 var(--font-ui);letter-spacing:.06em;text-transform:uppercase}
@@ -168,7 +167,6 @@ input[type=number],input[type=text],input[type=email],select{font:inherit;font-f
 .mi{display:grid;gap:3px;justify-items:start;min-width:0}
 .mi .by{color:var(--muted);font:400 13px/1.4 var(--font-ui)}
 .mi .go{font:600 14px/1.4 var(--font-ui);color:var(--accent)}
-.nomat{font:400 13px/1.5 var(--font-ui);color:var(--muted);margin:0}
 
 /* обычные текстовые страницы */
 .prose{max-width:65ch}
@@ -254,11 +252,6 @@ mark.todo{background:var(--crit);color:var(--crit-ink);padding:0 4px}
 /* финансы и налоги по данным ФНС */
 .result strong.bad,.fns-table td.bad{color:var(--crit-line)}
 .fns-sub{font:500 11px/1.4 var(--font-ui);letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin:18px 0 6px}
-.fns-chart-wrap{max-width:420px}
-.fns-chart{width:100%;height:auto;display:block}
-.fns-chart rect.pos{fill:var(--accent)}
-.fns-chart rect.neg{fill:var(--crit-line)}
-.fns-chart text{font:400 10px var(--font-ui);fill:var(--muted)}
 .fns-table{width:100%;border-collapse:collapse;margin:10px 0 4px;font:400 13px/1.4 var(--font-ui);font-variant-numeric:tabular-nums}
 .fns-table th,.fns-table td{text-align:right;padding:5px 6px;border-bottom:1px dashed var(--line)}
 .fns-table th:first-child,.fns-table td:first-child{text-align:left}
@@ -535,3 +528,13 @@ input[type=date]:focus,textarea:focus{outline:none;border-color:var(--ink)}
 .lines .label{margin:0}
 .lines b{font:400 22px/1.25 var(--font-display)}
 .lines a>span:last-child{font:300 14px/1.5 var(--font-ui);color:var(--muted)}
+.hbars{margin:18px 0 26px}
+.hbars figcaption{font:400 11px/1.4 var(--font-ui);letter-spacing:.26em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+.hbars ol{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
+.hbars li{display:grid;grid-template-columns:minmax(0,5fr) minmax(90px,6fr) 7.5em;gap:14px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line);font:400 14px/1.35 var(--font-body)}
+.hb-b{height:6px;background:var(--accent-soft)}
+.hb-b i{display:block;height:100%;background:var(--accent);transition:opacity .2s}
+.hb-v{font-family:var(--font-display);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.hbars li:hover .hb-b i{opacity:.7}
+@media (max-width:560px){.hbars li{grid-template-columns:minmax(0,1fr) auto;gap:4px 12px}.hb-l{grid-column:1/-1}.hb-b{grid-column:1}}
+@media print{.hb-b{border:1px solid #111}.hb-b i{background:#111!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}}

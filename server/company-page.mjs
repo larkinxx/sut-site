@@ -8,7 +8,14 @@ import { ogSvg, ogFacts, svgToPng } from './og-image.mjs';
 import { orgPeers } from './market.mjs';
 
 const PER_SITEMAP = 50000;
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// «$» тоже экранируем: готовый HTML вставляется в шаблон через String.replace, где «$'» и «$&» — спецпоследовательности
+export const esc = (s) => String(s ?? '').replace(/[&<>"'$]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', $: '&#36;' }[c]));
+// Горизонтальные полосы одной величины (доля, доходы) — HTML и CSS без скриптов: читаются с телефона,
+// печатаются и остаются текстом для поиска. rows: [{ label, value, text }], value ≥ 0
+export function hbars(caption, rows) {
+  const max = Math.max(0, ...rows.map((r) => r.value || 0)) || 1;
+  return `<figure class="hbars"><figcaption>${esc(caption)}</figcaption><ol>${rows.map((r) => `<li title="${esc(r.label)}: ${esc(r.text)}"><span class="hb-l">${esc(r.label)}</span><span class="hb-b" aria-hidden="true"><i style="width:${(Math.max(0, r.value || 0) / max * 100).toFixed(1)}%"></i></span><span class="hb-v">${esc(r.text)}</span></li>`).join('')}</ol></figure>`;
+}
 const STATUS = { ACTIVE: 'Действует', LIQUIDATING: 'Ликвидируется', LIQUIDATED: 'Ликвидирована', BANKRUPT: 'Банкротство', REORGANIZING: 'Реорганизация' };
 const dateRu = (ms) => new Date(ms).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Moscow' });
 export function money(n) {
@@ -130,7 +137,7 @@ ${inn.length === 10 ? `<p class="note-sm"><a href="/sravnenie/#a=${esc(inn)}">С
     .replace(/<!--ssr:intro-->[\s\S]*?<!--\/ssr:intro-->/, `<h1 class="page">${esc(name)}</h1><p class="lede">Проверка по ИНН ${esc(inn)}: реквизиты, налоги, суды и учредители. Проверить другую организацию можно в форме ниже.</p>`)
     .replace('<div id="org-out" aria-live="polite"></div>', `<div id="org-out" aria-live="polite" class="dash">${summary}</div>`)
     .replace('<section class="calc" id="org"', `<section class="calc" id="org" data-inn="${esc(inn)}"`)
-    .replace('</head>', [ld, crumbs].map((x) => `<script type="application/ld+json">${JSON.stringify(x).replace(/</g, '\\u003c')}</script>\n`).join('') + '</head>');
+    .replace('</head>', [ld, crumbs].map((x) => `<script type="application/ld+json">${JSON.stringify(x).replace(/</g, '\\u003c').replace(/\$/g, '\\u0024')}</script>\n`).join('') + '</head>');
   return h;
 }
 
@@ -191,13 +198,19 @@ export function createCompanyPages({ env, fdb, getParty, cachedParty, getMore = 
       if (!p.endsWith('/')) { res.writeHead(301, { Location: `/organizacii/${inn}/` }); res.end(); return true; }
       if (!innValid(inn)) { html(res, 404, template().replace('</head>', '<meta name="robots" content="noindex">\n</head>')); return true; }
       const f = fnsRow(fdb, inn);
-      let party = cachedParty(inn);
+      let party = cachedParty(inn), unsure = false;   // unsure — DaData не спросили (лимит) или она не ответила
       if (party === undefined) {
         const key = new Date(now()).toISOString().slice(0, 10);
         if (day.key !== key) day = { key, n: 0 };
-        if (day.n < dadataDaily) { day.n++; party = await getParty(inn).catch(() => null); } else party = null;
+        if (day.n < dadataDaily) { day.n++; try { party = await getParty(inn); } catch { party = null; unsure = true; } } else { party = null; unsure = true; }
       }
-      if (!f && !party) { html(res, 404, renderCompany(template(), { inn, siteUrl, f: null, party: null }).replace('</head>', '<meta name="robots" content="noindex">\n</head>')); return true; }
+      if (!f && !party) {
+        // 404 — только когда реестр точно ответил «нет». При лимите или сбое — 503: поисковик зайдёт позже и не выкинет страницу из индекса
+        const page = renderCompany(template(), { inn, siteUrl, f: null, party: null }).replace('</head>', '<meta name="robots" content="noindex">\n</head>');
+        if (unsure) res.setHeader('Retry-After', '3600');
+        html(res, unsure ? 503 : 404, page);
+        return true;
+      }
       let peers = null;
       try { peers = orgPeers(fdb, inn); } catch { peers = null; }
       html(res, 200, renderCompany(template(), { inn, siteUrl, f, party, more: getMore(inn), peers, similar: similarCompanies(fdb, inn) }));
