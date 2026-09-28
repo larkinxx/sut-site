@@ -48,6 +48,16 @@ export function fnsRow(db, inn) {
   };
 }
 
+// «Содержательная» страница компании — есть уплаченные налоги и хотя бы численность или бухотчётность (доходы, место
+// среди похожих). Остальные открыты людям, но закрыты от индекса (noindex, follow): тысячи почти пустых страниц
+// Яндекс считает малополезным контентом и понижает из-за них весь сайт
+const RICH_SQL = '(EXISTS (SELECT 1 FROM fns_staff s WHERE s.inn = t.inn) OR EXISTS (SELECT 1 FROM fns_finance f WHERE f.inn = t.inn))';
+export function isRich(db, inn, f) {
+  if (!f || !f.tax) return false;
+  if (f.staff) return true;
+  try { return !!db.prepare('SELECT 1 FROM fns_finance WHERE inn = ?').get(inn); } catch { return false; }
+}
+
 // Собираем страницу из шаблона сайта: заголовок, описание, канонический адрес, краткая сводка и JSON-LD
 // Компания против похожих (та же отрасль, регион и возраст) — своя строка в описании и блок на странице.
 // Этого нет у справочников-конкурентов: не только цифры компании, но и где она среди своих.
@@ -157,10 +167,12 @@ export function createCompanyPages({ env, fdb, getParty, cachedParty, getMore = 
   const html = (res, code, body) => { res.writeHead(code, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': code === 200 ? 'public, max-age=3600' : 'no-store' }); res.end(body); };
   const xml = (res, body) => { res.writeHead(200, { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=86400' }); res.end(body); };
 
-  // список ИНН для карты сайта — компании, которые платили налоги (действующие), с названием
+  // карта сайта — только «содержательные» компании (см. richSql): уплаченные налоги, название и численность или отчётность.
+  // Файлы режем по rowid таблицы налогов (по 50 000 строк на файл) — без OFFSET по миллионам строк; после фильтра
+  // в файле меньше адресов, это нормально
   const count = () => {
     if (sitemapCount == null || now() - sitemapAt > 864e5) {
-      try { sitemapCount = fdb.prepare('SELECT COUNT(*) AS n FROM fns_tax t JOIN fns_name n ON n.inn = t.inn').get().n; } catch { sitemapCount = 0; }
+      try { sitemapCount = fdb.prepare('SELECT max(rowid) AS n FROM fns_tax').get().n || 0; } catch { sitemapCount = 0; }
       sitemapAt = now();
     }
     return sitemapCount;
@@ -216,7 +228,9 @@ export function createCompanyPages({ env, fdb, getParty, cachedParty, getMore = 
       }
       let peers = null;
       try { peers = orgPeers(fdb, inn); } catch { peers = null; }
-      html(res, 200, renderCompany(template(), { inn, siteUrl, f, party, more: getMore(inn), peers, similar: similarCompanies(fdb, inn) }));
+      let page = renderCompany(template(), { inn, siteUrl, f, party, more: getMore(inn), peers, similar: similarCompanies(fdb, inn) });
+      if (f && !isRich(fdb, inn, f)) page = page.replace('</head>', '<meta name="robots" content="noindex, follow">\n</head>');
+      html(res, 200, page);
       return true;
     }
     if (p === '/sitemap-companies.xml') {
@@ -227,7 +241,8 @@ export function createCompanyPages({ env, fdb, getParty, cachedParty, getMore = 
     m = /^\/sitemap-companies-(\d{1,4})\.xml$/.exec(p);
     if (m) {
       let rows = [];
-      try { rows = fdb.prepare('SELECT t.inn FROM fns_tax t JOIN fns_name n ON n.inn = t.inn ORDER BY t.inn LIMIT ? OFFSET ?').all(PER_SITEMAP, (Number(m[1]) - 1) * PER_SITEMAP); } catch { rows = []; }
+      const k = Number(m[1]);
+      try { rows = fdb.prepare(`SELECT t.inn FROM fns_tax t JOIN fns_name n ON n.inn = t.inn WHERE t.rowid > ? AND t.rowid <= ? AND ${RICH_SQL} ORDER BY t.rowid`).all((k - 1) * PER_SITEMAP, k * PER_SITEMAP); } catch { rows = []; }
       xml(res, `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${rows.map((r) => `<url><loc>${siteUrl}/organizacii/${r.inn}/</loc></url>`).join('\n')}\n</urlset>\n`);
       return true;
     }
