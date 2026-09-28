@@ -544,3 +544,5 @@ input[type=date]:focus,textarea:focus{outline:none;border-color:var(--ink)}
 .cert-print{display:grid;grid-template-columns:auto 1fr;column-gap:18px;align-items:center}
 .cert-print .cert-qr{grid-row:span 2;margin:0}
 @media print{.cert-qr svg{border:0}}
+.xls-bar{margin:8px 0 22px;display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}
+@media print{.xls-bar{display:none}}

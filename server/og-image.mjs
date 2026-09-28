@@ -21,7 +21,8 @@ function wrap(text, maxChars) {
 }
 
 // facts: [[подпись, значение, 'bad'?], ...] — до четырёх
-export function ogSvg({ name, inn, status, active, facts, host = 'inn-sider.ru' }) {
+// kicker — надпись справа вверху, info — строка под названием (по умолчанию ИНН и статус), foot — подпись внизу
+export function ogSvg({ name, inn, status, active, facts, host = 'inn-sider.ru', kicker = 'ПРОВЕРКА КОМПАНИИ', info = null, foot = 'бесплатная проверка контрагентов' }) {
   // заглавные буквы жирного шрифта шире строчных: ширину символа считаем с запасом
   const size = name.length > 50 ? 42 : name.length > 28 ? 50 : 62;
   const lines = wrap(name, Math.floor(1080 / (size * 0.68)));
@@ -29,7 +30,8 @@ export function ogSvg({ name, inn, status, active, facts, host = 'inn-sider.ru' 
   const infoY = nameY + (lines.length - 1) * size * 1.15 + 58;
   const cells = facts.slice(0, 4).map(([label, value, bad], i) => {
     const x = 60 + (i % 2) * 540, y = infoY + 62 + Math.floor(i / 2) * 96;
-    return `<text x="${x}" y="${y}" class="lbl">${esc(label)}</text><text x="${x}" y="${y + 44}" class="val${bad ? ' bad' : ''}">${esc(value)}</text>`;
+    const l = String(label).length > 34 ? String(label).slice(0, 33).replace(/[\s,]+\S*$/, '') + '…' : label;
+    return `<text x="${x}" y="${y}" class="lbl">${esc(l)}</text><text x="${x}" y="${y + 44}" class="val${bad ? ' bad' : ''}">${esc(value)}</text>`;
   }).join('');
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
 <style>
@@ -46,11 +48,11 @@ text{font-family:'PT Serif','DejaVu Serif',serif;fill:#111111}
 <rect width="1200" height="630" fill="#FFFFFF"/>
 <rect x="24" y="24" width="1152" height="582" fill="#FFFFFF" stroke="#E6E6E6" stroke-width="2"/>
 <text x="60" y="100" class="logo">INN<tspan class="lt">SIDER</tspan></text>
-<text x="1140" y="96" text-anchor="end" class="kicker">ПРОВЕРКА КОМПАНИИ</text>
+<text x="1140" y="96" text-anchor="end" class="kicker">${esc(kicker)}</text>
 ${lines.map((l, i) => `<text x="60" y="${nameY + i * size * 1.12}" class="name" font-size="${size}">${esc(l)}</text>`).join('\n')}
-<text x="60" y="${infoY}" class="info">ИНН ${esc(inn)}${status ? ` · <tspan class="${active ? 'ok' : 'badst'}">${esc(status)}</tspan>` : ''}</text>
+<text x="60" y="${infoY}" class="info">${info != null ? esc(info) : `ИНН ${esc(inn)}${status ? ` · <tspan class="${active ? 'ok' : 'badst'}">${esc(status)}</tspan>` : ''}`}</text>
 ${cells}
-<text x="60" y="578" class="foot">${esc(host)} — бесплатная проверка контрагентов</text>
+<text x="60" y="578" class="foot">${esc(host)} — ${esc(foot)}</text>
 </svg>`;
 }
 

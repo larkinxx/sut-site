@@ -63,6 +63,7 @@
       .then(function (j) {
         if (j.status !== 200) { out.innerHTML = ''; msg.textContent = j.error || 'Не получилось сравнить. Попробуйте позже.'; return; }
         render(j.items);
+        if (window.innExcel) window.innExcel(out);
         if (window.goal) window.goal('compare');
       })
       .catch(function () { out.innerHTML = ''; msg.textContent = 'Сервер не ответил. Попробуйте позже.'; });
