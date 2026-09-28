@@ -2,6 +2,8 @@
 // взаимозависимости (ст. 105.1 НК). Сведения открытые, из ЕГРЮЛ (через DaData и DataNewton). Люди без ИНН сверяются
 // по ФИО — совпадение ФИО не доказывает, что это один человек, поэтому такие совпадения помечаются как «по ФИО».
 const norm = (s) => String(s || '').toUpperCase().replace(/Ё/g, 'Е').replace(/[^А-ЯA-Z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+// доля: «100.000000000000000» → «100», «33.3333» → «33,33»; не число — как есть
+const shareOf = (v) => { if (v == null || v === '') return null; const n = Number(String(v).replace(',', '.').replace('%', '')); return isFinite(n) ? String(Math.round(n * 100) / 100).replace('.', ',') : String(v); };
 const fioOf = (f) => (f && typeof f === 'object' ? [f.surname, f.name, f.patronymic].filter(Boolean).join(' ') : '');
 
 // party — карточка DaData ({ data }), card — карточка DataNewton (normCard); берём, что есть
@@ -13,9 +15,9 @@ export function peopleOf(party, card) {
   const mc = card && card.managementCompany;
   let founders = [];
   if (card && Array.isArray(card.owners) && card.owners.length) {
-    founders = card.owners.map((o) => ({ name: o.name, inn: o.kind === 'fl' ? null : o.inn || null, person: o.kind === 'fl', share: o.share || null }));
+    founders = card.owners.map((o) => ({ name: o.name, inn: o.kind === 'fl' ? null : o.inn || null, person: o.kind === 'fl', share: shareOf(o.share) }));
   } else if (Array.isArray(d.founders)) {
-    founders = d.founders.map((f) => ({ name: f.name || fioOf(f.fio), inn: f.type === 'PHYSICAL' ? null : f.inn || null, person: f.type === 'PHYSICAL' || !!f.fio, share: f.share && f.share.value != null ? String(f.share.value) : null }));
+    founders = d.founders.map((f) => ({ name: f.name || fioOf(f.fio), inn: f.type === 'PHYSICAL' ? null : f.inn || null, person: f.type === 'PHYSICAL' || !!f.fio, share: f.share && f.share.value != null ? shareOf(f.share.value) : null }));
   }
   founders = founders.filter((f) => f.name);
   return { director, manager: mc ? { name: mc.name, inn: mc.inn || null } : null, founders, known: !!(party || card) };
