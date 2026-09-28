@@ -163,6 +163,14 @@ innfact.ru, www и fin-check.shop — постоянный редирект на
 - Панель владельца `/admin/` (нужен `ADMIN_TOKEN` в `/etc/sut/api.env`).
 - Стратегия «INNSIDER как модный дом»: https://claude.ai/artifact/5seLLVf5hF8L8eCQv9XSwp
 
+**28.09.2026, позже**
+- SEO: 503 вместо 404 при сбое DaData; 301 `/x`→`/x/` и `index.html`; HSTS; `Clean-param` для Яндекса; IndexNow (`scripts/indexnow.mjs`, запуск в конце `deploy/site-build.sh`, ключ `public/8b8b….txt`); тонкие страницы компаний (налоги без численности и отчётности) — `noindex, follow` и вне карты сайта.
+- DaData: карточки организаций в `party_cache` на 7 дней; страницы из базы ФНС строятся без DaData; при отказе DaData и DataNewton проверка берёт название из базы ФНС (`source: 'fns'`).
+- Графики `hbars` в исследованиях и отраслях; Excel для Ultima (`window.innExcel`, `public/app.js`); превью `og.png` для отраслей и исследований; QR (`server/qr.mjs`) и печать «IS.» (`server/seal.mjs`) на сертификате.
+- Ежедневная проверка сайта — Routine «Проверка INNSIDER» (8:57 МСК); напоминание разобрать Вебмастер — 12.10.2026.
+- Навыки: seo-audit, schema, programmatic-seo, ai-seo, web-design-guidelines, плагин ponytail; защитный хук `.claude/hooks/block-dangerous-*.mjs` не даёт переписывать историю и отправлять изменения прямо в основную ветку (ложно срабатывает, если эти слова стоят в одной строке команды — перефразировать).
+- Бизнес-план (обновлён): https://claude.ai/artifact/TkKD4LS8h7EHuf8dLQWQVq
+
 **За владельцем**
 1. Запустить ЮKassa — без неё не работают Ultima, помощник юриста, сертификаты, сводки.
 2. Яндекс Вебмастер: добавить `sitemap-otrasli.xml` и `sitemap-companies.xml`.

@@ -34,4 +34,6 @@ if [ "$OLD" != "$NEW" ] && changed '^deploy/Caddyfile.site'; then
   caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1 && systemctl reload caddy || echo "Caddyfile.site с ошибкой — не применён"
 fi
 echo "$NEW" > "$MARK"
+# сообщить Яндексу о новых и изменившихся страницах (IndexNow); сбой отправки сборке не мешает
+INDEXNOW_STATE=/var/lib/sut/indexnow.json node scripts/indexnow.mjs || true
 echo "$(date '+%F %T') сайт собран: $NEW"

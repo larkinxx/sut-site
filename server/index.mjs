@@ -56,6 +56,7 @@ import { dnCard, dnCourts, partyOfCard } from './datanewton.mjs';
 import { createDnStore } from './dn-store.mjs';
 import { checkSite, siteNotes } from './site-check.mjs';
 import { createCompanyPages, shortName, similarCompanies } from './company-page.mjs';
+import { peopleOf, commonPeople } from './links.mjs';
 import { createIndustryPages } from './industry-pages.mjs';
 import { createLawyer } from './lawyer.mjs';
 import { createCerts, certSnapshot } from './certs.mjs';
@@ -678,7 +679,18 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
         if (hits.length >= 120) return send(res, 429, { error: 'Слишком много запросов. Подождите несколько минут.' });
         hits.push(t); marketHits.set(ip, hits);
         admin.count('market');
-        return send(res, 200, { items: inns.map((inn) => { const c = compareFacts(fdb, inn); return c ? { ...c, name: c.name ? shortName(c.name) : null } : { inn, missing: true }; }) });
+        // руководитель и учредители — из ЕГРЮЛ через DaData и карточку DataNewton (новая карточка — в пределах лимита адреса)
+        const people = await Promise.all(inns.map(async (inn) => {
+          const party = await getParty(inn).catch(() => null);
+          let card = (dn.get('card:' + inn) || {}).card || null;
+          if (!card && cfg.dnKey && !dnMiss.get(inn) && dnAllow(ip, 1)) {
+            const d = await dnCard(inn, cfg, fetchImpl).catch(() => null);
+            if (d && d.card) { card = d.card; dn.set('card:' + inn, { card: d.card, left: d.left, sites: [] }); } else dnMiss.set(inn, true);
+          }
+          return peopleOf(party && party.source !== 'fns' ? party : null, card);
+        }));
+        const items = inns.map((inn, i) => { const c = compareFacts(fdb, inn); return { ...(c ? { ...c, name: c.name ? shortName(c.name) : null } : { inn, missing: true }), people: people[i] }; });
+        return send(res, 200, { items, links: commonPeople(items) });
       }
       if (url.pathname === '/api/forecast') {
         // прогноз действующей организации по месту среди сверстников — тоже только наша база ФНС

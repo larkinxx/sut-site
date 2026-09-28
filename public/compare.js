@@ -30,11 +30,28 @@
     ['Налоговая задолженность', function (c) { return c.debt; }, function (v) { return v == null ? '—' : v > 0 ? money(v) : 'нет'; }, -1]
   ];
 
-  function render(items) {
+  function render(items, lk) {
     var ok = items.filter(function (c) { return !c.missing; });
     var head = '<tr><th></th>' + items.map(function (c) {
       return '<th>' + (c.missing ? 'ИНН ' + esc(c.inn) : '<a href="/organizacii/' + esc(c.inn) + '/">' + esc(c.name || 'ИНН ' + c.inn) + '</a>') + '</th>';
     }).join('') + '</tr>';
+    // руководитель и учредители — текстом, без «лучшего значения»
+    var who = function (c) {
+      var p = c.people;
+      if (!p || !p.known) return '—';
+      if (p.manager) return esc(p.manager.name) + '<br><span class="note-sm">управляющая компания</span>';
+      return p.director ? esc(p.director.name) + (p.director.post ? '<br><span class="note-sm">' + esc(p.director.post.toLowerCase()) + '</span>' : '') : '—';
+    };
+    var owners = function (c) {
+      var p = c.people;
+      if (!p || !p.known || !p.founders.length) return '—';
+      return p.founders.slice(0, 5).map(function (f) { return esc(f.name) + (f.share ? ' <span class="note-sm">' + esc(f.share) + (/%$/.test(f.share) ? '' : '%') + '</span>' : ''); }).join('<br>') +
+        (p.founders.length > 5 ? '<br><span class="note-sm">и ещё ' + (p.founders.length - 5) + '</span>' : '');
+    };
+    var peopleRows = items.some(function (c) { return c.people && c.people.known; })
+      ? '<tr><th>Руководитель</th>' + items.map(function (c) { return '<td>' + who(c) + '</td>'; }).join('') + '</tr>' +
+        '<tr><th>Учредители</th>' + items.map(function (c) { return '<td>' + owners(c) + '</td>'; }).join('') + '</tr>'
+      : '';
     var body = ROWS.map(function (r) {
       var vals = items.map(function (c) { return c.missing ? null : r[1](c); });
       if (vals.every(function (v) { return v == null; })) return '';   // ни у кого нет данных — строку не показываем
@@ -46,10 +63,16 @@
       }).join('') + '</tr>';
     }).join('');
     var year = ok.length && ok[0].year;
-    out.innerHTML = '<div class="tbl-wrap"><table class="fns-table cmp-table">' + head + body + '</table></div>' +
+    var nameOf = function (inn) { var c = items.filter(function (x) { return x.inn === inn; })[0]; return c && c.name ? c.name : 'ИНН ' + inn; };
+    var links = (lk || []).map(function (l) {
+      return '<li><b>' + esc(l.name) + '</b> — ' + l.roles.map(function (r) { return esc(r.role) + ' ' + esc(nameOf(r.inn)); }).join(', ') +
+        (l.exact ? '' : ' <span class="note-sm">(совпадает ФИО)</span>') + '</li>';
+    }).join('');
+    out.innerHTML = (links ? '<div class="cmp-links"><p class="fns-sub">Общие люди и владельцы</p><ul>' + links + '</ul><p class="note-sm">Общий руководитель или учредитель — признак возможной взаимозависимости компаний (ст. 105.1 НК). Совпадение ФИО ещё не значит, что это один человек: сверьте ИНН в выписке ЕГРЮЛ.</p></div>' : '') +
+      '<div class="tbl-wrap"><table class="fns-table cmp-table">' + head + peopleRows + body + '</table></div>' +
       '<p class="note-sm">Отмечено лучшее значение в строке. Доходы и прибыль — по отчётности за ' + (year || 'последний') + ' год, прибыль — доходы минус расходы до налога. ' +
       (items.some(function (c) { return c.missing; }) ? 'По части ИНН нет данных в нашей базе: сравнение строится по реестру малого и среднего бизнеса, куда не входят крупные компании, ИП, новые и закрытые организации. ' : '') +
-      'Суды, приставы и учредители — в полной проверке каждой компании.</p>';
+      'Руководитель и учредители — по ЕГРЮЛ; суды и приставы — в полной проверке каждой компании.</p>';
   }
 
   form.addEventListener('submit', function (e) {
@@ -62,7 +85,7 @@
       .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { j.status = r.status; return j; }); })
       .then(function (j) {
         if (j.status !== 200) { out.innerHTML = ''; msg.textContent = j.error || 'Не получилось сравнить. Попробуйте позже.'; return; }
-        render(j.items);
+        render(j.items, j.links);
         if (window.innExcel) window.innExcel(out);
         if (window.goal) window.goal('compare');
       })

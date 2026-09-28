@@ -467,4 +467,28 @@ await t('лимит DaData: страницы из базы ФНС её не тр
   } finally { srv.close(); fs.rmSync(dist, { recursive: true }); }
 });
 
+await t('тонкие страницы компаний: открыты людям, закрыты от индекса и не попадают в карту сайта', async () => {
+  const dist = fs.mkdtempSync(path.join(os.tmpdir(), 'sut-dist-'));
+  fs.mkdirSync(path.join(dist, 'organizacii'));
+  fs.writeFileSync(path.join(dist, 'organizacii', 'index.html'), '<html><head><title>x</title></head><body><!--ssr:intro--><h1>x</h1><!--/ssr:intro--></body></html>');
+  const thin = '7707083893';   // только налоги и название — ни численности, ни отчётности
+  db.prepare('INSERT OR REPLACE INTO fns_tax (inn, total, items, asof) VALUES (?, ?, ?, ?)').run(thin, 1000, '[]', '2025-12-31');
+  db.prepare('INSERT OR REPLACE INTO fns_name (inn, name) VALUES (?, ?)').run(thin, 'ООО "ТОНКАЯ"');
+  const srv = http.createServer(createApp({ env: { DADATA_TOKEN: 't', SITE_DIST: dist, SSR_DADATA_DAILY: '0' }, fetchImpl: fake, fnsPause: 0, fnsDb: db }));
+  await new Promise((r) => srv.listen(0, r));
+  const get = (p) => fetch(`http://127.0.0.1:${srv.address().port}${p}`);
+  try {
+    const t1 = await get(`/organizacii/${thin}/`);
+    assert.equal(t1.status, 200, 'людям страница открыта');
+    assert.match(await t1.text(), /<meta name="robots" content="noindex, follow">/);
+    assert.doesNotMatch(await (await get('/organizacii/2804011398/')).text(), /noindex/, 'содержательная — в индексе');
+    const sm = await (await get('/sitemap-companies-1.xml')).text();
+    assert.match(sm, /2804011398/);
+    assert.doesNotMatch(sm, new RegExp(thin), 'тонкой нет в карте сайта');
+  } finally {
+    srv.close(); fs.rmSync(dist, { recursive: true });
+    db.prepare('DELETE FROM fns_tax WHERE inn = ?').run(thin); db.prepare('DELETE FROM fns_name WHERE inn = ?').run(thin);
+  }
+});
+
 console.log(`\nВсе тесты ФНС прошли: ${n}`);

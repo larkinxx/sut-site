@@ -551,3 +551,4 @@ input[type=date]:focus,textarea:focus{outline:none;border-color:var(--ink)}
 .seal{display:block;flex:none;color:var(--ink)}
 .cert-print .cert-qr{gap:14px}
 @media print{.seal{color:#111}}
+.cmp-links{border-top:1px solid var(--ink);border-bottom:1px solid var(--line);padding:12px 0;margin:0 0 18px}.cmp-links ul{margin:6px 0 8px;padding-left:18px;display:grid;gap:4px}
