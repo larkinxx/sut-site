@@ -335,7 +335,7 @@
   }
   // rows — массив строк, ячейка: число, текст или {v, s}: s = 2 — проценты (0,56 → 56%), 3 — число с разделителем тысяч;
   // bold — номера строк-заголовков
-  function xlsx(rows, bold, widths) {
+  function xlsx(rows, bold, widths, sheetName) {
     var esc = function (t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
     var col = function (i) { var s = ''; for (i++; i; i = Math.floor((i - 1) / 26)) s = String.fromCharCode(65 + (i - 1) % 26) + s; return s; };
     var sheet = rows.map(function (r, ri) {
@@ -352,7 +352,7 @@
     return zipStored([
       ['[Content_Types].xml', x + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>'],
       ['_rels/.rels', x + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'],
-      ['xl/workbook.xml', x + '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Перспективы" sheetId="1" r:id="rId1"/></sheets></workbook>'],
+      ['xl/workbook.xml', x + '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="' + esc((sheetName || 'Перспективы').replace(/[\\\/?*\[\]:]/g, ' ').slice(0, 31).trim()) + '" sheetId="1" r:id="rId1"/></sheets></workbook>'],
       ['xl/_rels/workbook.xml.rels', x + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'],
       ['xl/styles.xml', x + '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="9" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="3" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>'],
       ['xl/worksheets/sheet1.xml', x + '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' + cols + '<sheetData>' + sheet + '</sheetData></worksheet>']
@@ -589,4 +589,60 @@
       });
     }).catch(function () { /* сервер входа недоступен — сайт работает как обычно */ });
   }
+
+  /* ---------- «Скачать в Excel» под таблицами с данными — для подписчиков INNSIDER Ultima ----------
+     Таблица со страницы превращается в .xlsx: проценты и суммы — числами с форматом, внизу источник и дата.
+     Статус подписки спрашиваем у сервера аккаунтов только по нажатию. */
+  function cellValue(t) {
+    t = t.replace(/\s+/g, ' ').trim();
+    var m = /^(−|-)?(\d+(?:,\d+)?)\s?%$/.exec(t);
+    if (m) return { v: (m[1] ? -1 : 1) * Number(m[2].replace(',', '.')) / 100, s: 2 };
+    m = /^(−|-)?([\d  ]+(?:,\d+)?)\s?(тыс\.|млн|млрд)?\s?₽$/.exec(t);
+    if (m) return { v: Math.round((m[1] ? -1 : 1) * Number(m[2].replace(/[  ]/g, '').replace(',', '.')) * ({ 'тыс.': 1e3, 'млн': 1e6, 'млрд': 1e9 }[m[3]] || 1)), s: 3 };
+    if (/^\d[\d  ]*$/.test(t) && t.replace(/\D/g, '').length < 10) return { v: Number(t.replace(/\D/g, '')), s: 3 };   // ИНН и ОГРН остаются текстом
+    return t;
+  }
+  function tableXlsx(table) {
+    var title = ($('h1') || {}).textContent || document.title;
+    var rows = [[title.trim()], []];
+    $$('tr', table).forEach(function (tr) { rows.push($$('th,td', tr).map(function (c) { return cellValue(c.textContent); })); });
+    var head = 2, widths = rows[head] ? rows[head].map(function (_, i) { return i === 0 ? 36 : 18; }) : [36];
+    rows.push([], ['Источник: INNSIDER по открытым данным ФНС России — ' + location.href.split('#')[0]], ['Выгружено: ' + new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' }) + ' (МСК)']);
+    return xlsx(rows, [0, head], widths, title.trim());
+  }
+  var billing = null;
+  function proState() {
+    if (!ACCT) return Promise.resolve({});
+    return billing || (billing = fetch(ACCT + '/api/billing', { credentials: 'include' }).then(function (r) { return r.json(); }).catch(function () { billing = null; return {}; }));
+  }
+  function excelButtons(scope) {
+    $$('table.fns-table', scope || document).forEach(function (table) {
+      var wrap = table.closest('.tbl-wrap') || table;
+      if (wrap.nextElementSibling && wrap.nextElementSibling.classList.contains('xls-bar')) return;
+      if ($$('tr', table).length < 3) return;   // таблица из пары строк — выгружать нечего
+      var bar = document.createElement('p'); bar.className = 'xls-bar';
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'share'; b.textContent = 'Скачать в Excel';
+      var note = document.createElement('span'); note.className = 'note-sm';
+      b.addEventListener('click', function () {
+        b.disabled = true;
+        proState().then(function (st) {
+          b.disabled = false;
+          if (!st.pro) {
+            note.innerHTML = ' Выгрузка в Excel — в подписке INNSIDER Ultima. <a href="/tarify/">Тарифы</a>';
+            return;
+          }
+          var a = document.createElement('a');
+          a.href = URL.createObjectURL(tableXlsx(table));
+          a.download = 'innsider-' + (location.pathname.replace(/^\/|\/$/g, '').replace(/[^a-z0-9]+/gi, '-') || 'tablica') + '.xlsx';
+          document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(function () { URL.revokeObjectURL(a.href); }, 10000);
+          window.goal('excel');
+        });
+      });
+      bar.appendChild(b); bar.appendChild(note);
+      wrap.parentNode.insertBefore(bar, wrap.nextSibling);
+    });
+  }
+  window.innExcel = excelButtons;   // для таблиц, которые появляются позже (сравнение компаний)
+  excelButtons(document.querySelector('main'));
 })();
