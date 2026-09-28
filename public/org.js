@@ -469,6 +469,7 @@
     if (st) top.appendChild(el('span', 'badge ' + (st === 'ACTIVE' ? 'ok' : 'bad'), STATUS[st] || st));
     head.appendChild(top);
     if (d.name && d.name.full_with_opf) head.appendChild(el('p', 'note-sm', d.name.full_with_opf));
+    if (s.source === 'fns') head.appendChild(el('p', 'note-sm', 'Реестр ЕГРЮЛ сейчас не ответил, поэтому статус, адрес и руководитель не показаны. Налоги, суды и сравнение с отраслью — ниже. Проверьте ещё раз через несколько минут.'));
     var ib = el('div'); ib.id = 'idx-box'; head.appendChild(ib); updateIndex();
     var box = el('div', 'result cols');
     box.id = 'head-rows';

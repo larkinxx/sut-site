@@ -445,4 +445,26 @@ await t('карточка организации из DaData переживае�
   } finally { srv.close(); fs.rmSync(dist, { recursive: true }); }
 });
 
+await t('лимит DaData: страницы из базы ФНС её не тратят, проверка без DaData и DataNewton берёт название из базы', async () => {
+  const dist = fs.mkdtempSync(path.join(os.tmpdir(), 'sut-dist-'));
+  fs.mkdirSync(path.join(dist, 'organizacii'));
+  fs.writeFileSync(path.join(dist, 'organizacii', 'index.html'), '<html><head><title>x</title></head><body><!--ssr:intro--><h1>x</h1><!--/ssr:intro--></body></html>');
+  let calls = 0;
+  const dadata = async (url, opts) => { if (!String(url).includes('dadata')) return fake(url, opts); calls++; return new Response('{}', { status: 429 }); };
+  const srv = http.createServer(createApp({ env: { DADATA_TOKEN: 't', SITE_DIST: dist }, fetchImpl: dadata, fnsPause: 0, fnsDb: db }));
+  await new Promise((r) => srv.listen(0, r));
+  const base = `http://127.0.0.1:${srv.address().port}`;
+  try {
+    const page = await fetch(base + '/organizacii/2804011398/');
+    assert.equal(page.status, 200);
+    assert.equal(calls, 0, 'страница компании из базы ФНС — без запроса к DaData');
+    const j = await (await fetch(base + '/api/org', { method: 'POST', headers: { 'content-type': 'application/json', origin: 'https://fin-check.shop', 'user-agent': 'Mozilla/5.0' }, body: JSON.stringify({ inn: '2804011398' }) })).json();
+    assert.equal(calls, 1, 'человек — DaData спросили');
+    assert.equal(j.suggestion.source, 'fns', 'DaData не ответила — название из базы ФНС');
+    assert.match(j.suggestion.value, /ПЕКАРНЯ/);
+    await fetch(base + '/api/org', { method: 'POST', headers: { 'content-type': 'application/json', origin: 'https://fin-check.shop', 'user-agent': 'Mozilla/5.0' }, body: JSON.stringify({ inn: '2804011398' }) });
+    assert.equal(calls, 2, 'урезанную карточку не запоминаем — в следующий раз снова спрашиваем DaData');
+  } finally { srv.close(); fs.rmSync(dist, { recursive: true }); }
+});
+
 console.log(`\nВсе тесты ФНС прошли: ${n}`);
