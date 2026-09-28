@@ -37,6 +37,8 @@ await t('выдача, публичная страница, неизвестны
   assert.equal(r.code, 200);
   assert.match(r.body, new RegExp(`№ ${c.id}`));
   assert.match(r.body, /81 из 100 — высокий/);
+  assert.match(r.body, /<figure class="cert-qr"><svg class="qr"[^>]*aria-label="QR-код этой страницы"/);
+  assert.match(c.qr, /^<svg class="qr"/, 'QR для печатного отчёта');
   assert.match(r.body, /28 сентября 2026.{0,6}12:30 \(МСК\)/);
   assert.equal(get(certs, '/sertifikat/2222-2222/').code, 404);
   assert.equal(get(certs, '/sertifikat/abc/').code, 404);
