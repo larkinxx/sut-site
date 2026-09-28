@@ -8,7 +8,8 @@ import { ogSvg, ogFacts, svgToPng } from './og-image.mjs';
 import { orgPeers } from './market.mjs';
 
 const PER_SITEMAP = 50000;
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// «$» тоже экранируем: готовый HTML вставляется в шаблон через String.replace, где «$'» и «$&» — спецпоследовательности
+export const esc = (s) => String(s ?? '').replace(/[&<>"'$]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', $: '&#36;' }[c]));
 const STATUS = { ACTIVE: 'Действует', LIQUIDATING: 'Ликвидируется', LIQUIDATED: 'Ликвидирована', BANKRUPT: 'Банкротство', REORGANIZING: 'Реорганизация' };
 const dateRu = (ms) => new Date(ms).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Moscow' });
 export function money(n) {
@@ -130,7 +131,7 @@ ${inn.length === 10 ? `<p class="note-sm"><a href="/sravnenie/#a=${esc(inn)}">С
     .replace(/<!--ssr:intro-->[\s\S]*?<!--\/ssr:intro-->/, `<h1 class="page">${esc(name)}</h1><p class="lede">Проверка по ИНН ${esc(inn)}: реквизиты, налоги, суды и учредители. Проверить другую организацию можно в форме ниже.</p>`)
     .replace('<div id="org-out" aria-live="polite"></div>', `<div id="org-out" aria-live="polite" class="dash">${summary}</div>`)
     .replace('<section class="calc" id="org"', `<section class="calc" id="org" data-inn="${esc(inn)}"`)
-    .replace('</head>', [ld, crumbs].map((x) => `<script type="application/ld+json">${JSON.stringify(x).replace(/</g, '\\u003c')}</script>\n`).join('') + '</head>');
+    .replace('</head>', [ld, crumbs].map((x) => `<script type="application/ld+json">${JSON.stringify(x).replace(/</g, '\\u003c').replace(/\$/g, '\\u0024')}</script>\n`).join('') + '</head>');
   return h;
 }
 

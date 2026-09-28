@@ -5,9 +5,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { OKVED_ALL, REGIONS } from '../src/lib/market-lists.mjs';
 import { RUSSIA, ALL_AGES } from '../scripts/fns-peers.mjs';
-import { money } from './company-page.mjs';
+import { esc, money } from './company-page.mjs';
 
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const OKVED = new Map(OKVED_ALL), REGION = new Map(REGIONS);
 const pct = (x) => (x == null ? '—' : Math.round(x * 100) + '%');
 const int = (n) => new Intl.NumberFormat('ru-RU').format(Math.round(n || 0));

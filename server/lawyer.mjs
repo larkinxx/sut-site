@@ -59,7 +59,7 @@ export function createLawyer({ ask, isPro, userOf, perUserDay = 30, dailyLimit =
       send(res, 200, { ...out, left: perUserDay - mine - 1 });
     } catch (e) {
       console.error('lawyer:', e.message);
-      day.users.set(u.id, mine);   // неудачная попытка не расходует лимит
+      day.users.set(u.id, mine); day.n--;   // неудачная попытка не расходует лимит
       send(res, 502, { error: 'Помощник не ответил. Попробуйте ещё раз через минуту.' });
     }
     return true;

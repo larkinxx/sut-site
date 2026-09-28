@@ -5,9 +5,9 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import { esc } from './company-page.mjs';
 
 const ABC = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';   // без 0/O и 1/I, чтобы номер легко читался с бумаги
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const STATUS = { ACTIVE: 'Действует', LIQUIDATING: 'Ликвидируется', LIQUIDATED: 'Ликвидирована', BANKRUPT: 'Банкротство', REORGANIZING: 'Реорганизация' };
 const money = (n) => (n == null ? '—' : new Intl.NumberFormat('ru-RU').format(Math.round(n)) + ' ₽');
 

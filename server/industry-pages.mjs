@@ -6,11 +6,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { marketStats, MIN_GROUP } from './market.mjs';
-import { money, shortName } from './company-page.mjs';
+import { esc, money, shortName } from './company-page.mjs';
 import { OKVED_COMMON, OKVED_ALL, REGIONS } from '../src/lib/market-lists.mjs';
 import { RUSSIA, ALL_AGES } from '../scripts/fns-peers.mjs';
 
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const OKVED = new Map(OKVED_ALL);
 const REGION = new Map(REGIONS);
 const TOP = 20;
@@ -147,7 +146,7 @@ export function createIndustryPages({ env, fdb, now = () => Date.now() }) {
       .replace(/(<meta property="og:url" content=")[^"]*"/, `$1${esc(abs(p.url))}"`)
       .replace(/<!--ssr:intro-->[\s\S]*?<!--\/ssr:intro-->/, `<h1 class="page">${esc(p.h1)}</h1><p class="lede">${esc(p.lede)}</p>`)
       .replace(/<!--ssr:body-->[\s\S]*?<!--\/ssr:body-->/, p.body)
-      .replace('</head>', ld.map((x) => `<script type="application/ld+json">${JSON.stringify(x).replace(/</g, '\\u003c')}</script>\n`).join('') + '</head>');
+      .replace('</head>', ld.map((x) => `<script type="application/ld+json">${JSON.stringify(x).replace(/</g, '\\u003c').replace(/\$/g, '\\u0024')}</script>\n`).join('') + '</head>');
   };
   const send = (res, code, type, body, maxAge) => { res.writeHead(code, { 'Content-Type': type, 'Cache-Control': code === 200 ? `public, max-age=${maxAge}` : 'no-store' }); res.end(body); };
 
