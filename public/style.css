@@ -546,3 +546,8 @@ input[type=date]:focus,textarea:focus{outline:none;border-color:var(--ink)}
 @media print{.cert-qr svg{border:0}}
 .xls-bar{margin:8px 0 22px;display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}
 @media print{.xls-bar{display:none}}
+.cert-marks{display:flex;flex-wrap:wrap;align-items:center;gap:22px 34px;margin:24px 0}
+.cert-marks .cert-qr{margin:0}
+.seal{display:block;flex:none;color:var(--ink)}
+.cert-print .cert-qr{gap:14px}
+@media print{.seal{color:#111}}

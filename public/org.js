@@ -469,6 +469,7 @@
     if (st) top.appendChild(el('span', 'badge ' + (st === 'ACTIVE' ? 'ok' : 'bad'), STATUS[st] || st));
     head.appendChild(top);
     if (d.name && d.name.full_with_opf) head.appendChild(el('p', 'note-sm', d.name.full_with_opf));
+    if (s.source === 'fns') head.appendChild(el('p', 'note-sm', 'Реестр ЕГРЮЛ сейчас не ответил, поэтому статус, адрес и руководитель не показаны. Налоги, суды и сравнение с отраслью — ниже. Проверьте ещё раз через несколько минут.'));
     var ib = el('div'); ib.id = 'idx-box'; head.appendChild(ib); updateIndex();
     var box = el('div', 'result cols');
     box.id = 'head-rows';
@@ -1105,7 +1106,7 @@
           var when = new Date(j.at).toLocaleString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Moscow' });
           c.appendChild(el('p', 'cert-no', 'Сертификат проверки № ' + j.id));
           c.appendChild(el('p', 'note-sm', 'Проверка проведена ' + when + ' (МСК). Подлинность и сведения на эту дату: ' + j.url.replace(/^https?:\/\//, '')));
-          if (j.qr && /^<svg class="qr"/.test(j.qr)) { var q = el('div', 'cert-qr'); q.innerHTML = j.qr; c.insertBefore(q, c.firstChild); }   // SVG собирает наш сервер из адреса сертификата
+          if (j.qr && /^<svg class="qr"/.test(j.qr)) { var q = el('div', 'cert-qr'); q.innerHTML = j.qr + (j.seal && /^<svg class="seal"/.test(j.seal) ? j.seal : ''); c.insertBefore(q, c.firstChild); }   // QR и печать собирает наш сервер
           out.insertBefore(c, out.firstChild);
         }
       }).catch(function () {}).then(function () { b.disabled = false; window.print(); });

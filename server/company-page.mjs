@@ -199,6 +199,9 @@ export function createCompanyPages({ env, fdb, getParty, cachedParty, getMore = 
       if (!innValid(inn)) { html(res, 404, template().replace('</head>', '<meta name="robots" content="noindex">\n</head>')); return true; }
       const f = fnsRow(fdb, inn);
       let party = cachedParty(inn), unsure = false;   // unsure — DaData не спросили (лимит) или она не ответила
+      // компания есть в базе ФНС — страница строится из неё, без DaData: страницы в основном открывают роботы поисковиков,
+      // и они не должны расходовать дневной лимит, нужный людям для проверки. Статус и адрес человек увидит, нажав «Проверить»
+      if (party === undefined && f) party = null;
       if (party === undefined) {
         const key = new Date(now()).toISOString().slice(0, 10);
         if (day.key !== key) day = { key, n: 0 };

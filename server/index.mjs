@@ -571,11 +571,22 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
     try { dadataTake(); s = await findParty(inn, cfg, fetchImpl); partyDisk.set(inn, s); } catch (e) {
       if (!fallback) throw e;
       s = await partyFromDn(inn).catch(() => null);
-      if (!s) throw e;
-      console.error(new Date().toISOString(), inn, e.message, '— карточка из DataNewton');
+      if (s) console.error(new Date().toISOString(), inn, e.message, '— карточка из DataNewton');
+      else if ((s = partyFromFns(inn))) console.error(new Date().toISOString(), inn, e.message, '— название из базы ФНС');
+      else throw e;
     }
-    partyCache.set(inn, s);
+    if (!s || s.source !== 'fns') partyCache.set(inn, s);   // урезанную карточку не запоминаем: DaData может ожить через минуту
     return s;
+  }
+  // последний запасной вариант, когда DaData и DataNewton недоступны: название из нашей базы ФНС. Статуса и адреса
+  // там нет — карточка их не покажет, но налоги, суды, сравнение с отраслью и индекс по ним работают
+  function partyFromFns(inn) {
+    if (!fdb) return null;
+    let r;
+    try { r = fdb.prepare('SELECT name FROM fns_name WHERE inn = ?').get(inn); } catch { r = null; }
+    if (!r || !r.name) return null;
+    const name = shortName(r.name);
+    return { value: name, source: 'fns', data: { inn, type: inn.length === 12 ? 'INDIVIDUAL' : 'LEGAL', branch_type: 'MAIN', name: { short_with_opf: name, full_with_opf: r.name } } };
   }
   // поиск по названию без DaData: по нашей базе названий ФНС (только организации)
   function suggestFromFns(q) {
