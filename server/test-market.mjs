@@ -154,13 +154,19 @@ await t('страницы отраслей: статистика, крупней
   assert.ok(!urls.includes('/otrasli/62/54/'), 'мало данных — страницы нет');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'otr-'));
   fs.mkdirSync(path.join(dir, 'otrasli'));
-  fs.writeFileSync(path.join(dir, 'otrasli', 'index.html'), '<head><title>x</title><meta name="description" content=""><link rel="canonical" href="x"></head><!--ssr:intro--><h1>x</h1><!--/ssr:intro--><!--ssr:body--><p>…</p><!--/ssr:body-->');
-  const handle = createIndustryPages({ env: { SITE_DIST: dir, SITE_URL: 'https://inn-sider.ru' }, fdb: db });
+  fs.writeFileSync(path.join(dir, 'otrasli', 'index.html'), '<head><title>x</title><meta name="description" content=""><link rel="canonical" href="x"><meta property="og:title" content="x"><meta property="og:url" content="x"><meta property="og:image" content="https://inn-sider.ru/og.png"></head><!--ssr:intro--><h1>x</h1><!--/ssr:intro--><!--ssr:body--><p>…</p><!--/ssr:body-->');
+  let svgSeen = '';
+  const handle = createIndustryPages({ env: { SITE_DIST: dir, SITE_URL: 'https://inn-sider.ru' }, fdb: db, toPng: async (svg) => { svgSeen = svg; return Buffer.from('PNG'); } });
   const get = (p) => { let code, body = '', hdr; const res = { writeHead: (c, h) => { code = c; hdr = h; }, end: (b) => { body = b || ''; } }; const ok = handle({ method: 'GET' }, res, new URL('https://x' + p)); return { ok, code, body, hdr }; };
   const r = get('/otrasli/56/54/');
   assert.equal(r.code, 200);
   assert.match(r.body, /<title>Кафе, рестораны, доставка еды — Республика|<title>Кафе, рестораны, доставка еды — [^<]+: сколько зарабатывают/);
   assert.match(r.body, /Крупнейшие организации по доходам/);
+  assert.match(r.body, /<meta property="og:image" content="https:\/\/inn-sider.ru\/otrasli\/56\/54\/og.png"/);
+  const png = get('/otrasli/56/54/og.png'); await new Promise((ok) => setImmediate(ok));
+  assert.equal(png.ok, true);
+  assert.match(svgSeen, /ОТРАСЛЬ/); assert.match(svgSeen, /Доходы у середины/);
+  const png404 = get('/otrasli/62/54/og.png'); assert.equal(png404.code, 404, 'нет данных — нет картинки');
   assert.match(r.body, /<figure class="hbars">.*Доходы у середины по возрасту.*style="width:100\.0%"/s, 'график по возрасту, самая длинная полоса — 100%');
   assert.match(r.body, /href="\/organizacii\/54000000\d\d\/"/);
   assert.match(r.body, /"@type":"BreadcrumbList"/);
@@ -193,11 +199,12 @@ await t('прогноз компании: то же место среди све
   } finally { srv.close(); }
 });
 
-await t('исследования: рейтинги отраслей и регионов, страница для прессы, 404', () => {
+await t('исследования: рейтинги отраслей и регионов, страница для прессы, 404', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'res-'));
   fs.mkdirSync(path.join(dir, 'issledovaniya'));
-  fs.writeFileSync(path.join(dir, 'issledovaniya', 'index.html'), '<head><title>x</title><meta name="description" content=""><link rel="canonical" href="x"></head><!--ssr:intro--><h1>x</h1><!--/ssr:intro--><!--ssr:body--><p>…</p><!--/ssr:body-->');
-  const handle = createResearch({ env: { SITE_DIST: dir, SITE_URL: 'https://inn-sider.ru' }, fdb: db, min: 1, minRegion: 1, minList: 2 });
+  fs.writeFileSync(path.join(dir, 'issledovaniya', 'index.html'), '<head><title>x</title><meta name="description" content=""><link rel="canonical" href="x"><meta property="og:title" content="x"><meta property="og:url" content="x"><meta property="og:image" content="https://inn-sider.ru/og.png"></head><!--ssr:intro--><h1>x</h1><!--/ssr:intro--><!--ssr:body--><p>…</p><!--/ssr:body-->');
+  let svgR = '';
+  const handle = createResearch({ env: { SITE_DIST: dir, SITE_URL: 'https://inn-sider.ru' }, fdb: db, min: 1, minRegion: 1, minList: 2, toPng: async (svg) => { svgR = svg; return Buffer.from('PNG'); } });
   const get = (p) => { let code, body = ''; const res = { writeHead: (c) => { code = c; }, end: (b) => { body = b || ''; } }; const ok = handle({ method: 'GET' }, res, new URL('https://x' + p)); return { ok, code, body }; };
   const idx = get('/issledovaniya/');
   assert.equal(idx.code, 200);
@@ -210,6 +217,11 @@ await t('исследования: рейтинги отраслей и реги
   assert.match(p.body, /<figure class="hbars">/, 'график в исследовании');
   assert.match(p.body, /"@type":"Article".*"url":"https:\/\/inn-sider.ru\/issledovaniya\/pribylnye-otrasli\/"/s);
   assert.match(p.body, /"@type":"BreadcrumbList"/);
+  assert.match(p.body, /<meta property="og:title" content="Самые прибыльные отрасли малого бизнеса"/);
+  assert.match(p.body, /<meta property="og:image" content="https:\/\/inn-sider.ru\/issledovaniya\/pribylnye-otrasli\/og.png"/);
+  assert.match(idx.body, /<meta property="og:image" content="https:\/\/inn-sider.ru\/og.png"/, 'у списка — общая картинка');
+  get('/issledovaniya/pribylnye-otrasli/og.png'); await new Promise((ok) => setImmediate(ok));
+  assert.match(svgR, /ИССЛЕДОВАНИЕ/); assert.match(svgR, /в плюсе/);
   assert.doesNotMatch(get('/issledovaniya/net-takogo/').body, /ld\+json/, 'у 404 нет разметки');
   assert.equal(get('/issledovaniya/gde-otkryvayut-biznes/').code, 200);
   assert.equal(get('/issledovaniya/net-takogo/').code, 404);

@@ -6,6 +6,7 @@ import path from 'node:path';
 import { OKVED_ALL, REGIONS } from '../src/lib/market-lists.mjs';
 import { RUSSIA, ALL_AGES } from '../scripts/fns-peers.mjs';
 import { esc, hbars, money } from './company-page.mjs';
+import { ogSvg, svgToPng } from './og-image.mjs';
 
 const OKVED = new Map(OKVED_ALL), REGION = new Map(REGIONS);
 const pct = (x) => (x == null ? '—' : Math.round(x * 100) + '%');
@@ -30,6 +31,7 @@ export const STUDIES = [
       if (list.length < o.minList) return null;
       const top = list.slice(0, 15), low = list.slice(-5).reverse();
       return {
+        og: top.slice(0, 4).map((r) => [OKVED.get(r.okved), `в плюсе ${pct(r.profitable)}`]),
         finding: `Чаще всего прибыль по итогам ${y} года получали компании отрасли «${top[0] && OKVED.get(top[0].okved)}» — ${pct(top[0].profitable)} из тех, кто сдал отчётность. Реже всего — «${OKVED.get(low[0].okved)}»: ${pct(low[0].profitable)}.`,
         body: `${hbars('Доля компаний в плюсе, 15 отраслей', top.map((r) => ({ label: OKVED.get(r.okved), value: r.profitable, text: pct(r.profitable) })))}
 <h2 class="h">Больше всего прибыльных компаний</h2>${table(['№', 'Отрасль', 'В плюсе', 'Доходы у середины', 'Компаний с отчётностью'],
@@ -48,6 +50,7 @@ export const STUDIES = [
       if (all.length < o.minList) return null;
       const top = all.slice(0, 15);
       return {
+        og: top.slice(0, 4).map((r) => [REGION.get(r.region), `новых ${pct(r.share)}`]),
         finding: `Больше всего новых компаний — в регионе «${REGION.get(top[0].region)}»: ${pct(top[0].share)} организаций работают первый год. Меньше всего — «${REGION.get(all[all.length - 1].region)}»: ${pct(all[all.length - 1].share)}.`,
         body: `${hbars('Доля компаний первого года, 15 регионов', top.map((r) => ({ label: REGION.get(r.region), value: r.share, text: pct(r.share) })))}
 <h2 class="h">Регионы с самой высокой долей новых компаний</h2>${table(['№', 'Регион', 'Новых', 'Организаций всего'],
@@ -64,6 +67,7 @@ export const STUDIES = [
       if (list.length < o.minList) return null;
       const top = list.slice(0, 15);
       return {
+        og: top.slice(0, 4).map((r) => [OKVED.get(r.okved), money(r.median)]),
         finding: `Самые большие доходы у середины — в отрасли «${OKVED.get(top[0].okved)}»: ${money(top[0].median)} за ${y} год. Для сравнения, у середины всех отраслей в этом списке — ${money(list[Math.floor(list.length / 2)].median)}.`,
         body: `${hbars('Доходы у середины за год, 15 отраслей', top.map((r) => ({ label: OKVED.get(r.okved), value: r.median, text: nb(money(r.median)) })))}
 <h2 class="h">Доходы у середины</h2>${table(['№', 'Отрасль', 'Доходы у середины', 'Рентабельность', 'В плюсе'],
@@ -80,6 +84,7 @@ export const STUDIES = [
       if (list.length < 4) return null;
       const first = list[0], last = list[list.length - 1];
       return {
+        og: [list[0], list[1], list[list.length - 2], list[list.length - 1]].filter(Boolean).map((r) => [AGE[r.age], `в плюсе ${pct(r.share)}`]),
         finding: `На первом году с прибылью закончили ${y} год ${pct(first.share)} компаний, у компаний старше пяти лет — ${pct(last.share)}.`,
         body: `${hbars('Доля компаний в плюсе по возрасту', list.map((r) => ({ label: AGE[r.age], value: r.share, text: pct(r.share) })))}
 <h2 class="h">Доля прибыльных по возрасту</h2>${table(['Возраст', 'В плюсе', 'Компаний с отчётностью'], list.map((r) => [AGE[r.age], pct(r.share), int(r.nfin)]))}
@@ -102,7 +107,7 @@ function ld(p, title, lede, y, site) {
   return list.map((x) => `<script type="application/ld+json">${JSON.stringify(x).replace(/</g, '\\u003c')}</script>\n`).join('');
 }
 
-export function createResearch({ env, fdb, now = () => Date.now(), min = 300, minRegion = 1000, minList = 10 }) {
+export function createResearch({ env, fdb, now = () => Date.now(), min = 300, minRegion = 1000, minList = 10, toPng = svgToPng }) {
   const o = { min, minRegion, minList };
   const dist = env.SITE_DIST || '/var/www/fin-check.shop';
   const cache = new Map();
@@ -113,6 +118,17 @@ export function createResearch({ env, fdb, now = () => Date.now(), min = 300, mi
     const file = path.join(dist, 'issledovaniya', 'index.html');
     if (!fs.existsSync(file)) return false;
     if (url.pathname === '/issledovaniya') { res.writeHead(301, { Location: '/issledovaniya/' }); res.end(); return true; }
+    const ogm = /^\/issledovaniya\/([a-z-]+)\/og\.png$/.exec(url.pathname);
+    if (ogm) {
+      const hitPng = cache.get(url.pathname);
+      const send = (png) => { res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400' }); res.end(png); };
+      if (hitPng && now() - hitPng.at < 864e5) { send(hitPng.body); return true; }
+      const st = STUDIES.find((x) => x.slug === ogm[1]), y = yearOf(fdb), r = st && st.build(fdb, y, o);
+      if (!r) { res.writeHead(404); res.end(); return true; }
+      toPng(ogSvg({ name: st.title, kicker: 'ИССЛЕДОВАНИЕ', info: `Открытые данные ФНС за ${y} год`, foot: 'исследования малого бизнеса', facts: r.og || [] }))
+        .then((png) => { cache.set(url.pathname, { at: now(), code: 200, body: png }); send(png); }, () => { res.writeHead(302, { Location: '/og.png' }); res.end(); });
+      return true;
+    }
     const hit = cache.get(url.pathname);
     if (hit && now() - hit.at < 864e5) { res.writeHead(hit.code, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': hit.code === 200 ? 'public, max-age=86400' : 'no-store' }); res.end(hit.body); return true; }
     const y = yearOf(fdb), tpl = fs.readFileSync(file, 'utf8');
@@ -135,6 +151,10 @@ export function createResearch({ env, fdb, now = () => Date.now(), min = 300, mi
     const html = tpl.replace(/<title>[^<]*<\/title>/, `<title>${esc(title)} — INNSIDER</title>`)
       .replace(/(<meta name="description" content=")[^"]*"/, `$1${esc(lede)}"`)
       .replace(/(<link rel="canonical" href=")[^"]*"/, `$1${esc((env.SITE_URL || 'https://inn-sider.ru').replace(/\/$/, '') + url.pathname)}"`)
+      .replace(/(<meta property="og:url" content=")[^"]*"/, `$1${esc((env.SITE_URL || 'https://inn-sider.ru').replace(/\/$/, '') + url.pathname)}"`)
+      .replace(/(<meta property="og:title" content=")[^"]*"/, `$1${esc(title)}"`)
+      .replace(/(<meta property="og:description" content=")[^"]*"/, `$1${esc(lede)}"`)
+      .replace(/(<meta property="og:image" content=")[^"]*"/, (all, a) => (code === 200 && url.pathname !== '/issledovaniya/' ? `${a}${esc((env.SITE_URL || 'https://inn-sider.ru').replace(/\/$/, '') + url.pathname)}og.png"` : all))
       .replace(/<!--ssr:intro-->[\s\S]*?<!--\/ssr:intro-->/, `<h1 class="page">${esc(h1)}</h1>${lede ? `<p class="lede">${esc(lede)}</p>` : ''}`)
       .replace(/<!--ssr:body-->[\s\S]*?<!--\/ssr:body-->/, body)
       .replace('</head>', () => (code === 404 ? '<meta name="robots" content="noindex">\n' : ld(url.pathname, title, lede, y, (env.SITE_URL || 'https://inn-sider.ru').replace(/\/$/, ''))) + '</head>');

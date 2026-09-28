@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { marketStats, MIN_GROUP } from './market.mjs';
 import { esc, hbars, money, shortName } from './company-page.mjs';
+import { ogSvg, svgToPng } from './og-image.mjs';
 import { OKVED_COMMON, OKVED_ALL, REGIONS } from '../src/lib/market-lists.mjs';
 import { RUSSIA, ALL_AGES } from '../scripts/fns-peers.mjs';
 
@@ -88,7 +89,9 @@ ${top.map((c, i) => `<tr><td>${i + 1}</td><td><a href="/organizacii/${c.inn}/">$
     ...(top.length ? [{ '@context': 'https://schema.org', '@type': 'ItemList', name: `Крупнейшие организации: ${lower(oname)}, ${rname}`,
       itemListElement: top.slice(0, 10).map((c, i) => ({ '@type': 'ListItem', position: i + 1, url: `/organizacii/${c.inn}/`, name: c.name })) }] : [])
   ];
-  return { title, desc, url, h1: `${oname}: ${region === RUSSIA ? 'Россия' : rname}`, lede: `Сколько зарабатывают организации отрасли ${where}, сколько из них в плюсе и кто крупнейший — по открытым данным ФНС за ${t.year} год.`, body, ld };
+  const og = { name: `${oname}: ${region === RUSSIA ? 'Россия' : rname}`, kicker: 'ОТРАСЛЬ', info: `Открытые данные ФНС за ${t.year} год`, foot: 'сколько зарабатывают компании',
+    facts: [['Организаций', int(s.competition.companies)], ['Доходы у середины', money(t.income[2])], ['В плюсе', pct(t.profitableShare)], ...(t.marginMedian != null ? [['Типичная рентабельность', pct(t.marginMedian)]] : [])] };
+  return { og, title, desc, url, h1: `${oname}: ${region === RUSSIA ? 'Россия' : rname}`, lede: `Сколько зарабатывают организации отрасли ${where}, сколько из них в плюсе и кто крупнейший — по открытым данным ФНС за ${t.year} год.`, body, ld };
 }
 
 export function renderIndex(db) {
@@ -123,7 +126,7 @@ export function industryUrls(db) {
   return urls;
 }
 
-export function createIndustryPages({ env, fdb, now = () => Date.now() }) {
+export function createIndustryPages({ env, fdb, now = () => Date.now(), toPng = svgToPng }) {
   const dist = env.SITE_DIST || '/var/www/fin-check.shop';
   const siteUrl = (env.SITE_URL || 'https://inn-sider.ru').replace(/\/$/, '');
   let tpl = null, tplMtime = 0;
@@ -145,6 +148,7 @@ export function createIndustryPages({ env, fdb, now = () => Date.now() }) {
       .replace(/(<meta property="og:title" content=")[^"]*"/, `$1${esc(p.title)}"`)
       .replace(/(<link rel="canonical" href=")[^"]*"/, `$1${esc(abs(p.url))}"`)
       .replace(/(<meta property="og:url" content=")[^"]*"/, `$1${esc(abs(p.url))}"`)
+      .replace(/(<meta property="og:image" content=")[^"]*"/, (all, a) => (p.og ? `${a}${esc(abs(p.url))}og.png"` : all))
       .replace(/<!--ssr:intro-->[\s\S]*?<!--\/ssr:intro-->/, `<h1 class="page">${esc(p.h1)}</h1><p class="lede">${esc(p.lede)}</p>`)
       .replace(/<!--ssr:body-->[\s\S]*?<!--\/ssr:body-->/, p.body)
       .replace('</head>', ld.map((x) => `<script type="application/ld+json">${JSON.stringify(x).replace(/</g, '\\u003c').replace(/\$/g, '\\u0024')}</script>\n`).join('') + '</head>');
@@ -157,6 +161,17 @@ export function createIndustryPages({ env, fdb, now = () => Date.now() }) {
     if (!fdb || !/^\/(otrasli(\/|$)|sitemap-otrasli\.xml$)/.test(p)) return false;
     if (!fs.existsSync(path.join(dist, 'otrasli', 'index.html'))) return false;
     if (p === '/otrasli') { res.writeHead(301, { Location: '/otrasli/' }); res.end(); return true; }
+    const og = /^\/otrasli\/(\d{2})\/(?:(\d{2})\/)?og\.png$/.exec(p);
+    if (og) {
+      // картинка для соцсетей и мессенджеров: PNG из SVG, в памяти на сутки; нет rsvg-convert — общая картинка сайта
+      const hitPng = cache.get(p);
+      if (hitPng && now() - hitPng.at < DAY) { send(res, 200, 'image/png', hitPng.body, 86400); return true; }
+      const page = renderIndustry(fdb, og[1], og[2] || RUSSIA);
+      if (!page) { res.writeHead(404); res.end(); return true; }
+      toPng(ogSvg(page.og)).then((png) => { cache.set(p, { at: now(), code: 200, type: 'image/png', body: png }); send(res, 200, 'image/png', png, 86400); },
+        () => { res.writeHead(302, { Location: '/og.png' }); res.end(); });
+      return true;
+    }
     const hit = cache.get(p);
     if (hit && now() - hit.at < DAY && tplMtime === fs.statSync(path.join(dist, 'otrasli', 'index.html')).mtimeMs) { send(res, hit.code, hit.type, hit.body, 86400); return true; }
     let code = 200, type = 'text/html; charset=utf-8', body;
