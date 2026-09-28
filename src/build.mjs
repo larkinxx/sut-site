@@ -373,7 +373,7 @@ ${list}
 <p class="empty" id="empty"${cards.length ? ' hidden' : ''}>За ${win} новостей нет. <a href="${url('/arhiv/')}">Посмотреть архив</a>.</p>
 </div>
 ${subscribeBlock()}`;
-  write('index.html', layout({ title: site.name, desc: site.tagline, path: '/', current: 'news', body }));
+  write('index.html', layout({ title: site.name, desc: `Проверка компании по ИНН или названию: реестры ФНС, налоги, суды, приставы и индекс надёжности. ${COMPANY_PAGES ? 'Статистика отраслей, прогноз бизнеса, документы для юриста. ' : ''}Новости экономики с разбором для людей и бизнеса.`, path: '/', current: 'news', body }));
 }
 
 // Архив
@@ -382,7 +382,7 @@ ${subscribeBlock()}`;
   const body = `<h1 class="page">Архив новостей</h1>
 <p class="lede">Все проверенные редактором новости.</p>
 <div class="prose" style="margin-top:20px">${cards.length ? `<ul style="list-style:none;padding:0;display:grid;gap:14px">${rows}</ul>` : '<p class="empty">Пока здесь ничего нет.</p>'}</div>`;
-  write('arhiv/index.html', layout({ title: 'Архив новостей', path: '/arhiv/', current: 'news', body }));
+  write('arhiv/index.html', layout({ title: 'Архив новостей', desc: 'Все новости экономики, налогов и финансов на INNSIDER по датам — с разбором, что они значат для заёмщиков, вкладчиков, самозанятых и малого бизнеса.', path: '/arhiv/', current: 'news', body }));
 }
 
 // Карточки новостей
@@ -468,7 +468,7 @@ for (const c of CALCS) {
   }));
 }
 write('kalkulyatory/index.html', layout({
-  title: 'Калькуляторы', desc: 'Платёж по кредиту, досрочное погашение, доход и налог по вкладам, самозанятый или ИП.', path: '/kalkulyatory/', current: 'calc',
+  title: 'Калькуляторы: кредит, вклад, налог, самозанятый или ИП', desc: 'Платёж по кредиту, досрочное погашение, доход и налог по вкладам, самозанятый или ИП.', path: '/kalkulyatory/', current: 'calc',
   body: `<h1 class="page">Калькуляторы</h1><p class="lede">Подставьте свои цифры: расчёт происходит у вас в браузере, введённые суммы никуда не отправляются.</p>
 <ul class="calcs">${CALCS.map((c) => `<li><a href="${url(`/kalkulyatory/${c.slug}/`)}"><b>${esc(c.short)}</b><span>${esc(c.desc)}</span></a></li>`).join('')}</ul>`
 }));
@@ -561,7 +561,7 @@ ${warn.length ? `<h2 class="label" style="margin-top:36px">Так делать �
 }
 const taxList = (list) => list.map((t) => `<li><a href="${url(`/nalogi/${t.slug}/`)}"><b>${esc(t.short)}</b><span>${esc(t.desc)}</span></a></li>`).join('');
 write('nalogi/index.html', layout({
-  title: 'Налоги', path: '/nalogi/', current: 'tax',
+  title: 'Налоги: вычеты, НДС, спецрежимы и зарплата — как платить меньше законно', path: '/nalogi/', current: 'tax',
   desc: 'Как законно платить меньше налогов: бизнесу — режимы, НДС, прибыль, взносы; физлицам — вычеты, вклады и инвестиции, продажа имущества, подработка. И какие схемы опасны.',
   body: `<h1 class="page">Налоги</h1><p class="lede">Законные способы платить меньше — отдельно для бизнеса и для физлиц — и схемы, за которые доначисляют налоги и штрафы.</p>
 <p class="filters"><a class="chip" href="#biznesu">Бизнесу</a> <a class="chip" href="#fizlicam">Физлицам</a></p>
@@ -765,7 +765,7 @@ ${ACCT && process.env.ORG_API_URL ? `<section class="calc" id="lawyer" data-api=
 <script src="${url('/lawyer.js')}?v=${hashOf('lawyer.js')}" defer></script>` : ''}`
 }));
 write('yurist/dokumenty/index.html', layout({
-  title: 'Документы по ИНН: претензия, акт сверки, ответ налоговой, договор с самозанятым', path: '/yurist/dokumenty/', current: 'law',
+  title: 'Документы по ИНН: претензия, акт сверки, ответ налоговой', path: '/yurist/dokumenty/', current: 'law',
   desc: 'Составьте претензию о долге с расчётом процентов по ст. 395 ГК, акт сверки, ответ на требование налоговой, уведомление о расторжении или договор с самозанятым — реквизиты подставятся из ЕГРЮЛ по ИНН. Word или PDF.',
   scripts: `\n<script src="${url('/yurist.js')}?v=${hashOf('yurist.js')}" defer></script>`,
   body: `${lawCrumb}
@@ -1113,7 +1113,7 @@ write('manifest.webmanifest', JSON.stringify({
 }, null, 2));
 
 // robots и sitemap
-write('robots.txt', `User-agent: *\nAllow: /\nDisallow: /admin/\n${site.siteUrl.includes('example') ? '' : `Sitemap: ${site.siteUrl}/sitemap.xml\n${COMPANY_PAGES ? `Sitemap: ${site.siteUrl}/sitemap-companies.xml\nSitemap: ${site.siteUrl}/sitemap-otrasli.xml\n` : ''}`}`);
+write('robots.txt', `User-agent: *\nAllow: /\nDisallow: /admin/\n\n# Яндекс: метки рекламы и ysclid не создают новых адресов\nUser-agent: Yandex\nAllow: /\nDisallow: /admin/\nClean-param: utm_source&utm_medium&utm_campaign&utm_content&utm_term&ysclid&yclid&from\n\n${site.siteUrl.includes('example') ? '' : `Sitemap: ${site.siteUrl}/sitemap.xml\n${COMPANY_PAGES ? `Sitemap: ${site.siteUrl}/sitemap-companies.xml\nSitemap: ${site.siteUrl}/sitemap-otrasli.xml\n` : ''}`}`);
 if (!site.siteUrl.includes('example')) {
   // lastmod: у ленты — время свежей новости, у карточки — время последней правки; у статичных страниц не ставим
   const fresh = cards.length ? cards[0].publishedAt : '';

@@ -4,6 +4,7 @@
 # Подключается командой deploy/move-domain.sh.
 inn-sider.ru {
 	encode zstd gzip
+	header Strict-Transport-Security "max-age=31536000"
 	@company path_regexp company ^/(organizacii/[0-9]{10,12}(/|/og\.png)?|sitemap-companies(-[0-9]+)?\.xml|otrasli(/.*)?|sitemap-otrasli\.xml|sertifikat(/.*)?|issledovaniya(/.*)?)$
 	handle @company {
 		reverse_proxy 127.0.0.1:3000
@@ -21,6 +22,14 @@ inn-sider.ru {
 			query v=*
 		}
 		header @versioned Cache-Control "public, max-age=31536000, immutable"
+		# одна страница — один адрес: /yurist → /yurist/, /x/index.html → /x/ (иначе поисковик видит дубли)
+		@idx path_regexp idx ^(.*/)index\.html$
+		redir @idx {re.idx.1}{?query} permanent
+		@dir {
+			not path */
+			file {path}/index.html
+		}
+		redir @dir {path}/{?query} permanent
 		try_files {path} {path}/index.html
 		file_server
 	}

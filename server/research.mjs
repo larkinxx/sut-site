@@ -89,6 +89,19 @@ export const STUDIES = [
   }
 ];
 
+// разметка для поиска: хлебные крошки и статья (заголовок, описание, издатель, год данных)
+function ld(p, title, lede, y, site) {
+  const crumbs = [{ '@type': 'ListItem', position: 1, name: 'Исследования', item: `${site}/issledovaniya/` }];
+  const list = [];
+  if (p !== '/issledovaniya/') {
+    crumbs.push({ '@type': 'ListItem', position: 2, name: title, item: site + p });
+    list.push({ '@context': 'https://schema.org', '@type': 'Article', headline: title, description: lede, url: site + p, inLanguage: 'ru',
+      about: `Малый и средний бизнес России, ${y} год`, isBasedOn: 'https://www.nalog.gov.ru/opendata/', publisher: { '@type': 'Organization', name: 'INNSIDER', url: site } });
+  }
+  list.unshift({ '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: crumbs });
+  return list.map((x) => `<script type="application/ld+json">${JSON.stringify(x).replace(/</g, '\\u003c')}</script>\n`).join('');
+}
+
 export function createResearch({ env, fdb, now = () => Date.now(), min = 300, minRegion = 1000, minList = 10 }) {
   const o = { min, minRegion, minList };
   const dist = env.SITE_DIST || '/var/www/fin-check.shop';
@@ -124,7 +137,7 @@ export function createResearch({ env, fdb, now = () => Date.now(), min = 300, mi
       .replace(/(<link rel="canonical" href=")[^"]*"/, `$1${esc((env.SITE_URL || 'https://inn-sider.ru').replace(/\/$/, '') + url.pathname)}"`)
       .replace(/<!--ssr:intro-->[\s\S]*?<!--\/ssr:intro-->/, `<h1 class="page">${esc(h1)}</h1>${lede ? `<p class="lede">${esc(lede)}</p>` : ''}`)
       .replace(/<!--ssr:body-->[\s\S]*?<!--\/ssr:body-->/, body)
-      .replace('</head>', code === 404 ? '<meta name="robots" content="noindex">\n</head>' : '</head>');
+      .replace('</head>', () => (code === 404 ? '<meta name="robots" content="noindex">\n' : ld(url.pathname, title, lede, y, (env.SITE_URL || 'https://inn-sider.ru').replace(/\/$/, ''))) + '</head>');
     if (code === 200) cache.set(url.pathname, { at: now(), code, body: html });   // 404 не кешируем: иначе перебор адресов раздувал бы память
     res.writeHead(code, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': code === 200 ? 'public, max-age=86400' : 'no-store' });
     res.end(html);

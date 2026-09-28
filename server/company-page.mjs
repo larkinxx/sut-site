@@ -198,13 +198,19 @@ export function createCompanyPages({ env, fdb, getParty, cachedParty, getMore = 
       if (!p.endsWith('/')) { res.writeHead(301, { Location: `/organizacii/${inn}/` }); res.end(); return true; }
       if (!innValid(inn)) { html(res, 404, template().replace('</head>', '<meta name="robots" content="noindex">\n</head>')); return true; }
       const f = fnsRow(fdb, inn);
-      let party = cachedParty(inn);
+      let party = cachedParty(inn), unsure = false;   // unsure — DaData не спросили (лимит) или она не ответила
       if (party === undefined) {
         const key = new Date(now()).toISOString().slice(0, 10);
         if (day.key !== key) day = { key, n: 0 };
-        if (day.n < dadataDaily) { day.n++; party = await getParty(inn).catch(() => null); } else party = null;
+        if (day.n < dadataDaily) { day.n++; try { party = await getParty(inn); } catch { party = null; unsure = true; } } else { party = null; unsure = true; }
       }
-      if (!f && !party) { html(res, 404, renderCompany(template(), { inn, siteUrl, f: null, party: null }).replace('</head>', '<meta name="robots" content="noindex">\n</head>')); return true; }
+      if (!f && !party) {
+        // 404 — только когда реестр точно ответил «нет». При лимите или сбое — 503: поисковик зайдёт позже и не выкинет страницу из индекса
+        const page = renderCompany(template(), { inn, siteUrl, f: null, party: null }).replace('</head>', '<meta name="robots" content="noindex">\n</head>');
+        if (unsure) res.setHeader('Retry-After', '3600');
+        html(res, unsure ? 503 : 404, page);
+        return true;
+      }
       let peers = null;
       try { peers = orgPeers(fdb, inn); } catch { peers = null; }
       html(res, 200, renderCompany(template(), { inn, siteUrl, f, party, more: getMore(inn), peers, similar: similarCompanies(fdb, inn) }));

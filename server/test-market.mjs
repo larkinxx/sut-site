@@ -207,6 +207,10 @@ await t('исследования: рейтинги отраслей и реги
   assert.match(p.body, /Для публикации/);
   assert.match(p.body, /по данным INNSIDER на основе открытых данных ФНС/);
   assert.match(p.body, /href="\/otrasli\/56\/">/);
+  assert.match(p.body, /<figure class="hbars">/, 'график в исследовании');
+  assert.match(p.body, /"@type":"Article".*"url":"https:\/\/inn-sider.ru\/issledovaniya\/pribylnye-otrasli\/"/s);
+  assert.match(p.body, /"@type":"BreadcrumbList"/);
+  assert.doesNotMatch(get('/issledovaniya/net-takogo/').body, /ld\+json/, 'у 404 нет разметки');
   assert.equal(get('/issledovaniya/gde-otkryvayut-biznes/').code, 200);
   assert.equal(get('/issledovaniya/net-takogo/').code, 404);
   assert.equal(get('/otrasli/').ok, false);

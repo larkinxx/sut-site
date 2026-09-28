@@ -153,7 +153,8 @@ await t('страницы компаний: название из ФНС, нал
     assert.ok(!svg.includes('<script>'), 'название экранировано');
     assert.equal((svg.match(/class="name"/g) || []).length, 2, 'не больше двух строк');
     const nf = await get('/organizacii/7707083893/');
-    assert.equal(nf.status, 404, 'нет ни в ФНС, ни в DaData');
+    assert.equal(nf.status, 503, 'DaData не спрашивали (лимит) — не 404, чтобы поисковик не выкинул страницу');
+    assert.equal(nf.headers.get('retry-after'), '3600');
     assert.match(await nf.text(), /noindex/);
     const idx = await (await get('/sitemap-companies.xml')).text();
     assert.match(idx, /sitemap-companies-1\.xml/);
@@ -397,6 +398,24 @@ await t('нечитаемый архив удаляется, даже когда
     await assert.rejects(importZip(openFnsDb(':memory:'), 'sshr2019', z), /архив повреждён/);
     assert.ok(!fs.existsSync(z), 'следующий запуск скачает заново');
   } finally { fs.rmSync(dir, { recursive: true }); }
+});
+
+await t('страница компании: 404 — только если DaData ответила «нет», при сбое — 503', async () => {
+  const dist = fs.mkdtempSync(path.join(os.tmpdir(), 'sut-dist-'));
+  fs.mkdirSync(path.join(dist, 'organizacii'));
+  fs.writeFileSync(path.join(dist, 'organizacii', 'index.html'), '<html><head><title>x</title></head><body><!--ssr:intro--><h1>x</h1><!--/ssr:intro--></body></html>');
+  let down = false;
+  const dadata = async (url, opts) => (String(url).includes('dadata') ? (down ? new Response('{}', { status: 500 }) : new Response(JSON.stringify({ suggestions: [] }))) : fake(url, opts));
+  const srv = http.createServer(createApp({ env: { DADATA_TOKEN: 't', SITE_DIST: dist }, fetchImpl: dadata, fnsPause: 0, fnsDb: db }));
+  await new Promise((r) => srv.listen(0, r));
+  const get = (p) => fetch(`http://127.0.0.1:${srv.address().port}${p}`, { redirect: 'manual' });
+  try {
+    assert.equal((await get('/organizacii/7707083893/')).status, 404, 'DaData ответила: такой организации нет');
+    down = true;
+    const r = await get('/organizacii/7736207543/');
+    assert.equal(r.status, 503, 'DaData недоступна');
+    assert.equal(r.headers.get('retry-after'), '3600');
+  } finally { srv.close(); fs.rmSync(dist, { recursive: true }); }
 });
 
 console.log(`\nВсе тесты ФНС прошли: ${n}`);
