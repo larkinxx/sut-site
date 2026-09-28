@@ -52,11 +52,3 @@ const dateFmt = new Intl.DateTimeFormat('ru-RU', {
 export function dateRu(iso) {
   return dateFmt.format(new Date(iso)) + ' МСК';
 }
-
-export function slugFromId(id) {
-  return String(id).toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '');
-}
-
-export function fmtRub(n) {
-  return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(Math.round(n)) + ' ₽';
-}
