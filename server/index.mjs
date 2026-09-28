@@ -423,6 +423,27 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
   // подписка: нужна база аккаунтов (платёж привязан к пользователю)
   const billing = db ? createBilling({ env, db, fetchImpl, now, notify: (u, text) => accounts.notify(u, text, 'INNSIDER Ultima: подписка') }) : null;
   const partyCache = makeCache(24 * 3600e3, 20000);   // сведения из ЕГРЮЛ за сутки почти не меняются; слежение берёт свежие отдельно
+  // Карточки организаций из DaData храним и на диске неделю: перезапуск сервера и обход страниц поисковиками не тратят
+  // дневной лимит заново. Только организации (10 цифр) — у ИП в карточке ФИО; кто и кого проверял, здесь не записывается
+  const PARTY_TTL = 7 * DAY;
+  if (db) db.exec('CREATE TABLE IF NOT EXISTS party_cache (inn TEXT PRIMARY KEY, data TEXT NOT NULL, at INTEGER NOT NULL)');
+  const partyDisk = {
+    get(inn) {
+      if (!db || inn.length !== 10) return undefined;
+      const r = db.prepare('SELECT data, at FROM party_cache WHERE inn = ?').get(inn);
+      return r && now() - r.at < PARTY_TTL ? JSON.parse(r.data) : undefined;
+    },
+    set(inn, v) {
+      if (!db || !v || inn.length !== 10) return;
+      db.prepare('INSERT OR REPLACE INTO party_cache (inn, data, at) VALUES (?, ?, ?)').run(inn, JSON.stringify(v), now());
+      if (Math.random() < 0.01) db.prepare('DELETE FROM party_cache WHERE at < ?').run(now() - PARTY_TTL);
+    }
+  };
+  function cachedParty(inn) {
+    let v = partyCache.get(inn);
+    if (v === undefined && (v = partyDisk.get(inn)) !== undefined) partyCache.set(inn, v);
+    return v;
+  }
   const aiCache = makeCache(DAY);
   const fnsCache = makeCache(DAY);
   const suggestCache = makeCache(3600e3, 20000);
@@ -545,9 +566,9 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
     dadataDay.n++;
   }
   async function getParty(inn, { fallback = true } = {}) {
-    let s = partyCache.get(inn);
+    let s = cachedParty(inn);
     if (s !== undefined) return s;
-    try { dadataTake(); s = await findParty(inn, cfg, fetchImpl); } catch (e) {
+    try { dadataTake(); s = await findParty(inn, cfg, fetchImpl); partyDisk.set(inn, s); } catch (e) {
       if (!fallback) throw e;
       s = await partyFromDn(inn).catch(() => null);
       if (!s) throw e;
@@ -567,7 +588,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
   const industryPages = createIndustryPages({ env, fdb, now });
   const research = createResearch({ env, fdb, now });   // «Исследования INNSIDER» (server/research.mjs)
   const certs = db ? createCerts({ env, db, now }) : null;   // сертификаты проверки (server/certs.mjs)
-  const companyPages = createCompanyPages({ env, fdb, getParty: (inn) => getParty(inn, { fallback: false }), cachedParty: (inn) => partyCache.get(inn), getMore: dnCached, now });
+  const companyPages = createCompanyPages({ env, fdb, getParty: (inn) => getParty(inn, { fallback: false }), cachedParty, getMore: dnCached, now });
 
   // Пересылка к api.telegram.org для нашего сервера в России. Секретов не хранит: токен приходит в адресе и дальше не пишется
   async function relayTelegram(req, res, url) {

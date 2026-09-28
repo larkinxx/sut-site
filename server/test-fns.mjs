@@ -11,6 +11,7 @@ import { openFnsDb, importStream, download, importZip, etagCheck, downloadRanged
 import zlib from 'node:zlib';
 import { openData, fnsData, pbSummary } from './fns.mjs';
 import { ogSvg } from './og-image.mjs';
+import { openDb } from './accounts.mjs';
 
 const doc = (asof, inn, inner) => `<Документ ИдДок="x" ДатаДок="25.09.2026" ДатаСост="${asof}"><СведНП НаимОрг="ООО &quot;ПЕКАРНЯ&quot;" ИННЮЛ="${inn}"/>${inner}</Документ>`;
 const file = (docs) => `<?xml version="1.0" encoding="UTF-8"?><Файл ИдФайл="f"><ИдОтпр/>${docs.join('')}</Файл>`;
@@ -415,6 +416,32 @@ await t('страница компании: 404 — только если DaData
     const r = await get('/organizacii/7736207543/');
     assert.equal(r.status, 503, 'DaData недоступна');
     assert.equal(r.headers.get('retry-after'), '3600');
+  } finally { srv.close(); fs.rmSync(dist, { recursive: true }); }
+});
+
+await t('карточка организации из DaData переживает перезапуск сервера (неделю), ИП — нет', async () => {
+  const dist = fs.mkdtempSync(path.join(os.tmpdir(), 'sut-dist-'));
+  fs.mkdirSync(path.join(dist, 'organizacii'));
+  fs.writeFileSync(path.join(dist, 'organizacii', 'index.html'), '<html><head><title>x</title></head><body><!--ssr:intro--><h1>x</h1><!--/ssr:intro--></body></html>');
+  let calls = 0, clock = Date.UTC(2026, 8, 28);
+  const card = (inn) => ({ value: 'ООО "КЕШ"', data: { inn, name: { short_with_opf: 'ООО "КЕШ"' }, state: { status: 'ACTIVE' }, type: inn.length === 10 ? 'LEGAL' : 'INDIVIDUAL' } });
+  const dadata = async (url, opts) => { if (!String(url).includes('dadata')) return fake(url, opts); calls++; return new Response(JSON.stringify({ suggestions: [card(JSON.parse(opts.body).query)] })); };
+  const accDb = openDb(':memory:');
+  const up = async () => { const srv = http.createServer(createApp({ env: { DADATA_TOKEN: 't', SITE_DIST: dist }, fetchImpl: dadata, fnsPause: 0, fnsDb: db, db: accDb, now: () => clock })); await new Promise((r) => srv.listen(0, r)); return srv; };
+  const get = (srv, p) => fetch(`http://127.0.0.1:${srv.address().port}${p}`);
+  let srv = await up();
+  try {
+    assert.equal((await get(srv, '/organizacii/7707083893/')).status, 200);
+    assert.equal((await get(srv, '/organizacii/500100732259/')).status, 200);
+    assert.equal(calls, 2);
+    srv.close(); srv = await up();   // «перезапуск»: память пуста, база та же
+    assert.equal((await get(srv, '/organizacii/7707083893/')).status, 200);
+    assert.equal(calls, 2, 'организация — из базы, без запроса к DaData');
+    await get(srv, '/organizacii/500100732259/');
+    assert.equal(calls, 3, 'ИП на диске не храним');
+    srv.close(); clock += 8 * 864e5; srv = await up();
+    await get(srv, '/organizacii/7707083893/');
+    assert.equal(calls, 4, 'через неделю — снова из DaData');
   } finally { srv.close(); fs.rmSync(dist, { recursive: true }); }
 });
 
