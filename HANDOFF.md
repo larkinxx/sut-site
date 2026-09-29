@@ -28,7 +28,7 @@ fin-check.shop — постоянный редирект на inn-sider.ru.
 | Сайт и API | Timeweb, облачный сервер `sut-api`, 5.129.207.51 (Ubuntu 24.04, Node, Caddy). Сайт — `deploy/site-build.sh` по cron каждые 10 мин; API — служба `sut-api`, адреса api.inn-sider.ru и api.fin-check.shop |
 | Настройки сервера | `/etc/sut/api.env`, `/etc/sut/site.env` (пример — `deploy/api.env.example`, инструкция — `deploy/README.md`) |
 | Обновление сервера | GitHub Actions «Сервер: команда» → `update`, только вручную после слияния в `main` |
-| Ретранслятор Telegram | Render, https://sut-api.onrender.com/tg (Timeweb не пускает к api.telegram.org; засыпает — первый вход до 30 с) |
+| Ретранслятор Telegram | Render, https://sut-api.onrender.com/tg — не используется, пока вход через Telegram выключен |
 | Разбор и «Юрист» | Алиса, Yandex AI Studio (`YANDEX_AI_KEY`, `YANDEX_FOLDER_ID`) |
 | Данные | DaData (кеш 7 дней), открытые данные ФНС (`/var/lib/sut/fns.db`, импорт 26-го), ГИР БО, DataNewton (суды, приставы) |
 | Новости | `.github/workflows/pipeline.yml` каждый час; ставка ЦБ — `scripts/rates.mjs` |
@@ -52,7 +52,7 @@ SSH — только ключом `~/.ssh/sut_timeweb` с Mac владельца
 ## 5. Вход в кабинет
 | Способ | Состояние |
 |---|---|
-| Telegram (бот @fin_check_sute_bot) | работает |
+| Telegram (бот @fin_check_sute_bot) | **выключен 29.09.2026** (вход и уведомления): трансграничная передача ПДн. Включается только `TELEGRAM_ACCOUNTS=1` в `/etc/sut/api.env` и после уведомления в Роскомнадзор (ч. 4 ст. 12 152-ФЗ). Новости в канал (`scripts/telegram.mjs`) — не ПДн, работают |
 | Почта (noreply@fin-check.shop, SMTP REG.RU) | включена; Timeweb открыл порты 25/465/587/2525 29.09.2026 (обращение N12741699). При смене конфигурации сервера могут закрыть снова — видно на дашборде |
 | Яндекс ID | ключи есть; в приложении oauth.yandex.ru нужен Redirect URI `https://api.inn-sider.ru/auth/yandex/callback` (иначе 400) |
 | VK ID | код готов (PR #30); нужно приложение на id.vk.com → `VK_CLIENT_ID` |

@@ -177,7 +177,8 @@
 
         // Уведомления
         sec = section('Уведомления об изменениях');
-        var opts = [['telegram', 'В Telegram'], ['email', 'На почту'], ['none', 'Не присылать']];
+        var opts = [['telegram', 'В Telegram'], ['email', 'На почту'], ['none', 'Не присылать']]
+          .filter(function (o) { return o[0] !== 'telegram' || (me.methods && me.methods.telegram); });
         var fs = el('div', 'cab-notify');
         opts.forEach(function (o) {
           var lab = el('label'); var inp = el('input'); inp.type = 'radio'; inp.name = 'notify'; inp.value = o[0];

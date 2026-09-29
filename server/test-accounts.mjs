@@ -51,7 +51,7 @@ const mailer = async (m) => { mails.push(m); };
 
 const env = {
   DADATA_TOKEN: 't', SITE_URL: SITE, PUBLIC_API_URL: 'http://api.localhost', ALLOWED_ORIGINS: SITE,
-  YANDEX_CLIENT_ID: 'yid', YANDEX_CLIENT_SECRET: 'ysec', VK_CLIENT_ID: 'vkid', TELEGRAM_BOT_TOKEN: BOT, TELEGRAM_BOT_NAME: 'sut_bot'
+  YANDEX_CLIENT_ID: 'yid', YANDEX_CLIENT_SECRET: 'ysec', VK_CLIENT_ID: 'vkid', TELEGRAM_BOT_TOKEN: BOT, TELEGRAM_BOT_NAME: 'sut_bot', TELEGRAM_ACCOUNTS: '1'
 };
 let clock = Date.UTC(2026, 8, 25, 6, 0);
 const db = openDb(':memory:');
@@ -221,6 +221,22 @@ try {
     await app.runWatch(async () => PARTY());
     assert.equal(tgSent.at(-1).chat_id, '777');
     assert.match(tgSent.at(-1).text, /ликвидирована/);
+  });
+
+  await t('без TELEGRAM_ACCOUNTS=1 Telegram выключен: нет кнопки, вход 503, уведомления не в Telegram', async () => {
+    const { TELEGRAM_ACCOUNTS, ...offEnv } = env;
+    const off = http.createServer(createApp({ env: offEnv, fetchImpl: fakeFetch, db, mailer, now: () => clock }));
+    await new Promise((r) => off.listen(0, r));
+    const b = 'http://127.0.0.1:' + off.address().port;
+    const get = (p, cookie) => fetch(b + p, { headers: { origin: SITE, ...(cookie ? { cookie } : {}) } }).then((r) => r.json());
+    try {
+      assert.equal((await get('/api/me')).methods.telegram, null);
+      const st = await fetch(b + '/auth/telegram/start', { method: 'POST', headers: { origin: SITE, 'content-type': 'application/json' }, body: JSON.stringify({ consent: true }) });
+      assert.equal(st.status, 503);
+      const me = await get('/api/me', tgCookie);
+      assert.equal(me.user.can_telegram, false);
+      assert.notEqual(me.user.notify, 'telegram');
+    } finally { off.close(); }
   });
 
   await t('вход через Яндекс ID: state, обмен кода, привязка к той же почте', async () => {

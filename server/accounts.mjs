@@ -165,7 +165,9 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
     cookieDomain: env.COOKIE_DOMAIN || '',              // .inn-sider.ru — чтобы сессия была общей для сайта и api
     yandexId: env.YANDEX_CLIENT_ID || '', yandexSecret: env.YANDEX_CLIENT_SECRET || '',
     vkId: env.VK_CLIENT_ID || '',                       // приложение на id.vk.com; секрет не нужен — вход по PKCE
-    tgToken: env.TELEGRAM_BOT_TOKEN || '', tgBot: env.TELEGRAM_BOT_NAME || '',
+    // Вход и уведомления через Telegram выключены (29.09.2026): Telegram — трансграничная передача ПДн (ОАЭ, через Render в США).
+    // Включаются только явно: TELEGRAM_ACCOUNTS=1 — и тогда нужно отдельное уведомление в Роскомнадзор (ч. 4 ст. 12 152-ФЗ)
+    ...(env.TELEGRAM_ACCOUNTS === '1' ? { tgToken: env.TELEGRAM_BOT_TOKEN || '', tgBot: env.TELEGRAM_BOT_NAME || '' } : { tgToken: '', tgBot: '' }),
     // Timeweb не пускает сервер к api.telegram.org — ходим через наш сервер на Render (маршрут /tg/ в index.mjs)
     tgApi: (env.TELEGRAM_API_URL || (env.AI_UPSTREAM_URL ? env.AI_UPSTREAM_URL.replace(/\/$/, '') + '/tg' : 'https://api.telegram.org')).replace(/\/$/, ''),
     mailOn: !!mailer
@@ -218,13 +220,14 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
   const publicUser = (u) => ({
     name: u.name || (u.email ? u.email.split('@')[0] : 'Пользователь'), email: u.email || null,
     via: [u.yandex_id && 'yandex', u.vk_id && 'vk', u.telegram_id && 'telegram', u.email && 'email'].filter(Boolean),
-    company_inn: u.company_inn || null, notify: channelOf(u), can_telegram: !!u.telegram_id, can_email: !!u.email
+    company_inn: u.company_inn || null, notify: channelOf(u), can_telegram: !!(u.telegram_id && cfg.tgToken), can_email: !!u.email
   });
   function channelOf(u) {
+    const tg = !!(u.telegram_id && cfg.tgToken);   // без Telegram-входа уведомления идут на почту
     if (u.notify === 'none') return 'none';
-    if (u.notify === 'telegram' && u.telegram_id) return 'telegram';
+    if (u.notify === 'telegram' && tg) return 'telegram';
     if (u.notify === 'email' && u.email) return 'email';
-    return u.telegram_id ? 'telegram' : u.email ? 'email' : 'none';
+    return tg ? 'telegram' : u.email ? 'email' : 'none';
   }
 
   function redirect(res, to, setCookies = []) { res.writeHead(302, { Location: to, 'Set-Cookie': setCookies, 'Cache-Control': 'no-store' }); res.end(); }
