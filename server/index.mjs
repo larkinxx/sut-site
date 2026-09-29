@@ -36,6 +36,7 @@
 //   ACCOUNTS_DB       — путь к файлу базы SQLite, например /var/lib/sut/sut.db
 //   SITE_URL, PUBLIC_API_URL, COOKIE_DOMAIN — https://inn-sider.ru, https://api.inn-sider.ru, .inn-sider.ru
 //   YANDEX_CLIENT_ID, YANDEX_CLIENT_SECRET   — приложение на oauth.yandex.ru
+//   VK_CLIENT_ID      — приложение на id.vk.com (вход через VK ID)
 //   TELEGRAM_BOT_TOKEN, TELEGRAM_BOT_NAME    — бот для входа и уведомлений
 //   TELEGRAM_API_URL  — через что ходить к Telegram. Timeweb не пускает к api.telegram.org, поэтому по умолчанию
 //                       AI_UPSTREAM_URL + '/tg' (наш сервер на Render), а без него — напрямую

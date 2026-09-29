@@ -1,10 +1,12 @@
-// Аккаунты INNSIDER: необязательный вход (Яндекс ID, Telegram, код на почту), кабинет и слежение за компаниями.
-// Почта, Яндекс ID и Telegram ID — персональные данные: по 152-ФЗ храним их только на сервере в России
+// Аккаунты INNSIDER: необязательный вход (Яндекс ID, VK ID, Telegram, код на почту), кабинет и слежение за компаниями.
+// Почта, Яндекс ID, VK ID и Telegram ID — персональные данные: по 152-ФЗ храним их только на сервере в России
 // (Timeweb), поэтому модуль включается переменной ACCOUNTS_DB и не работает на Render.
 //
 // Маршруты (все ответы JSON, кроме переходов входа):
 //   GET  /auth/yandex?return=/kabinet/&consent=1   — переход на oauth.yandex.ru
 //   GET  /auth/yandex/callback                      — возврат от Яндекса, ставит сессию и ведёт обратно на сайт
+//   GET  /auth/vk?return=/kabinet/&consent=1       — переход на id.vk.com (OAuth 2.1 с PKCE)
+//   GET  /auth/vk/callback                          — возврат от VK ID
 //   POST /auth/telegram/start {consent}             — вход через бота: ссылка t.me/<бот>?start=<код>
 //   GET  /auth/telegram/status?nonce=…              — сайт ждёт, пока человек подтвердит вход в боте
 //   GET  /auth/telegram/callback?...&consent=1      — возврат от виджета Telegram Login (старый способ)
@@ -65,6 +67,9 @@ export function openDb(file) {
     );
     CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
   `);
+  // VK ID появился позже остальных способов входа: в старой базе добавляем столбец (UNIQUE — отдельным индексом)
+  if (!db.prepare('PRAGMA table_info(users)').all().some((c) => c.name === 'vk_id')) db.exec('ALTER TABLE users ADD COLUMN vk_id TEXT');
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS users_vk_id ON users(vk_id)');
   return db;
 }
 
@@ -159,6 +164,7 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
     api: (env.PUBLIC_API_URL || 'https://api.inn-sider.ru').replace(/\/$/, ''),
     cookieDomain: env.COOKIE_DOMAIN || '',              // .inn-sider.ru — чтобы сессия была общей для сайта и api
     yandexId: env.YANDEX_CLIENT_ID || '', yandexSecret: env.YANDEX_CLIENT_SECRET || '',
+    vkId: env.VK_CLIENT_ID || '',                       // приложение на id.vk.com; секрет не нужен — вход по PKCE
     tgToken: env.TELEGRAM_BOT_TOKEN || '', tgBot: env.TELEGRAM_BOT_NAME || '',
     // Timeweb не пускает сервер к api.telegram.org — ходим через наш сервер на Render (маршрут /tg/ в index.mjs)
     tgApi: (env.TELEGRAM_API_URL || (env.AI_UPSTREAM_URL ? env.AI_UPSTREAM_URL.replace(/\/$/, '') + '/tg' : 'https://api.telegram.org')).replace(/\/$/, ''),
@@ -188,7 +194,9 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
   }
   // Находим пользователя по id способа входа, иначе по подтверждённой почте; иначе создаём (с отметкой согласия).
   // Если человек уже вошёл (current) — привязываем новый способ входа к его аккаунту, а не создаём второй.
-  function findOrCreate({ field, id, email, name }, current = null) {
+  // linkByEmail = false — почта от этого способа не повод входить в чужой аккаунт с той же почтой (её просто не сохраняем, если занята).
+  function findOrCreate({ field, id, email, name, linkByEmail = true }, current = null) {
+    if (email && !linkByEmail && q('SELECT id FROM users WHERE email = ?').get(email)) email = null;
     if (current) {
       const other = q(`SELECT id FROM users WHERE ${field} = ?`).get(id);
       if (other && other.id !== current.id) throw new Error('уже привязан');
@@ -209,7 +217,7 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
   }
   const publicUser = (u) => ({
     name: u.name || (u.email ? u.email.split('@')[0] : 'Пользователь'), email: u.email || null,
-    via: [u.yandex_id && 'yandex', u.telegram_id && 'telegram', u.email && 'email'].filter(Boolean),
+    via: [u.yandex_id && 'yandex', u.vk_id && 'vk', u.telegram_id && 'telegram', u.email && 'email'].filter(Boolean),
     company_inn: u.company_inn || null, notify: channelOf(u), can_telegram: !!u.telegram_id, can_email: !!u.email
   });
   function channelOf(u) {
@@ -447,6 +455,48 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
       return true;
     }
 
+    // ---- вход через VK ID (OAuth 2.1): код подтверждается проверочной строкой PKCE, она ждёт в cookie sut_vk ----
+    if (m === 'GET' && p === '/auth/vk') {
+      if (!cfg.vkId) return redirect(res, fail('VK', 'Вход через VK ID пока не подключён', 'нет VK_CLIENT_ID')), true;
+      if (url.searchParams.get('consent') !== '1') return redirect(res, fail('VK', 'Нужно согласие на обработку данных')), true;
+      const state = token(), verifier = token();
+      const ret = safeReturn(url.searchParams.get('return'));
+      const to = 'https://id.vk.com/authorize?' + new URLSearchParams({
+        response_type: 'code', client_id: cfg.vkId, redirect_uri: cfg.api + '/auth/vk/callback', state, scope: 'vkid.personal_info email',
+        code_challenge: crypto.createHash('sha256').update(verifier).digest('base64url'), code_challenge_method: 'S256'
+      });
+      redirect(res, to, [cookie('sut_vk', `${state}.${verifier}.${Buffer.from(ret).toString('base64url')}`, 600)]);
+      return true;
+    }
+    if (m === 'GET' && p === '/auth/vk/callback') {
+      const [state, verifier, retB64] = String(cookies(req).sut_vk || '').split('.');
+      const ret = retB64 ? Buffer.from(retB64, 'base64url').toString() : null;
+      const clear = cookie('sut_vk', '', 0);
+      if (!state || !verifier || state !== url.searchParams.get('state')) return redirect(res, fail('VK', 'Вход не удался, попробуйте ещё раз', 'state не совпал: истёк или другой браузер'), [clear]), true;
+      const code = url.searchParams.get('code'), deviceId = url.searchParams.get('device_id');
+      if (!code || !deviceId) return redirect(res, fail('VK', 'Вход отменён', url.searchParams.get('error') || 'нет code или device_id'), [clear]), true;
+      const form = { 'Content-Type': 'application/x-www-form-urlencoded' };
+      const tr = await fetchImpl('https://id.vk.com/oauth2/auth', {
+        method: 'POST', headers: form, signal: AbortSignal.timeout(15000),
+        body: new URLSearchParams({ grant_type: 'authorization_code', code, code_verifier: verifier, client_id: cfg.vkId, device_id: deviceId, redirect_uri: cfg.api + '/auth/vk/callback', state })
+      });
+      const tj = await tr.json().catch(() => ({}));
+      if (!tj.access_token) return redirect(res, fail('VK', 'VK ID не подтвердил вход', `HTTP ${tr.status} ${tj.error || ''}`.trim()), [clear]), true;
+      const ir = await fetchImpl('https://id.vk.com/oauth2/user_info', {
+        method: 'POST', headers: form, body: new URLSearchParams({ client_id: cfg.vkId, access_token: tj.access_token }), signal: AbortSignal.timeout(15000)
+      });
+      const info = (await ir.json().catch(() => ({}))).user || {};
+      if (!info.user_id) return redirect(res, fail('VK', 'VK ID не передал данные профиля', `HTTP ${ir.status}`), [clear]), true;
+      const email = info.email ? String(info.email).toLowerCase() : null;
+      const name = [info.first_name, info.last_name].filter(Boolean).join(' ');
+      let u;
+      try { u = findOrCreate({ field: 'vk_id', id: String(info.user_id), email, name, linkByEmail: false }, userOf(req)); }
+      catch { return redirect(res, fail('VK', 'Этот VK ID уже привязан к другому аккаунту'), [clear]), true; }
+      log('VK — успешно, пользователь #' + u.id);
+      redirect(res, back(ret), [clear, startSession(u.id)]);
+      return true;
+    }
+
     // ---- вход через бота Telegram: не нужен ни номер телефона, ни сайт telegram.org ----
     if (m === 'POST' && p === '/auth/telegram/start') {
       const body = await readBody(req, 1024);
@@ -547,7 +597,7 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
 
     // ---- кабинет: только для вошедших ----
     const u = userOf(req);
-    if (p === '/api/me' && m === 'GET') return send(res, 200, { user: u ? publicUser(u) : null, methods: { yandex: !!cfg.yandexId, telegram: cfg.tgBot || null, email: cfg.mailOn } }), true;
+    if (p === '/api/me' && m === 'GET') return send(res, 200, { user: u ? publicUser(u) : null, methods: { yandex: !!cfg.yandexId, vk: !!cfg.vkId, telegram: cfg.tgBot || null, email: cfg.mailOn } }), true;
     if (!u) return send(res, 401, { error: 'Войдите, чтобы пользоваться кабинетом.' }), true;
 
     if (p === '/api/me' && m === 'PATCH') {

@@ -27,17 +27,21 @@
       if (j.user && !params.get('privyazat')) { location.replace(ret); return; }
       if (j.user) { $('h1').textContent = 'Подключить способ входа'; $('#login-email').remove(); j.methods.email = false; }
       var m = j.methods || {};
-      var ya = $('#login-yandex'), tg = $('#login-telegram'), form = $('#login-email');
-      ya.hidden = !m.yandex; tg.hidden = !m.telegram; form.hidden = !m.email;
-      if (!m.yandex && !m.telegram && !m.email) msgEl.textContent = 'Вход временно недоступен.';
+      var ya = $('#login-yandex'), vk = $('#login-vk'), tg = $('#login-telegram'), form = $('#login-email');
+      ya.hidden = !m.yandex; vk.hidden = !m.vk; tg.hidden = !m.telegram; form.hidden = !m.email;
+      if (!m.yandex && !m.vk && !m.telegram && !m.email) msgEl.textContent = 'Вход временно недоступен.';
 
       function sync() {
         var ok = consent.checked;
-        ya.setAttribute('aria-disabled', String(!ok));
-        ya.href = ok ? ACCT + '/auth/yandex?' + new URLSearchParams({ consent: '1', return: ret }) : '#';
+        [[ya, 'yandex'], [vk, 'vk']].forEach(function (w) {
+          w[0].setAttribute('aria-disabled', String(!ok));
+          w[0].href = ok ? ACCT + '/auth/' + w[1] + '?' + new URLSearchParams({ consent: '1', return: ret }) : '#';
+        });
       }
       consent.addEventListener('change', sync); sync();
-      ya.addEventListener('click', function (e) { if (!consent.checked) { e.preventDefault(); msgEl.textContent = 'Отметьте согласие на обработку данных.'; } });
+      [ya, vk].forEach(function (a) {
+        a.addEventListener('click', function (e) { if (!consent.checked) { e.preventDefault(); msgEl.textContent = 'Отметьте согласие на обработку данных.'; } });
+      });
 
       // Вход через бота: открываем Telegram по ссылке t.me/<бот>?start=<код>, человек подтверждает вход кнопкой в боте,
       // а эта страница раз в 2 секунды спрашивает сервер, готово ли
