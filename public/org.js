@@ -384,6 +384,29 @@
     if (before) before.parentNode.insertBefore(c, before); else parent.appendChild(c);
     return c;
   }
+  // Телефон: спокойные карточки свёрнуты до заголовка, карточки с предупреждениями (то, что снижает индекс) — открыты.
+  // Карточки дописываются по мере ответа сервера, поэтому следим за изменениями. Решение человека (открыл/закрыл) не трогаем.
+  var PHONE = window.matchMedia ? window.matchMedia('(max-width: 640px)') : { matches: false };
+  var RISKY = '.bad, .bad-note, .badge.bad, [style*="crit-line"]';
+  function foldCards() {
+    if (!PHONE.matches) return;
+    Array.prototype.forEach.call(out.querySelectorAll('.dcard:not(.span):not(.loading)'), function (c) {
+      var h = c.firstElementChild;
+      if (!h || h.tagName !== 'H2') return;
+      var risky = !!c.querySelector(RISKY);
+      if (!c.classList.contains('fold')) {
+        c.classList.add('fold');
+        h.setAttribute('role', 'button'); h.tabIndex = 0;
+        var flip = function () { c.dataset.touched = '1'; c.classList.toggle('shut'); h.setAttribute('aria-expanded', String(!c.classList.contains('shut'))); };
+        h.addEventListener('click', flip);
+        h.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(); } });
+        c.classList.toggle('shut', !risky);
+      } else if (!c.dataset.touched) c.classList.toggle('shut', !risky);   // предупреждение пришло позже — раскрываем
+      h.setAttribute('aria-expanded', String(!c.classList.contains('shut')));
+    });
+  }
+  var foldTimer;
+  if (window.MutationObserver && out) new MutationObserver(function () { clearTimeout(foldTimer); foldTimer = setTimeout(foldCards, 100); }).observe(out, { childList: true, subtree: true });
   function plural(n, a, b, c) { var m = n % 10, h = n % 100; return m === 1 && h !== 11 ? a : m >= 2 && m <= 4 && (h < 12 || h > 14) ? b : c; }
   function yearsAgo(ms) { var y = Math.floor((Date.now() - ms) / (365.25 * 864e5)); return y + ' ' + plural(y, 'год', 'года', 'лет'); }
 
