@@ -23,7 +23,8 @@ curl https://api.fin-check.shop/health   # должно быть "accounts":true
 
 - **DaData и Gemini** — те же, что сейчас на Render.
 - **Яндекс ID**: oauth.yandex.ru → «Создать приложение» → веб-сервисы.
-  Redirect URI: `https://api.fin-check.shop/auth/yandex/callback`. Доступы: «Доступ к логину, имени и фамилии»,
+  Redirect URI: `https://api.inn-sider.ru/auth/yandex/callback` — ровно `PUBLIC_API_URL` + `/auth/yandex/callback`
+  (иначе Яндекс отвечает 400 «redirect_uri не совпадает»; старый `https://api.fin-check.shop/…` можно оставить вторым). Доступы: «Доступ к логину, имени и фамилии»,
   «Доступ к адресу электронной почты». ClientID и Client secret → `YANDEX_CLIENT_ID`, `YANDEX_CLIENT_SECRET`.
 - **VK ID**: id.vk.com → «Создать приложение» → платформа «Web». Базовый домен — `inn-sider.ru`,
   доверенный Redirect URL: `https://api.inn-sider.ru/auth/vk/callback` (и `https://api.fin-check.shop/auth/vk/callback`,
