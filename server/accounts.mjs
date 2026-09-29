@@ -179,6 +179,9 @@ export function smtpMailer({ host, port = 465, user, pass, from }) {
 }
 
 /* ---------- модуль аккаунтов ---------- */
+export const TAX_SYSTEMS = Object.freeze(['usn', 'osn', 'psn', 'none']);
+export const isValidTaxSystem = (v) => TAX_SYSTEMS.includes(v);
+
 export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.now(), watchLimit = () => LIMITS.watch }) {
   const cfg = {
     site: (env.SITE_URL || 'https://inn-sider.ru').replace(/\/$/, ''),
@@ -196,6 +199,29 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
   const host = new URL(cfg.site).host;   // адрес сайта для текстов писем и сообщений бота
   const q = (sql) => db.prepare(sql);
   const secure = cfg.site.startsWith('https');
+
+  function ensureTaxSystemColumn() {
+    const cols = q('PRAGMA table_info(users)').all();
+    if (!cols.some((c) => c.name === 'tax_system')) {
+      db.exec(`ALTER TABLE users ADD COLUMN tax_system TEXT NOT NULL DEFAULT 'none'
+               CHECK (tax_system IN ('usn','osn','psn','none'))`);
+    }
+  }
+  ensureTaxSystemColumn();
+
+  function updateTaxSystem(userId, taxSystem) {
+    if (!isValidTaxSystem(taxSystem)) {
+      throw Object.assign(new Error('INVALID_TAX_SYSTEM'), { status: 400 });
+    }
+    const { changes } = q('UPDATE users SET tax_system = ? WHERE id = ?').run(taxSystem, userId);
+    if (!changes) throw Object.assign(new Error('USER_NOT_FOUND'), { status: 404 });
+    return q('SELECT id, email, name, inn, tax_system FROM users WHERE id = ?').get(userId);
+  }
+
+  function listUsersByTaxSystem(taxSystem) {
+    return q(`SELECT id, email, name FROM users
+              WHERE tax_system = ? AND email IS NOT NULL AND email <> ''`).all(taxSystem);
+  }
 
   function cookie(name, value, maxAgeSec) {
     return [`${name}=${value}`, 'Path=/', 'HttpOnly', 'SameSite=Lax', secure ? 'Secure' : '', cfg.cookieDomain ? `Domain=${cfg.cookieDomain}` : '', `Max-Age=${maxAgeSec}`].filter(Boolean).join('; ');
@@ -680,6 +706,15 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
       return send(res, 200, { ok: true }), true;
     }
 
+    if (p === '/api/profile/tax-system' && m === 'PATCH') {
+      try {
+        const result = updateTaxSystem(u.id, body?.tax_system);
+        return send(res, 200, { user: publicUser(result) }), true;
+      } catch (e) {
+        return send(res, e.status || 500, { error: e.message, allowed: TAX_SYSTEMS }), true;
+      }
+    }
+
     if (p === '/api/history') {
       if (m === 'GET') return send(res, 200, { items: q('SELECT inn, name, at FROM history WHERE user_id = ? ORDER BY at DESC').all(u.id) }), true;
       if (m === 'DELETE') { q('DELETE FROM history WHERE user_id = ?').run(u.id); return send(res, 200, { ok: true }), true; }
@@ -724,5 +759,5 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
     return true;
   }
 
-  return { handle, userOf, recordHistory, runWatch, scheduleWatch, runDigest, scheduleDigest, digestText, notify, runTaxReminders, scheduleTaxReminders, cfg };
+  return { handle, userOf, recordHistory, runWatch, scheduleWatch, runDigest, scheduleDigest, digestText, notify, runTaxReminders, scheduleTaxReminders, updateTaxSystem, listUsersByTaxSystem, cfg };
 }

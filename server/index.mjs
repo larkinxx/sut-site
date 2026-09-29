@@ -50,6 +50,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import cron from 'node-cron';
 import { FORBIDDEN } from '../src/lib/schema.mjs';
 import { openDb, createAccounts, smtpMailer } from './accounts.mjs';
 import { createBilling } from './billing.mjs';
@@ -828,6 +829,102 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
   };
 }
 
+/* ---------- Налоговый календарь: напоминания по email за 3 дня до сроков ---------- */
+const TZ = 'Europe/Moscow';
+const NOTIFY_DAYS_BEFORE = 3;
+const ALL_MONTHS = null;
+
+const TAX_DEADLINES = {
+  usn: [
+    { day: 25, months: [4, 7, 10], kind: 'notice',  title: 'Уведомление об исчисленных авансовых платежах по УСН' },
+    { day: 28, months: [3, 4, 7, 10], kind: 'payment', title: 'Уплата налога / авансового платежа по УСН (ЕНП)' },
+  ],
+  osn: [
+    { day: 25, months: ALL_MONTHS, kind: 'notice',  title: 'Уведомление об исчисленных налогах (НДФЛ, взносы)' },
+    { day: 28, months: ALL_MONTHS, kind: 'payment', title: 'Уплата ЕНП (НДС, НДФЛ, взносы, налог на прибыль)' },
+  ],
+  psn: [
+    { day: 25, months: ALL_MONTHS, kind: 'notice',  title: 'Уведомление по НДФЛ и взносам за работников' },
+    { day: 28, months: ALL_MONTHS, kind: 'payment', title: 'Уплата ЕНП (НДФЛ, взносы за работников)' },
+  ],
+};
+
+function mskToday() {
+  const [y, m, d] = new Intl.DateTimeFormat('en-CA', { timeZone: TZ })
+    .format(new Date()).split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d));
+}
+
+const addDays = (dt, n) => new Date(dt.getTime() + n * 86_400_000);
+const ymd = (dt) => dt.toISOString().slice(0, 10);
+
+function shiftToWorkday(dt) {
+  const wd = dt.getUTCDay();
+  return wd === 6 ? addDays(dt, 2) : wd === 0 ? addDays(dt, 1) : dt;
+}
+
+export function findDeadlinesOn(target) {
+  const key = ymd(target);
+  const periods = [0, -1].map((off) => {
+    const d = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + off, 1));
+    return { y: d.getUTCFullYear(), m: d.getUTCMonth() + 1 };
+  });
+  const found = [];
+  for (const [system, rules] of Object.entries(TAX_DEADLINES)) {
+    for (const rule of rules) {
+      for (const { y, m } of periods) {
+        if (rule.months && !rule.months.includes(m)) continue;
+        const due = shiftToWorkday(new Date(Date.UTC(y, m - 1, rule.day)));
+        if (ymd(due) === key) found.push({ system, ...rule, due });
+      }
+    }
+  }
+  return found;
+}
+
+function buildTaxMail(user, dl) {
+  const date = dl.due.toLocaleDateString('ru-RU', { timeZone: 'UTC' });
+  return {
+    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    to: user.email,
+    subject: `INNSIDER: ${dl.title} — до ${date}`,
+    text: `${user.name || 'Здравствуйте'}!\n\nЧерез ${NOTIFY_DAYS_BEFORE} дня наступает срок: ${dl.title}.\nКрайняя дата: ${date}.\n\nНастройки уведомлений — в профиле INNSIDER.`,
+  };
+}
+
+async function sendInBatches(mails, mailer, size = 20) {
+  let ok = 0, fail = 0;
+  for (let i = 0; i < mails.length; i += size) {
+    const res = await Promise.allSettled(mails.slice(i, i + size).map((m) => mailer(m)));
+    for (const r of res) r.status === 'fulfilled' ? ok++ : (fail++, console.error('[tax-cron] send failed:', r.reason?.message));
+  }
+  return { ok, fail };
+}
+
+let taxJobRunning = false;
+
+export async function runTaxReminderJob(accounts, mailer) {
+  if (!accounts || !mailer || taxJobRunning) return;
+  taxJobRunning = true;
+  try {
+    const deadlines = findDeadlinesOn(addDays(mskToday(), NOTIFY_DAYS_BEFORE));
+    for (const dl of deadlines) {
+      const users = accounts.listUsersByTaxSystem(dl.system);
+      if (!users.length) continue;
+      const { ok, fail } = await sendInBatches(users.map((u) => buildTaxMail(u, dl)), mailer);
+      console.log(`[tax-cron] ${dl.system}/${dl.kind} ${ymd(dl.due)}: sent=${ok} failed=${fail}`);
+    }
+  } catch (err) {
+    console.error('[tax-cron] job error:', err);
+  } finally {
+    taxJobRunning = false;
+  }
+}
+
+export function startTaxCron(accounts, mailer) {
+  return cron.schedule('0 9 * * *', () => runTaxReminderJob(accounts, mailer), { timezone: TZ });
+}
+
 // Запуск как программы (а не импорт из тестов)
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const cfg = config();
@@ -850,5 +947,6 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     accounts.scheduleTaxReminders();
     accounts.scheduleDigest((u) => bill.enabled && bill.isPro(u), { companyLine: (inn) => app.companyLine(inn) });
     bill.scheduleRenew();
+    if (process.env.TAX_CRON_ENABLED !== 'false') startTaxCron(accounts, mailer);
   }
 }
