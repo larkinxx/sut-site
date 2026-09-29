@@ -17,11 +17,45 @@
     window.goal(t.hasAttribute('data-plan') ? 'pay_click' : 'share');
   });
 
+  // ИНН или ОГРН из вставленного куска реквизитов («ИНН 7707083893 КПП 773601001 ОГРН …»): сначала номер с подписью,
+  // затем любое число нужной длины с верной контрольной цифрой. Счета (20 цифр), БИК и КПП (9) не подходят по длине.
+  function innOk(s) {
+    var d = s.split('').map(Number), c = function (k) { for (var i = 0, x = 0; i < k.length; i++) x += k[i] * d[i]; return (x % 11) % 10; };
+    if (d.length === 10) return c([2, 4, 10, 3, 5, 9, 4, 6, 8]) === d[9];
+    return d.length === 12 && c([7, 2, 4, 10, 3, 5, 9, 4, 6, 8]) === d[10] && c([3, 7, 2, 4, 10, 3, 5, 9, 4, 6, 8]) === d[11];
+  }
+  function ogrnOk(s) {
+    return (s.length === 13 && Number(s.slice(0, 12)) % 11 % 10 === Number(s[12])) || (s.length === 15 && Number(s.slice(0, 14)) % 13 % 10 === Number(s[14]));
+  }
+  window.innPick = function (text) {
+    var t = String(text || ''), m;
+    if (/^[\d\s]+$/.test(t)) return null;                                   // уже просто число — разбирает сама форма
+    if ((m = /ИНН[\s:№/]*(\d{12}|\d{10})(?!\d)/i.exec(t)) && innOk(m[1])) return { inn: m[1] };
+    if ((m = /ОГРН(?:ИП)?[\s:№]*(\d{15}|\d{13})(?!\d)/i.exec(t)) && ogrnOk(m[1])) return { ogrn: m[1] };
+    var nums = t.match(/\d+/g) || [];
+    for (var i = 0; i < nums.length; i++) if (innOk(nums[i])) return { inn: nums[i] };
+    for (i = 0; i < nums.length; i++) if (ogrnOk(nums[i])) return { ogrn: nums[i] };
+    return null;
+  };
+  window.ogrnOk = ogrnOk;
+  // вставили в поле поиска реквизиты целиком — оставляем в поле только найденный номер
+  document.addEventListener('paste', function (e) {
+    var inp = e.target;
+    if (!inp || !inp.matches || !inp.matches('#hero-inn, #org-inn')) return;
+    var p = window.innPick((e.clipboardData || window.clipboardData).getData('text'));
+    if (!p) return;
+    e.preventDefault();
+    inp.value = p.inn || p.ogrn;
+    inp.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+
   // Главная: поле «ИНН или название» в первом экране ведёт на страницу проверки
   var hero = document.getElementById('hero-org');
   if (hero) hero.addEventListener('submit', function (e) {
     e.preventDefault();
-    var v = document.getElementById('hero-inn').value.trim(), d = v.replace(/\s/g, '');
+    var v = document.getElementById('hero-inn').value.trim(), p = window.innPick(v);
+    if (p) v = p.inn || p.ogrn;
+    var d = v.replace(/\s/g, '');
     if (!v) { document.getElementById('hero-inn').focus(); return; }
     var base = hero.getAttribute('action');
     location.href = /^(\d{10}|\d{12})$/.test(d) ? (hero.getAttribute('data-pages') ? base + d + '/' : base + '#inn=' + d) : base + '#q=' + encodeURIComponent(v);

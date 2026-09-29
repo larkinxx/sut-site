@@ -1221,10 +1221,13 @@
 
   form.addEventListener('submit', function (ev) {
     ev.preventDefault();
+    // в поле вставили реквизиты целиком — берём из них ИНН или ОГРН (window.innPick — в app.js)
+    var picked = window.innPick && window.innPick(input.value);
+    if (picked) input.value = picked.inn || picked.ogrn;
     var inn = input.value.replace(/\s/g, '');
     out.textContent = '';
-    // в поле название, а не ИНН — ищем по названию и показываем список
-    if (sug && api && /[^\d]/.test(inn)) {
+    // в поле название или ОГРН, а не ИНН — ищем через подсказки и показываем список
+    if (sug && api && (/[^\d]/.test(inn) || (window.ogrnOk && window.ogrnOk(inn)))) {
       var q = input.value.trim();
       if (q.length < 3) { msg.textContent = 'Введите ИНН или хотя бы 3 буквы названия.'; return; }
       msg.textContent = 'Ищем по названию…';
