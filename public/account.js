@@ -131,6 +131,10 @@
         if (b.enabled) {
           var ps = section('Подписка INNSIDER Ultima');
           if (b.pro) {
+            // кабинет Ultima — «закрытый рабочий стол»: тёмная тема, если человек сам не выбрал светлую
+            var chosen = null; try { chosen = localStorage.getItem('theme'); } catch (e) {}
+            if (!chosen) document.documentElement.setAttribute('data-theme', 'dark');
+            document.body.classList.add('ultima');
             ps.appendChild(el('p', null, 'Действует до ' + dateRu(b.paid_until) + (b.autorenew ? ', затем продлится автоматически.' : '.')));
             if (b.autorenew) ps.appendChild(smallBtn('Отключить автопродление', function () {
               if (confirm('Отключить автопродление? Подписка доработает до ' + dateRu(b.paid_until) + '.')) api('POST', '/api/billing/autorenew', { on: false }).then(render);
@@ -177,7 +181,8 @@
 
         // Уведомления
         sec = section('Уведомления об изменениях');
-        var opts = [['telegram', 'В Telegram'], ['email', 'На почту'], ['none', 'Не присылать']];
+        var opts = [['telegram', 'В Telegram'], ['email', 'На почту'], ['none', 'Не присылать']]
+          .filter(function (o) { return o[0] !== 'telegram' || (me.methods && me.methods.telegram); });
         var fs = el('div', 'cab-notify');
         opts.forEach(function (o) {
           var lab = el('label'); var inp = el('input'); inp.type = 'radio'; inp.name = 'notify'; inp.value = o[0];

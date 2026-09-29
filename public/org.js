@@ -384,6 +384,32 @@
     if (before) before.parentNode.insertBefore(c, before); else parent.appendChild(c);
     return c;
   }
+  // Прогрессивное раскрытие: сразу видны шапка, индекс и разбор; тяжёлая фактура (отчётность, суды, реестры, люди) свёрнута
+  // до заголовка — на компьютере только она, на телефоне все спокойные карточки. Карточки с предупреждениями
+  // (то, что снижает индекс) всегда открыты.
+  // Карточки дописываются по мере ответа сервера, поэтому следим за изменениями. Решение человека (открыл/закрыл) не трогаем.
+  var PHONE = window.matchMedia ? window.matchMedia('(max-width: 640px)') : { matches: false };
+  var RISKY = '.bad, .bad-note, .badge.bad, [style*="crit-line"]';
+  var HEAVY = /Финансы|Отчётност|Суды|Арбитраж|Исполнительн|Виды деятельности|Отметки в реестрах|Руководство|Численность|Контакты|Филиал|закупк|Больше данных/i;
+  function foldCards() {
+    Array.prototype.forEach.call(out.querySelectorAll('.dcard:not(.span):not(.loading)'), function (c) {
+      var h = c.firstElementChild;
+      if (!h || h.tagName !== 'H2') return;
+      if (!PHONE.matches && !HEAVY.test(h.textContent)) return;
+      var risky = !!c.querySelector(RISKY);
+      if (!c.classList.contains('fold')) {
+        c.classList.add('fold');
+        h.setAttribute('role', 'button'); h.tabIndex = 0;
+        var flip = function () { c.dataset.touched = '1'; c.classList.toggle('shut'); h.setAttribute('aria-expanded', String(!c.classList.contains('shut'))); };
+        h.addEventListener('click', flip);
+        h.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(); } });
+        c.classList.toggle('shut', !risky);
+      } else if (!c.dataset.touched) c.classList.toggle('shut', !risky);   // предупреждение пришло позже — раскрываем
+      h.setAttribute('aria-expanded', String(!c.classList.contains('shut')));
+    });
+  }
+  var foldTimer;
+  if (window.MutationObserver && out) new MutationObserver(function () { clearTimeout(foldTimer); foldTimer = setTimeout(foldCards, 100); }).observe(out, { childList: true, subtree: true });
   function plural(n, a, b, c) { var m = n % 10, h = n % 100; return m === 1 && h !== 11 ? a : m >= 2 && m <= 4 && (h < 12 || h > 14) ? b : c; }
   function yearsAgo(ms) { var y = Math.floor((Date.now() - ms) / (365.25 * 864e5)); return y + ' ' + plural(y, 'год', 'года', 'лет'); }
 
@@ -1221,10 +1247,13 @@
 
   form.addEventListener('submit', function (ev) {
     ev.preventDefault();
+    // в поле вставили реквизиты целиком — берём из них ИНН или ОГРН (window.innPick — в app.js)
+    var picked = window.innPick && window.innPick(input.value);
+    if (picked) input.value = picked.inn || picked.ogrn;
     var inn = input.value.replace(/\s/g, '');
     out.textContent = '';
-    // в поле название, а не ИНН — ищем по названию и показываем список
-    if (sug && api && /[^\d]/.test(inn)) {
+    // в поле название или ОГРН, а не ИНН — ищем через подсказки и показываем список
+    if (sug && api && (/[^\d]/.test(inn) || (window.ogrnOk && window.ogrnOk(inn)))) {
       var q = input.value.trim();
       if (q.length < 3) { msg.textContent = 'Введите ИНН или хотя бы 3 буквы названия.'; return; }
       msg.textContent = 'Ищем по названию…';

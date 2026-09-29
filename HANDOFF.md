@@ -28,7 +28,7 @@ fin-check.shop — постоянный редирект на inn-sider.ru.
 | Сайт и API | Timeweb, облачный сервер `sut-api`, 5.129.207.51 (Ubuntu 24.04, Node, Caddy). Сайт — `deploy/site-build.sh` по cron каждые 10 мин; API — служба `sut-api`, адреса api.inn-sider.ru и api.fin-check.shop |
 | Настройки сервера | `/etc/sut/api.env`, `/etc/sut/site.env` (пример — `deploy/api.env.example`, инструкция — `deploy/README.md`) |
 | Обновление сервера | GitHub Actions «Сервер: команда» → `update`, только вручную после слияния в `main` |
-| Ретранслятор Telegram | Render, https://sut-api.onrender.com/tg (Timeweb не пускает к api.telegram.org; засыпает — первый вход до 30 с) |
+| Ретранслятор Telegram | Render, https://sut-api.onrender.com/tg — не используется, пока вход через Telegram выключен |
 | Разбор и «Юрист» | Алиса, Yandex AI Studio (`YANDEX_AI_KEY`, `YANDEX_FOLDER_ID`) |
 | Данные | DaData (кеш 7 дней), открытые данные ФНС (`/var/lib/sut/fns.db`, импорт 26-го), ГИР БО, DataNewton (суды, приставы) |
 | Новости | `.github/workflows/pipeline.yml` каждый час; ставка ЦБ — `scripts/rates.mjs` |
@@ -52,10 +52,13 @@ SSH — только ключом `~/.ssh/sut_timeweb` с Mac владельца
 ## 5. Вход в кабинет
 | Способ | Состояние |
 |---|---|
-| Telegram (бот @fin_check_sute_bot) | работает |
+| Telegram (бот @fin_check_sute_bot) | **выключен 29.09.2026** (вход и уведомления): трансграничная передача ПДн. Включается только `TELEGRAM_ACCOUNTS=1` в `/etc/sut/api.env` и после уведомления в Роскомнадзор (ч. 4 ст. 12 152-ФЗ). Новости в канал (`scripts/telegram.mjs`) — не ПДн, работают |
 | Почта (noreply@fin-check.shop, SMTP REG.RU) | включена; Timeweb открыл порты 25/465/587/2525 29.09.2026 (обращение N12741699). При смене конфигурации сервера могут закрыть снова — видно на дашборде |
 | Яндекс ID | ключи есть; в приложении oauth.yandex.ru нужен Redirect URI `https://api.inn-sider.ru/auth/yandex/callback` (иначе 400) |
 | VK ID | код готов (PR #30); нужно приложение на id.vk.com → `VK_CLIENT_ID` |
+
+## Налоговый календарь
+`/nalogi/kalendar/`: сроки считает `public/taxcal.js` (ЕНП: 25-е — уведомления и отчёты, 28-е — уплата; перенос на рабочий день, праздники ст. 112 ТК + известные переносы в `EXTRA_OFF` — **добавлять переносы правительства на каждый год**). Тот же файл грузит сервер (`TaxCal` в `server/accounts.mjs`): профиль в `users.tax`, письмо за 3 дня до срока каждый день после 09:00 МСК (`scheduleTaxReminders`).
 
 ## 6. За владельцем
 1. Запустить ЮKassa — без неё не работают Ultima, помощник юриста, сертификаты, сводки.
@@ -72,7 +75,7 @@ SSH — только ключом `~/.ssh/sut_timeweb` с Mac владельца
 2. Подарочная подписка Ultima — после запуска ЮKassa.
 3. Больше документов и разборов в «Юристе» по поисковым запросам.
 4. История изменений компании в карточке (снимки уже есть: таблица `snapshots`).
-5. Калькуляторы: налоговый вычет, пени, НДС на УСН, отпускные; налоговый календарь.
+5. Калькуляторы: налоговый вычет, пени, НДС на УСН, отпускные.
 
 ## 8. Ссылки
 - Стратегия «INNSIDER как модный дом»: https://claude.ai/artifact/5seLLVf5hF8L8eCQv9XSwp

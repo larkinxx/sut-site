@@ -22,6 +22,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import tls from 'node:tls';
+import vm from 'node:vm';
 
 const DAY = 864e5;
 const SESSION_DAYS = 90;
@@ -70,8 +71,28 @@ export function openDb(file) {
   // VK ID появился позже остальных способов входа: в старой базе добавляем столбец (UNIQUE — отдельным индексом)
   if (!db.prepare('PRAGMA table_info(users)').all().some((c) => c.name === 'vk_id')) db.exec('ALTER TABLE users ADD COLUMN vk_id TEXT');
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS users_vk_id ON users(vk_id)');
+  // налоговый календарь: профиль (режим, сотрудники…) — JSON; напоминания на почту за 3 дня до срока
+  if (!db.prepare('PRAGMA table_info(users)').all().some((c) => c.name === 'tax')) db.exec('ALTER TABLE users ADD COLUMN tax TEXT');
   return db;
 }
+
+/* ---------- налоговый календарь: те же правила, что на странице /nalogi/kalendar/ (public/taxcal.js) ---------- */
+export const TaxCal = (() => {
+  const sb = { module: { exports: {} } };
+  vm.runInNewContext(fs.readFileSync(new URL('../public/taxcal.js', import.meta.url), 'utf8'), sb);
+  return sb.module.exports;
+})();
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+export function taxProfile(x) {
+  if (!x || typeof x !== 'object') return null;
+  const who = x.who === 'ip' ? 'ip' : x.who === 'ul' ? 'ul' : null;
+  const regime = ['usn6', 'usn15', 'osn', 'psn'].includes(x.regime) ? x.regime : null;
+  if (!who || !regime || (regime === 'psn' && who !== 'ip')) return null;
+  const p = { who, regime, staff: !!x.staff, nds: !!x.nds && regime !== 'osn' };
+  if (regime === 'psn' && DATE_RE.test(x.patentFrom || '') && DATE_RE.test(x.patentTo || '')) { p.patentFrom = x.patentFrom; p.patentTo = x.patentTo; }
+  return p;
+}
+const DAY_RU = (iso) => new Date(iso + 'T12:00:00Z').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', timeZone: 'UTC' });
 
 /* ---------- слепок компании для слежения: только то, что важно контрагенту ---------- */
 const STATUS_RU = { ACTIVE: 'действует', LIQUIDATING: 'ликвидируется', LIQUIDATED: 'ликвидирована', BANKRUPT: 'банкротство', REORGANIZING: 'реорганизация' };
@@ -165,7 +186,9 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
     cookieDomain: env.COOKIE_DOMAIN || '',              // .inn-sider.ru — чтобы сессия была общей для сайта и api
     yandexId: env.YANDEX_CLIENT_ID || '', yandexSecret: env.YANDEX_CLIENT_SECRET || '',
     vkId: env.VK_CLIENT_ID || '',                       // приложение на id.vk.com; секрет не нужен — вход по PKCE
-    tgToken: env.TELEGRAM_BOT_TOKEN || '', tgBot: env.TELEGRAM_BOT_NAME || '',
+    // Вход и уведомления через Telegram выключены (29.09.2026): Telegram — трансграничная передача ПДн (ОАЭ, через Render в США).
+    // Включаются только явно: TELEGRAM_ACCOUNTS=1 — и тогда нужно отдельное уведомление в Роскомнадзор (ч. 4 ст. 12 152-ФЗ)
+    ...(env.TELEGRAM_ACCOUNTS === '1' ? { tgToken: env.TELEGRAM_BOT_TOKEN || '', tgBot: env.TELEGRAM_BOT_NAME || '' } : { tgToken: '', tgBot: '' }),
     // Timeweb не пускает сервер к api.telegram.org — ходим через наш сервер на Render (маршрут /tg/ в index.mjs)
     tgApi: (env.TELEGRAM_API_URL || (env.AI_UPSTREAM_URL ? env.AI_UPSTREAM_URL.replace(/\/$/, '') + '/tg' : 'https://api.telegram.org')).replace(/\/$/, ''),
     mailOn: !!mailer
@@ -218,13 +241,14 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
   const publicUser = (u) => ({
     name: u.name || (u.email ? u.email.split('@')[0] : 'Пользователь'), email: u.email || null,
     via: [u.yandex_id && 'yandex', u.vk_id && 'vk', u.telegram_id && 'telegram', u.email && 'email'].filter(Boolean),
-    company_inn: u.company_inn || null, notify: channelOf(u), can_telegram: !!u.telegram_id, can_email: !!u.email
+    company_inn: u.company_inn || null, tax: u.tax ? JSON.parse(u.tax) : null, notify: channelOf(u), can_telegram: !!(u.telegram_id && cfg.tgToken), can_email: !!u.email
   });
   function channelOf(u) {
+    const tg = !!(u.telegram_id && cfg.tgToken);   // без Telegram-входа уведомления идут на почту
     if (u.notify === 'none') return 'none';
-    if (u.notify === 'telegram' && u.telegram_id) return 'telegram';
+    if (u.notify === 'telegram' && tg) return 'telegram';
     if (u.notify === 'email' && u.email) return 'email';
-    return u.telegram_id ? 'telegram' : u.email ? 'email' : 'none';
+    return tg ? 'telegram' : u.email ? 'email' : 'none';
   }
 
   function redirect(res, to, setCookies = []) { res.writeHead(302, { Location: to, 'Set-Cookie': setCookies, 'Cache-Control': 'no-store' }); res.end(); }
@@ -401,6 +425,39 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
       }
     };
     return setInterval(() => tick().catch((e) => console.error('сводка', e.message)), 10 * 60e3);
+  }
+
+  // Налоговый календарь: письмо за 3 дня до срока — всем, кто сохранил режим, указал почту и не отключил уведомления
+  async function runTaxReminders(ahead = 3) {
+    const msk = new Date(now() + 3 * 3600e3);
+    const day = new Date(Date.UTC(msk.getUTCFullYear(), msk.getUTCMonth(), msk.getUTCDate() + ahead));
+    const next = new Date(day.getTime() + 864e5);
+    let sent = 0;
+    if (!mailer) return { sent };
+    for (const u of q("SELECT * FROM users WHERE tax IS NOT NULL AND email IS NOT NULL AND notify <> 'none'").all()) {
+      let items;
+      try { items = TaxCal.deadlines(JSON.parse(u.tax), day, next); } catch { continue; }
+      if (!items.length) continue;
+      const when = DAY_RU(TaxCal.iso(day));
+      const text = [`Через ${ahead} дня, ${when}, — сроки по вашему налоговому режиму:`, '', ...items.map((e) => '— ' + e.title), '',
+        'Уплата — единым налоговым платежом на ЕНС. Календарь целиком: ' + cfg.site + '/nalogi/kalendar/',
+        'Сроки общие по Налоговому кодексу; сверяйте их с nalog.gov.ru и своим бухгалтером.'].join('\n');
+      try { await mailer({ to: u.email, subject: `INNSIDER: налоговые сроки ${when}`, text: `${text}\n\n—\nINNSIDER · ${host}\nОтключить напоминания: ${cfg.site}/nalogi/kalendar/` }); sent++; }
+      catch (e) { console.error('календарь', u.id, e.message); }
+    }
+    return { sent };
+  }
+  // каждый день после 09:00 по Москве, один раз в сутки
+  function scheduleTaxReminders() {
+    const tick = async () => {
+      const msk = new Date(now() + 3 * 3600e3), today = msk.toISOString().slice(0, 10);
+      const last = q("SELECT value FROM meta WHERE key = 'tax_day'").get();
+      if (msk.getUTCHours() >= 9 && (!last || last.value !== today)) {
+        q("INSERT INTO meta (key, value) VALUES ('tax_day', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(today);
+        console.log(new Date().toISOString(), 'календарь:', JSON.stringify(await runTaxReminders()));
+      }
+    };
+    return setInterval(() => tick().catch((e) => console.error('календарь', e.message)), 10 * 60e3);
   }
 
   function recordHistory(u, inn, name) {
@@ -606,6 +663,11 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
         if (inn && !innValid(inn)) return send(res, 400, { error: 'Проверьте ИНН.' }), true;
         q('UPDATE users SET company_inn = ? WHERE id = ?').run(inn, u.id);
       }
+      if ('tax' in body) {
+        const t = body.tax === null ? null : taxProfile(body.tax);
+        if (body.tax !== null && !t) return send(res, 400, { error: 'Выберите форму бизнеса и налоговый режим.' }), true;
+        q('UPDATE users SET tax = ? WHERE id = ?').run(t ? JSON.stringify(t) : null, u.id);
+      }
       if ('notify' in body) {
         if (!['auto', 'telegram', 'email', 'none'].includes(body.notify)) return send(res, 400, { error: 'Неизвестный способ уведомлений.' }), true;
         q('UPDATE users SET notify = ? WHERE id = ?').run(body.notify, u.id);
@@ -662,5 +724,5 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
     return true;
   }
 
-  return { handle, userOf, recordHistory, runWatch, scheduleWatch, runDigest, scheduleDigest, digestText, notify, cfg };
+  return { handle, userOf, recordHistory, runWatch, scheduleWatch, runDigest, scheduleDigest, digestText, notify, runTaxReminders, scheduleTaxReminders, cfg };
 }
