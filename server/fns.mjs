@@ -32,6 +32,7 @@ export async function girbo(inn, fetchImpl) {
       profit: k(fr.current2400),
       assets: k(bal.current1600),
       equity: k(bal.current1300),
+      fixedAssets: k(bal.current1150),
       liabilities: bal.current1400 == null && bal.current1500 == null ? null : (k(bal.current1400) || 0) + (k(bal.current1500) || 0)
     });
   }
@@ -117,6 +118,18 @@ export async function pb(inn, fetchImpl, pause = 700) {
 /* ---------- открытые данные ФНС из нашей базы (только юрлица) ---------- */
 const yearOf = (d) => (d ? Number(String(d).slice(0, 4)) : null);
 const asOfRu = (d) => (d ? d.split('-').reverse().join('.') : null);
+
+/* ---------- проверка капитала и основных средств ---------- */
+const CAPITAL_THRESHOLD = 10_000;
+export function checkLowCapitalNoFixedAssets(charterCapital, yearData) {
+  const capital = num(charterCapital);
+  if (capital === null || capital > CAPITAL_THRESHOLD) return null;
+  if (!yearData || !Array.isArray(yearData) || yearData.length === 0) return null;
+  const latest = yearData[yearData.length - 1];
+  const fixedAssets = latest.fixedAssets;
+  if (fixedAssets === null || fixedAssets !== 0) return null;
+  return { code: 'LOW_CAPITAL_NO_FIXED_ASSETS', title: 'Капитал ≤10k ₽ без основных средств', year: latest.year };
+}
 export function openData(inn, db) {
   if (!db) return null;
   const q = (t) => db.prepare(`SELECT * FROM ${t} WHERE inn = ?`).get(inn);
