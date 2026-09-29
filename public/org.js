@@ -717,14 +717,6 @@
     var reg = d.state && d.state.registration_date ? new Date(d.state.registration_date) : null;
     if (reg && last && last.revenue > 5e7 && reg.getFullYear() === Number(last.year))
       add(true, 'Зарегистрирована ' + reg.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }) + ', и уже за ' + last.year + ' год выручка ' + money(last.revenue) + ': банки внимательнее к большим оборотам в первый год работы.');
-    // НДФЛ не соответствует численности (18-МР ЦБ): у организации НДФЛ на сотрудника за год меньше, чем с зарплаты в МРОТ
-    var mrot = FIN.mrot, ndfl = p && p.taxesPaid && (p.taxesPaid.items || []).filter(function (x) { return /доходы физических лиц/i.test(x.name); })[0];
-    var staffNow = p && p.employees && p.employees[0];
-    if (mrot && ndfl && staffNow && staffNow.n >= 2 && String(d.inn || '').length === 10 && String(staffNow.year) === String(p.taxesPaid.year)) {
-      var perHead = ndfl.sum / staffNow.n, floor = 0.13 * mrot.value * 12;
-      add(perHead < floor, 'НДФЛ за ' + p.taxesPaid.year + ' год — ' + money(ndfl.sum) + ' на ' + staffNow.n + ' сотрудников, ' + money(perHead) + ' на человека' +
-        (perHead < floor ? ': меньше, чем с зарплаты в МРОТ (' + money(floor) + ' в год). Банки сравнивают НДФЛ с численностью.' : '.'));
-    }
     if (p && p.massAddress) add(true, 'Адрес массовой регистрации.');
     if (d.invalid) add(true, 'В ЕГРЮЛ есть отметка о недостоверности сведений.');
     if (p && p.notReporting) add(true, 'Больше года не сдаёт налоговую отчётность.');
