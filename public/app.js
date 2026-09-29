@@ -194,7 +194,26 @@
   }
 
   /* ---------- Калькуляторы ---------- */
-  function num(root, name) { return parseFloat($('[name=' + name + ']', root).value); }
+  // суммы в рублях показываем с пробелами между разрядами (5 000 000): такие поля — текстовые, считаем по цифрам
+  var raw = function (v) { return String(v).replace(/[\s\u00a0\u202f]/g, '').replace(',', '.'); };
+  function num(root, name) { return parseFloat(raw($('[name=' + name + ']', root).value)); }
+  var groups = function (v) { var d = raw(v).replace(/[^\d]/g, ''); return d ? d.replace(/\B(?=(\d{3})+(?!\d))/g, ' ') : ''; };
+  function moneyField(i) {
+    i.type = 'text'; i.setAttribute('inputmode', 'numeric'); i.setAttribute('autocomplete', 'off');
+    i.value = groups(i.value);
+    i.addEventListener('input', function () {
+      // курсор остаётся после той же цифры, что и до вставки пробелов
+      var pos = i.selectionStart, before = i.value.slice(0, pos).replace(/[^\d]/g, '').length, v = groups(i.value);
+      if (v === i.value) return;
+      i.value = v;
+      for (var k = 0, seen = 0; k < v.length && seen < before; k++) if (/\d/.test(v[k])) seen++;
+      try { i.setSelectionRange(k, k); } catch (e) {}
+    });
+  }
+  $$('[data-calc] label.f').forEach(function (l) {
+    var i = $('input[type=number]', l);
+    if (i && /₽/.test(l.textContent)) moneyField(i);
+  });
 
   function annuity(S, years, ratePct) {
     var n = years * 12, r = ratePct / 100 / 12;
@@ -336,6 +355,45 @@
           row('Итого за год', rub(ipTotal)) + row('В среднем в месяц', rub(ipTotal / 12)) + '</div>' +
         '<p class="verdict">' + verdict + '</p>' +
         (inc > ip.ndsFrom ? '<p class="verdict warn">Доход больше ' + rub(ip.ndsFrom) + ' в год: на упрощёнке придётся платить ещё и НДС, он здесь не учтён.</p>' : '');
+    };
+    bind(root, run);
+  });
+
+  // Лимиты режимов: каждый режим — доход, сотрудники (и основные средства для УСН) против порогов из config/finance.json
+  $$('[data-calc=limits]').forEach(function (root) {
+    var out = $('.result', root);
+    var run = function () {
+      var r = FIN.regimes, npd = FIN.npd;
+      var who = $('[name=who]', root).value, inc = num(root, 'income'), staff = num(root, 'staff') || 0, assets = num(root, 'assets') || 0;
+      if (!r || !npd || !(inc >= 0)) { out.innerHTML = ''; return; }
+      var ip = who === 'ip';
+      // [название, доступен ли по форме, [[показатель, лимит, подпись]], что будет при превышении]
+      var modes = [
+        ['УСН', true, [[inc, r.usnIncomeLimit, 'доход'], [staff, r.usnEmployees, 'сотрудников']].concat(ip ? [] : [[assets, r.usnAssets, 'основные средства']]),   // лимит по основным средствам — только у организаций
+          'право на УСН теряется с начала квартала, в котором превышен лимит (п. 4 ст. 346.13 НК)'],
+        ['Патент', ip, [[inc, r.psnIncomeLimit, 'доход'], [staff, r.psnEmployees, 'сотрудников']],
+          'право на патент теряется с начала срока, на который он выдан (п. 6 ст. 346.45 НК)'],
+        ['Самозанятость', ip, [[inc, npd.limit, 'доход'], [staff, 0, 'сотрудников']],
+          'статус самозанятого теряется, в течение 20 дней нужно выбрать другой режим (ч. 6 ст. 15 закона № 422-ФЗ)'],
+        ['АУСН', true, [[inc, r.ausnIncomeLimit, 'доход'], [staff, r.ausnEmployees, 'сотрудников']],
+          'право на АУСН теряется, нужно перейти на другой режим; АУСН действует не во всех регионах']
+      ];
+      var fmt = function (v, lim, what) { return what !== 'сотрудников' ? rub(v) + ' из ' + rub(lim) : lim ? v + ' из ' + lim : v ? v + ', а нанимать нельзя' : 'нет, и нанимать нельзя'; };
+      var html = '';
+      modes.forEach(function (m) {
+        if (!m[1]) { html += '<div class="opt off"><h3>' + m[0] + '</h3><p class="note-sm">Только для ИП.</p></div>'; return; }
+        var over = m[2].filter(function (c) { return c[0] > c[1]; });
+        var near = m[2].filter(function (c) { return c[0] <= c[1] && c[1] > 0 && c[0] >= c[1] * 0.8; });
+        html += '<div class="opt' + (over.length ? ' off' : ' best') + '"><h3>' + m[0] + (over.length ? ' — не подходит' : ' — подходит') + '</h3>' +
+          m[2].map(function (c) { return row(c[2], fmt(c[0], c[1], c[2]), c[0] > c[1] ? 'bad' : ''); }).join('') +
+          (over.length ? '<p class="verdict warn">Если превысить в течение года: ' + m[3] + '.</p>'
+            : near.length ? '<p class="verdict warn">Близко к порогу: ' + near.map(function (c) { return c[2] + ' — ' + Math.round(c[0] / c[1] * 100) + '% лимита'; }).join(', ') + '.</p>' : '') +
+          '</div>';
+      });
+      var nds = inc > r.ndsFrom
+        ? 'Доход больше ' + rub(r.ndsFrom) + ': на упрощёнке нужно платить НДС. Если это доход прошлого года — весь этот год; если порог превышен в этом году — с 1-го числа следующего месяца. Ставку 5% или 7% вместо 20% можно выбрать, но без вычетов.'
+        : 'НДС на упрощёнке не нужен: доход не больше ' + rub(r.ndsFrom) + (inc >= r.ndsFrom * 0.8 ? ', но до порога осталось ' + rub(r.ndsFrom - inc) + '.' : '.');
+      out.innerHTML = html + '<p class="verdict' + (inc > r.ndsFrom ? ' warn' : '') + '"><b>НДС на УСН.</b> ' + nds + '</p>';
     };
     bind(root, run);
   });
@@ -546,7 +604,7 @@
   function linkFor(root) {
     var p = ['calc=' + encodeURIComponent(root.getAttribute('data-calc'))];
     fieldsOf(root).forEach(function (f) {
-      p.push(encodeURIComponent(f.name) + '=' + encodeURIComponent(f.type === 'checkbox' ? (f.checked ? '1' : '0') : f.value));
+      p.push(encodeURIComponent(f.name) + '=' + encodeURIComponent(f.type === 'checkbox' ? (f.checked ? '1' : '0') : raw(f.value)));
     });
     return location.origin + location.pathname + '#' + p.join('&');
   }
@@ -561,7 +619,7 @@
       fieldsOf(root).forEach(function (f) {
         if (!(f.name in hash)) return;
         if (f.type === 'checkbox') f.checked = hash[f.name] === '1';
-        else f.value = hash[f.name];
+        else f.value = f.type === 'text' && f.inputMode === 'numeric' ? groups(hash[f.name]) : hash[f.name];
         f.dispatchEvent(new Event('input'));
       });
       hash.calc = null; // только первый подходящий калькулятор на странице
@@ -608,7 +666,7 @@
         btn.addEventListener('click', function () {
           var h = $('h2', root);
           var vals = fieldsOf(root).filter(function (f) { return f.type !== 'checkbox'; }).slice(0, 2).map(function (f) {
-            return f.tagName === 'SELECT' ? f.value : new Intl.NumberFormat('ru-RU').format(Number(f.value) || 0);
+            return f.tagName === 'SELECT' ? f.value : new Intl.NumberFormat('ru-RU').format(Number(raw(f.value)) || 0);
           });
           btn.disabled = true;
           fetch(ACCT + '/api/calcs', {

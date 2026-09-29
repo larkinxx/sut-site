@@ -290,6 +290,22 @@ function calcSelfEmployed(id = '') {
 </section>`;
 }
 
+// Лимиты режимов: доход и сотрудники против порогов УСН, НДС на УСН, патента, НПД и АУСН (цифры — config/finance.json)
+function calcLimits(id = '') {
+  const r = FIN.regimes || {};
+  return `<section class="calc" data-calc="limits" aria-labelledby="cl${id}">
+  <h2 id="cl${id}">Проходите ли вы по лимитам на ${esc(String(r.year))} год</h2>
+  <div class="fields">
+    <label class="f">Форма<select name="who"><option value="ip">ИП</option><option value="ul">ООО</option></select></label>
+    <label class="f">Доход за год, ₽<input type="number" name="income" value="18000000" min="0" step="500000" inputmode="numeric"></label>
+    <label class="f">Сотрудников в среднем<input type="number" name="staff" value="3" min="0" step="1" inputmode="numeric"></label>
+    <label class="f">Основные средства (остаточная стоимость), ₽<input type="number" name="assets" value="0" min="0" step="1000000" inputmode="numeric"></label>
+  </div>
+  <div class="result lim" aria-live="polite"></div>
+  <p class="note-sm">Лимиты ${esc(String(r.year))} года: УСН — доход ${rubFmt(r.usnIncomeLimit)}, до ${r.usnEmployees} сотрудников, основные средства до ${rubFmt(r.usnAssets)}; НДС на УСН — с дохода больше ${rubFmt(r.ndsFrom)} (порог сохранён до 2029 года, закон от 04.07.2026 № 228-ФЗ); патент — ${rubFmt(r.psnIncomeLimit)} и до ${r.psnEmployees} сотрудников; самозанятость — ${rubFmt(FIN.npd.limit)} без сотрудников; АУСН — ${rubFmt(r.ausnIncomeLimit)} и до ${r.ausnEmployees} сотрудников, эксперимент до конца 2027 года и не во всех регионах. Доход — все поступления за календарный год, для патента — по видам деятельности на патенте и УСН вместе.</p>
+</section>`;
+}
+
 // Перспективы бизнеса: статистика похожих компаний с нашего сервера (server/market.mjs, POST /api/market)
 function calcProspects(id = '') {
   return `<section class="calc" data-calc="prospects" data-api="${esc(process.env.ORG_API_URL || '')}" aria-labelledby="cb${id}">
@@ -456,7 +472,10 @@ const CALCS = [
     lede: 'Посчитаем, какая часть процентов не облагается, сколько налога придёт в уведомлении и при какой сумме вкладов налога не будет.' },
   { slug: 'samozanyatyj-ili-ip', fn: calcSelfEmployed, title: 'Самозанятый или ИП: что выгоднее', short: 'Самозанятый или ИП',
     desc: 'Сравнение налогов самозанятого (НПД) и ИП на УСН 6% с учётом страховых взносов при вашем доходе.',
-    lede: 'Введите доход в месяц и долю оплат от компаний: сравним налог самозанятого и ИП на упрощёнке со взносами.' }
+    lede: 'Введите доход в месяц и долю оплат от компаний: сравним налог самозанятого и ИП на упрощёнке со взносами.' },
+  { slug: 'limity-rezhimov', fn: calcLimits, title: 'Лимиты налоговых режимов: УСН, НДС, патент, самозанятость, АУСН', short: 'Лимиты режимов',
+    desc: 'Проходит ли ваш бизнес по доходу и числу сотрудников на УСН, патенте, самозанятости и АУСН, и нужно ли платить НДС на упрощёнке.',
+    lede: 'Введите доход за год и число сотрудников: покажем, какие режимы вам доступны, где вы близко к порогу и что будет при превышении.' }
 ];
 // калькулятор перспектив работает через наш сервер — без него не показываем
 if (process.env.ORG_API_URL) CALCS.push({ slug: 'perspektivy-biznesa', fn: calcProspects, remote: true, title: 'Перспективы бизнеса: выручка, прибыль и окупаемость', short: 'Перспективы бизнеса',

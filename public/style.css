@@ -586,3 +586,8 @@ input[type=date]:focus,textarea:focus{outline:none;border-color:var(--ink)}
 .badge{border-radius:0}
 .badge.bad{color:var(--ink);border:0;border-left:2px solid var(--crit-line);padding:4px 0 4px 10px}
 .item .calc-link{display:inline-block;margin:0 18px 0 0}
+
+/* калькулятор лимитов режимов */
+.result.lim{grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+.result.lim>p{grid-column:1/-1}
+.result.lim .opt>div.bad strong{color:var(--crit-line)}
