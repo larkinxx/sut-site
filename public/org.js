@@ -713,6 +713,10 @@
       if (n <= 1) add(true, (n ? 'Один сотрудник' : 'Нет сотрудников') + ' при выручке ' + money(last.revenue) + ': банки смотрят, есть ли обычные расходы на персонал.');
       else add(false, 'Сотрудников: ' + n + '.');
     }
+    // короткий срок работы и большие обороты: зарегистрирована в том же году, за который уже выручка больше 50 млн ₽
+    var reg = d.state && d.state.registration_date ? new Date(d.state.registration_date) : null;
+    if (reg && last && last.revenue > 5e7 && reg.getFullYear() === Number(last.year))
+      add(true, 'Зарегистрирована ' + reg.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }) + ', и уже за ' + last.year + ' год выручка ' + money(last.revenue) + ': банки внимательнее к большим оборотам в первый год работы.');
     if (p && p.massAddress) add(true, 'Адрес массовой регистрации.');
     if (d.invalid) add(true, 'В ЕГРЮЛ есть отметка о недостоверности сведений.');
     if (p && p.notReporting) add(true, 'Больше года не сдаёт налоговую отчётность.');
