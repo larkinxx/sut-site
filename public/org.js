@@ -390,7 +390,7 @@
   // Карточки дописываются по мере ответа сервера, поэтому следим за изменениями. Решение человека (открыл/закрыл) не трогаем.
   var PHONE = window.matchMedia ? window.matchMedia('(max-width: 640px)') : { matches: false };
   var RISKY = '.bad, .bad-note, .badge.bad, [style*="crit-line"]';
-  var HEAVY = /Финансы|Отчётност|Суды|Арбитраж|Исполнительн|Виды деятельности|Отметки в реестрах|Руководство|Численность|Контакты|Филиал|закупк|Больше данных/i;
+  var HEAVY = /насторожить банк|Финансы|Отчётност|Суды|Арбитраж|Исполнительн|Виды деятельности|Отметки в реестрах|Руководство|Численность|Контакты|Филиал|закупк|Больше данных/i;
   function foldCards() {
     Array.prototype.forEach.call(out.querySelectorAll('.dcard:not(.span):not(.loading)'), function (c) {
       var h = c.firstElementChild;
@@ -696,6 +696,37 @@
     if (p && p.managerOtherCompanies) sig.push(['info', 'Руководитель связан ещё с ' + p.managerOtherCompanies + ' организаци' + (p.managerOtherCompanies === 1 ? 'ей' : 'ями') + '.']);
     if (p && p.offenseYears && p.offenseYears.length) sig.push(['info', 'Штрафы за налоговые правонарушения в ' + p.offenseYears.slice().sort().join(', ') + ' годах.']);
     sig.forEach(function (x) { box.appendChild(tip(x[0], x[1])); });
+    bankBlock(box, p, last);
+  }
+  // Что может насторожить банк (115-ФЗ): только факты из открытых данных, без оценки «риск N%» — решение принимает банк.
+  // Признаки — из методических рекомендаций Банка России № 18-МР (налоги не больше 0,9% оборота, нет расходов на персонал)
+  function bankBlock(after, p, last) {
+    var d = (IDX && IDX.d) || {}, facts = [], warn = 0;
+    var add = function (bad, text) { facts.push([bad ? 'warn' : 'ok', text]); if (bad) warn++; };
+    if (p && p.taxesPaid && last && last.revenue > 0 && String(p.taxesPaid.year) === String(last.year)) {
+      var share = p.taxesPaid.total / last.revenue * 100, pct = share.toLocaleString('ru-RU', { maximumFractionDigits: 2 }) + '%';
+      add(share < 0.9, 'Налоги за ' + last.year + ' год — ' + money(p.taxesPaid.total) + ', это ' + pct + ' выручки' +
+        (share < 0.9 ? '. Банки обращают внимание, когда налоги не больше 0,9% оборота.' : '.'));
+    }
+    if (p && p.employees && p.employees.length && last && last.revenue > 1e7) {
+      var n = p.employees[0].n;
+      if (n <= 1) add(true, (n ? 'Один сотрудник' : 'Нет сотрудников') + ' при выручке ' + money(last.revenue) + ': банки смотрят, есть ли обычные расходы на персонал.');
+      else add(false, 'Сотрудников: ' + n + '.');
+    }
+    if (p && p.massAddress) add(true, 'Адрес массовой регистрации.');
+    if (d.invalid) add(true, 'В ЕГРЮЛ есть отметка о недостоверности сведений.');
+    if (p && p.notReporting) add(true, 'Больше года не сдаёт налоговую отчётность.');
+    if (p && p.arrears) add(p.arrears.total > 0, p.arrears.total > 0 ? 'Налоговая задолженность ' + money(p.arrears.total) + '.' : 'Налоговой задолженности нет.');
+    if (!facts.length) return;
+    var c = el('section', 'dcard');
+    c.appendChild(el('h2', null, 'Что может насторожить банк'));
+    c.appendChild(el('p', 'note-sm', warn ? 'Факты из открытых данных. Блокировать ли счёт, решает банк по своим правилам (115-ФЗ); это не оценка риска.' : 'По открытым данным признаков, на которые обычно смотрят банки, не видно. Решение всё равно принимает банк.'));
+    facts.forEach(function (x) { c.appendChild(tip(x[0], x[1])); });
+    var more = el('p', 'note-sm');
+    more.appendChild(document.createTextNode('Группу риска компании (зелёная, жёлтая, красная) показывает сайт Банка России в разделе «Знай своего клиента». '));
+    var a = el('a', null, 'Как не попасть под блокировку'); a.href = '/nalogi/blokirovka-scheta/'; more.appendChild(a);
+    c.appendChild(more);
+    after.parentNode.insertBefore(c, after.nextSibling);
   }
   // Компания среди похожих: та же отрасль (две цифры ОКВЭД), регион и возраст — server/market.mjs
   // похожие компании той же отрасли и региона с близкими доходами — с кем ещё сравнить
