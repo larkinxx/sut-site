@@ -340,6 +340,45 @@
     bind(root, run);
   });
 
+  // Лимиты режимов: каждый режим — доход, сотрудники (и основные средства для УСН) против порогов из config/finance.json
+  $$('[data-calc=limits]').forEach(function (root) {
+    var out = $('.result', root);
+    var run = function () {
+      var r = FIN.regimes, npd = FIN.npd;
+      var who = $('[name=who]', root).value, inc = num(root, 'income'), staff = num(root, 'staff') || 0, assets = num(root, 'assets') || 0;
+      if (!r || !npd || !(inc >= 0)) { out.innerHTML = ''; return; }
+      var ip = who === 'ip';
+      // [название, доступен ли по форме, [[показатель, лимит, подпись]], что будет при превышении]
+      var modes = [
+        ['УСН', true, [[inc, r.usnIncomeLimit, 'доход'], [staff, r.usnEmployees, 'сотрудников']].concat(ip ? [] : [[assets, r.usnAssets, 'основные средства']]),   // лимит по основным средствам — только у организаций
+          'право на УСН теряется с начала квартала, в котором превышен лимит (п. 4 ст. 346.13 НК)'],
+        ['Патент', ip, [[inc, r.psnIncomeLimit, 'доход'], [staff, r.psnEmployees, 'сотрудников']],
+          'право на патент теряется с начала срока, на который он выдан (п. 6 ст. 346.45 НК)'],
+        ['Самозанятость', ip, [[inc, npd.limit, 'доход'], [staff, 0, 'сотрудников']],
+          'статус самозанятого теряется, в течение 20 дней нужно выбрать другой режим (ч. 6 ст. 15 закона № 422-ФЗ)'],
+        ['АУСН', true, [[inc, r.ausnIncomeLimit, 'доход'], [staff, r.ausnEmployees, 'сотрудников']],
+          'право на АУСН теряется, нужно перейти на другой режим; АУСН действует не во всех регионах']
+      ];
+      var fmt = function (v, lim, what) { return what !== 'сотрудников' ? rub(v) + ' из ' + rub(lim) : lim ? v + ' из ' + lim : v ? v + ', а нанимать нельзя' : 'нет, и нанимать нельзя'; };
+      var html = '';
+      modes.forEach(function (m) {
+        if (!m[1]) { html += '<div class="opt off"><h3>' + m[0] + '</h3><p class="note-sm">Только для ИП.</p></div>'; return; }
+        var over = m[2].filter(function (c) { return c[0] > c[1]; });
+        var near = m[2].filter(function (c) { return c[0] <= c[1] && c[1] > 0 && c[0] >= c[1] * 0.8; });
+        html += '<div class="opt' + (over.length ? ' off' : ' best') + '"><h3>' + m[0] + (over.length ? ' — не подходит' : ' — подходит') + '</h3>' +
+          m[2].map(function (c) { return row(c[2], fmt(c[0], c[1], c[2]), c[0] > c[1] ? 'bad' : ''); }).join('') +
+          (over.length ? '<p class="verdict warn">Если превысить в течение года: ' + m[3] + '.</p>'
+            : near.length ? '<p class="verdict warn">Близко к порогу: ' + near.map(function (c) { return c[2] + ' — ' + Math.round(c[0] / c[1] * 100) + '% лимита'; }).join(', ') + '.</p>' : '') +
+          '</div>';
+      });
+      var nds = inc > r.ndsFrom
+        ? 'Доход больше ' + rub(r.ndsFrom) + ': на упрощёнке нужно платить НДС. Если это доход прошлого года — весь этот год; если порог превышен в этом году — с 1-го числа следующего месяца. Ставку 5% или 7% вместо 20% можно выбрать, но без вычетов.'
+        : 'НДС на упрощёнке не нужен: доход не больше ' + rub(r.ndsFrom) + (inc >= r.ndsFrom * 0.8 ? ', но до порога осталось ' + rub(r.ndsFrom - inc) + '.' : '.');
+      out.innerHTML = html + '<p class="verdict' + (inc > r.ndsFrom ? ' warn' : '') + '"><b>НДС на УСН.</b> ' + nds + '</p>';
+    };
+    bind(root, run);
+  });
+
   // Перспективы бизнеса: статистика похожих компаний с сервера (POST /api/market), окупаемость считаем здесь
   function money(n) {
     if (n == null || !isFinite(n)) return '—';
