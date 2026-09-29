@@ -14,6 +14,7 @@ const PARTY = () => ({
     state: { status: party.status }, management: { name: 'Иванов И. И.' }, address: { value: 'г Москва' }, finance: { debt: party.debt, penalty: 0 } }
 });
 const mails = [], tgSent = [], tgQueue = [];
+let vkChallenge = '', vkEmail = 'Ivan@Example.ru';
 async function fakeFetch(url, opts = {}) {
   const u = String(url);
   if (u.includes('dadata')) {
@@ -28,6 +29,18 @@ async function fakeFetch(url, opts = {}) {
     assert.equal(opts.headers.Authorization, 'OAuth yt');
     return new Response(JSON.stringify({ id: '555', default_email: 'Ivan@Example.ru', real_name: 'Иван Петров' }));
   }
+  if (u === 'https://id.vk.com/oauth2/auth') {
+    const b = new URLSearchParams(opts.body);
+    assert.equal(b.get('code'), 'vk-code');
+    assert.equal(b.get('device_id'), 'dev1');
+    // проверочная строка PKCE должна совпасть с code_challenge из первого шага
+    assert.equal(crypto.createHash('sha256').update(b.get('code_verifier')).digest('base64url'), vkChallenge);
+    return new Response(JSON.stringify({ access_token: 'vt', user_id: 901 }));
+  }
+  if (u === 'https://id.vk.com/oauth2/user_info') {
+    assert.equal(new URLSearchParams(opts.body).get('access_token'), 'vt');
+    return new Response(JSON.stringify({ user: { user_id: '901', first_name: 'Анна', last_name: 'Смирнова', email: vkEmail } }));
+  }
   if (u.startsWith('https://api.telegram.org/')) {
     if (u.endsWith('/getUpdates')) return new Response(JSON.stringify({ ok: true, result: tgQueue.splice(0) }));
     tgSent.push(JSON.parse(opts.body)); return new Response(JSON.stringify({ ok: true, result: {} }));
@@ -38,7 +51,7 @@ const mailer = async (m) => { mails.push(m); };
 
 const env = {
   DADATA_TOKEN: 't', SITE_URL: SITE, PUBLIC_API_URL: 'http://api.localhost', ALLOWED_ORIGINS: SITE,
-  YANDEX_CLIENT_ID: 'yid', YANDEX_CLIENT_SECRET: 'ysec', TELEGRAM_BOT_TOKEN: BOT, TELEGRAM_BOT_NAME: 'sut_bot'
+  YANDEX_CLIENT_ID: 'yid', YANDEX_CLIENT_SECRET: 'ysec', VK_CLIENT_ID: 'vkid', TELEGRAM_BOT_TOKEN: BOT, TELEGRAM_BOT_NAME: 'sut_bot'
 };
 let clock = Date.UTC(2026, 8, 25, 6, 0);
 const db = openDb(':memory:');
@@ -67,7 +80,7 @@ try {
     const r = await call('GET', '/api/me');
     assert.equal(r.status, 200);
     assert.equal(r.json.user, null);
-    assert.deepEqual(r.json.methods, { yandex: true, telegram: 'sut_bot', email: true });
+    assert.deepEqual(r.json.methods, { yandex: true, vk: true, telegram: 'sut_bot', email: true });
     assert.equal((await call('GET', '/api/history')).status, 401);
   });
 
@@ -223,6 +236,49 @@ try {
     assert.equal(me.json.user.email, 'ivan@example.ru', 'тот же пользователь, что вошёл по почте');
     assert.deepEqual(me.json.user.via.sort(), ['email', 'yandex']);
     assert.equal(me.json.user.company_inn, '7707083893');
+  });
+
+  await t('вход через VK ID: PKCE, чужая почта не даёт войти в чужой аккаунт, привязка к вошедшему', async () => {
+    assert.match((await call('GET', '/auth/vk', { origin: null })).location, /oshibka/, 'без согласия');
+    const begin = async (cookie) => {
+      const r = await call('GET', '/auth/vk?consent=1&return=/kabinet/', { origin: null, cookie });
+      const to = new URL(r.location);
+      assert.equal(to.origin + to.pathname, 'https://id.vk.com/authorize');
+      assert.equal(to.searchParams.get('code_challenge_method'), 'S256');
+      assert.equal(to.searchParams.get('redirect_uri'), 'http://api.localhost/auth/vk/callback');
+      vkChallenge = to.searchParams.get('code_challenge');
+      const st = r.setCookie.find((c) => c.startsWith('sut_vk=')).split(';')[0];
+      return { state: to.searchParams.get('state'), cookie: [st, cookie].filter(Boolean).join('; ') };
+    };
+    let b = await begin();
+    assert.match((await call('GET', `/auth/vk/callback?code=vk-code&device_id=dev1&state=чужой`, { cookie: b.cookie, origin: null })).location, /oshibka/);
+    // почта из VK совпадает с уже зарегистрированной — это новый аккаунт без почты, а не вход в чужой
+    const fresh = await call('GET', `/auth/vk/callback?code=vk-code&device_id=dev1&state=${b.state}`, { cookie: b.cookie, origin: null });
+    assert.equal(fresh.location, SITE + '/kabinet/');
+    const me = await call('GET', '/api/me', { cookie: sessionOf(fresh.setCookie) });
+    assert.equal(me.json.user.name, 'Анна Смирнова');
+    assert.equal(me.json.user.email, null);
+    assert.deepEqual(me.json.user.via, ['vk']);
+    await call('DELETE', '/api/me', { cookie: sessionOf(fresh.setCookie) });
+    // вошедший по почте привязывает VK ID к своему аккаунту
+    b = await begin(emailCookie);
+    const linked = await call('GET', `/auth/vk/callback?code=vk-code&device_id=dev1&state=${b.state}`, { cookie: b.cookie, origin: null });
+    const me2 = await call('GET', '/api/me', { cookie: sessionOf(linked.setCookie) });
+    assert.equal(me2.json.user.email, 'ivan@example.ru');
+    assert.ok(me2.json.user.via.includes('vk'));
+  });
+
+  await t('старая база без столбца vk_id обновляется при запуске', async () => {
+    const { DatabaseSync } = await import('node:sqlite');
+    const fs = await import('node:fs'), os = await import('node:os'), path = await import('node:path');
+    const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'acc-')), 'old.db');
+    const old = new DatabaseSync(file);
+    old.exec("CREATE TABLE users (id INTEGER PRIMARY KEY, created_at INTEGER NOT NULL, consent_at INTEGER NOT NULL, last_seen INTEGER, name TEXT, email TEXT UNIQUE, yandex_id TEXT UNIQUE, telegram_id TEXT UNIQUE, company_inn TEXT, notify TEXT NOT NULL DEFAULT 'auto')");
+    old.close();
+    const up = openDb(file);
+    assert.ok(up.prepare('PRAGMA table_info(users)').all().some((c) => c.name === 'vk_id'));
+    openDb(file).close();   // второй запуск не падает
+    up.close();
   });
 
   await t('возврат только на свой сайт', async () => {

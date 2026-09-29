@@ -25,6 +25,9 @@ curl https://api.fin-check.shop/health   # должно быть "accounts":true
 - **Яндекс ID**: oauth.yandex.ru → «Создать приложение» → веб-сервисы.
   Redirect URI: `https://api.fin-check.shop/auth/yandex/callback`. Доступы: «Доступ к логину, имени и фамилии»,
   «Доступ к адресу электронной почты». ClientID и Client secret → `YANDEX_CLIENT_ID`, `YANDEX_CLIENT_SECRET`.
+- **VK ID**: id.vk.com → «Создать приложение» → платформа «Web». Базовый домен — `inn-sider.ru`,
+  доверенный Redirect URL: `https://api.inn-sider.ru/auth/vk/callback` (и `https://api.fin-check.shop/auth/vk/callback`,
+  если API открывают по старому адресу). В доступах включите почту. ID приложения → `VK_CLIENT_ID`; секрет не нужен.
 - **Telegram**: @BotFather → `/newbot` (или бот канала) → токен в `TELEGRAM_BOT_TOKEN`, имя бота без @ в
   `TELEGRAM_BOT_NAME`. Затем в @BotFather: `/setdomain` → `fin-check.shop` — без этого виджет входа не работает.
 - **Почта**: ящик для рассылки кодов (например, noreply@ на Яндекс Почте для домена). В настройках ящика
