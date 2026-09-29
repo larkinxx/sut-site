@@ -847,6 +847,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const bill = createBilling({ env, db, fetchImpl: globalThis.fetch, notify: (u, text) => accounts.notify(u, text, 'INNSIDER Ultima: подписка') });
     accounts.scheduleWatch((inn) => findParty(inn, cfg, globalThis.fetch),
       (inn, prev, uids) => app.watchExtra(inn, prev, bill.enabled && uids.some((id) => bill.isPro({ id }))));
+    accounts.scheduleTaxReminders();
     accounts.scheduleDigest((u) => bill.enabled && bill.isPro(u), { companyLine: (inn) => app.companyLine(inn) });
     bill.scheduleRenew();
   }

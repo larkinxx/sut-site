@@ -254,6 +254,22 @@ try {
     assert.equal(me.json.user.company_inn, '7707083893');
   });
 
+  await t('налоговый календарь: профиль в кабинете и письмо за 3 дня до срока', async () => {
+    assert.equal((await call('PATCH', '/api/me', { body: { tax: { who: 'ul', regime: 'psn' } }, cookie: emailCookie })).status, 400, 'патент только у ИП');
+    const ok = await call('PATCH', '/api/me', { body: { tax: { who: 'ip', regime: 'usn6', staff: true, extra: 'x' } }, cookie: emailCookie });
+    assert.deepEqual(ok.json.user.tax, { who: 'ip', regime: 'usn6', staff: true, nds: false });
+    // 25.09.2026 по Москве → через 3 дня, 28 сентября: НДФЛ за сотрудников и взносы за август
+    mails.length = 0;
+    assert.ok((await app.runTaxReminders()).sent >= 1);
+    const m = mails.find((x) => x.to === 'ivan@example.ru');
+    assert.match(m.subject, /28 сентября/);
+    assert.match(m.text, /НДФЛ за сотрудников .*взносы за август/);
+    mails.length = 0;
+    assert.equal((await app.runTaxReminders(4)).sent, 0, '29 сентября сроков нет');
+    await call('PATCH', '/api/me', { body: { tax: null }, cookie: emailCookie });
+    assert.equal((await app.runTaxReminders()).sent, 0, 'выключили — писем нет');
+  });
+
   await t('вход через VK ID: PKCE, чужая почта не даёт войти в чужой аккаунт, привязка к вошедшему', async () => {
     assert.match((await call('GET', '/auth/vk', { origin: null })).location, /oshibka/, 'без согласия');
     const begin = async (cookie) => {

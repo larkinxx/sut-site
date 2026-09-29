@@ -567,6 +567,7 @@ write('nalogi/index.html', layout({
 <p class="filters"><a class="chip" href="#biznesu">Бизнесу</a> <a class="chip" href="#fizlicam">Физлицам</a></p>
 <h2 class="label" id="biznesu" style="margin-top:24px">Бизнесу: компаниям и ИП</h2>
 <ul class="calcs">${taxList(TAX)}
+<li><a href="${url('/nalogi/kalendar/')}"><b>Налоговый календарь</b><span>Сроки налогов, взносов и отчётности на год вперёд для вашего режима — с напоминаниями на почту.</span></a></li>
 <li><a href="${url('/nalogi/blokirovka-scheta/')}"><b>Блокировка счёта по 115-ФЗ</b><span>За какие операции банки блокируют счета, как узнать свою зону риска на платформе ЦБ и как снять ограничения.</span></a></li>
 <li><a class="danger" href="${url('/nalogovye-shemy/')}"><b>Опасные схемы</b><span>Дробление бизнеса, «технические» компании, зарплата в конвертах и другое: как находят и чем заканчивается.</span></a></li></ul>
 <p class="note-sm">Советы для конкретной компании по данным реестра — в <a href="${url('/organizacii/')}">проверке организации по ИНН</a>.</p>
@@ -612,6 +613,32 @@ ${card('Если вы попали в базу по ошибке', [
   'Пока ограничения действуют, деньгами можно распоряжаться в отделении банка с паспортом.'
 ])}
 <p class="note-sm">Это не юридическая консультация. Правила сверены ${esc(new Date(FIN.checkedAt + 'T12:00:00+03:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Moscow' }))}.</p>
+</div>`
+}));
+
+// Налоговый календарь: сроки считает public/taxcal.js (его же использует сервер для напоминаний на почту)
+write('nalogi/kalendar/index.html', layout({
+  title: 'Налоговый календарь для бизнеса: сроки уплаты и отчётности', path: '/nalogi/kalendar/', current: 'tax',
+  desc: 'Сроки налогов, взносов и отчётности на 12 месяцев вперёд для ООО и ИП на УСН, ОСН и патенте, с сотрудниками и без. Напоминания на почту за 3 дня.',
+  scripts: `\n<script src="${url('/taxcal.js')}?v=${hashOf('taxcal.js')}" defer></script>\n<script src="${url('/kalendar.js')}?v=${hashOf('kalendar.js')}" defer></script>`,
+  body: `<a class="crumb" href="${url('/nalogi/')}">${icon('arrowLeft')} Налоги</a>
+<h1 class="page">Налоговый календарь</h1>
+<p class="lede">Выберите форму бизнеса и режим — покажем сроки уплаты и отчётности на 12 месяцев вперёд и сколько дней осталось до каждого.</p>
+<section class="calc" id="taxcal"${ACCT ? ` data-login="${url('/vhod/?return=/nalogi/kalendar/')}"` : ''}>
+  <div class="fields">
+    <label class="f">Форма<select name="who"><option value="ul">ООО</option><option value="ip">ИП</option></select></label>
+    <label class="f">Налоговый режим<select name="regime"><option value="usn6">УСН «Доходы»</option><option value="usn15">УСН «Доходы минус расходы»</option><option value="osn">Общая система (ОСН)</option><option value="psn">Патент (только ИП)</option></select></label>
+    <label class="f" data-psn hidden>Патент действует с<input type="date" name="patentFrom"></label>
+    <label class="f" data-psn hidden>по<input type="date" name="patentTo"></label>
+  </div>
+  <label class="consent"><input type="checkbox" name="staff"> Есть сотрудники</label>
+  <label class="consent" data-nds><input type="checkbox" name="nds"> Плачу НДС на упрощёнке (доход за прошлый год больше ${rubFmt(FIN.regimes.ndsFrom)})</label>
+  <div id="tc-remind" class="note-sm" aria-live="polite"></div>
+  <div class="result" id="tc-out" aria-live="polite"><p class="note-sm">Календарь считается в браузере — включите JavaScript.</p></div>
+</section>
+<div class="prose">
+<p class="note-sm">Налоги и взносы платятся единым налоговым платежом (ЕНП) на единый налоговый счёт. Уведомление об исчисленных суммах подают, когда срок уплаты наступает раньше срока декларации; по взносам и НДФЛ за сотрудников оно не нужно в месяце, за который уже сдан расчёт. Срок, выпавший на выходной или праздник, переносится на следующий рабочий день. Не показаны налоги на имущество, землю и транспорт, торговый сбор и отчёты в статистику — они зависят от вашего имущества и региона.</p>
+<p class="note-sm">Это общие сроки по Налоговому кодексу, а не консультация. Сверяйте их на nalog.gov.ru и со своим бухгалтером. Правила сверены ${esc(new Date(FIN.checkedAt + 'T12:00:00+03:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Moscow' }))}.</p>
 </div>`
 }));
 
@@ -1119,7 +1146,7 @@ if (!site.siteUrl.includes('example')) {
   // lastmod: у ленты — время свежей новости, у карточки — время последней правки; у статичных страниц не ставим
   const fresh = cards.length ? cards[0].publishedAt : '';
   const urls = [
-    ['/', fresh], ['/arhiv/', fresh], ['/kalkulyatory/'], ...CALCS.map((c) => [`/kalkulyatory/${c.slug}/`]), ['/organizacii/'], ['/indeks/'], ['/fizlica/'], ['/nalogi/'], ...[...TAX, ...TAX_P].map((t) => [`/nalogi/${t.slug}/`]), ['/nalogovye-shemy/'], ['/nalogi/blokirovka-scheta/'], ...(process.env.ORG_API_URL ? [['/prognoz/'], ['/sravnenie/']] : []), ...(COMPANY_PAGES ? [['/issledovaniya/'], ...STUDY_SLUGS.map((x) => [`/issledovaniya/${x}/`])] : []), ['/yurist/'], ['/yurist/dokumenty/'], ...LAW.map((g) => [`/yurist/${g.slug}/`]), ['/fizlica/dropy/'], ['/kak-my-rabotaem/'], ['/o-proekte/'], ['/pravovaya-informaciya/'], ...(POLICY ? [['/politika/']] : []), ...(ACCT && POLICY ? [['/tarify/'], ['/oferta/']] : []),
+    ['/', fresh], ['/arhiv/', fresh], ['/kalkulyatory/'], ...CALCS.map((c) => [`/kalkulyatory/${c.slug}/`]), ['/organizacii/'], ['/indeks/'], ['/fizlica/'], ['/nalogi/'], ...[...TAX, ...TAX_P].map((t) => [`/nalogi/${t.slug}/`]), ['/nalogovye-shemy/'], ['/nalogi/kalendar/'], ['/nalogi/blokirovka-scheta/'], ...(process.env.ORG_API_URL ? [['/prognoz/'], ['/sravnenie/']] : []), ...(COMPANY_PAGES ? [['/issledovaniya/'], ...STUDY_SLUGS.map((x) => [`/issledovaniya/${x}/`])] : []), ['/yurist/'], ['/yurist/dokumenty/'], ...LAW.map((g) => [`/yurist/${g.slug}/`]), ['/fizlica/dropy/'], ['/kak-my-rabotaem/'], ['/o-proekte/'], ['/pravovaya-informaciya/'], ...(POLICY ? [['/politika/']] : []), ...(ACCT && POLICY ? [['/tarify/'], ['/oferta/']] : []),
     ...cards.map((c) => [`/n/${c.id}/`, (c.review && c.review.at) || c.publishedAt])
   ];
   write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(([u, m]) => `<url><loc>${site.siteUrl}${u}</loc>${m ? `<lastmod>${new Date(m).toISOString()}</lastmod>` : ''}</url>`).join('\n')}\n</urlset>\n`);
