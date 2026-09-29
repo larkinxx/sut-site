@@ -384,15 +384,18 @@
     if (before) before.parentNode.insertBefore(c, before); else parent.appendChild(c);
     return c;
   }
-  // Телефон: спокойные карточки свёрнуты до заголовка, карточки с предупреждениями (то, что снижает индекс) — открыты.
+  // Прогрессивное раскрытие: сразу видны шапка, индекс и разбор; тяжёлая фактура (отчётность, суды, реестры, люди) свёрнута
+  // до заголовка — на компьютере только она, на телефоне все спокойные карточки. Карточки с предупреждениями
+  // (то, что снижает индекс) всегда открыты.
   // Карточки дописываются по мере ответа сервера, поэтому следим за изменениями. Решение человека (открыл/закрыл) не трогаем.
   var PHONE = window.matchMedia ? window.matchMedia('(max-width: 640px)') : { matches: false };
   var RISKY = '.bad, .bad-note, .badge.bad, [style*="crit-line"]';
+  var HEAVY = /Финансы|Отчётност|Суды|Арбитраж|Исполнительн|Виды деятельности|Отметки в реестрах|Руководство|Численность|Контакты|Филиал|закупк|Больше данных/i;
   function foldCards() {
-    if (!PHONE.matches) return;
     Array.prototype.forEach.call(out.querySelectorAll('.dcard:not(.span):not(.loading)'), function (c) {
       var h = c.firstElementChild;
       if (!h || h.tagName !== 'H2') return;
+      if (!PHONE.matches && !HEAVY.test(h.textContent)) return;
       var risky = !!c.querySelector(RISKY);
       if (!c.classList.contains('fold')) {
         c.classList.add('fold');

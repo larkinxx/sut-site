@@ -131,6 +131,10 @@
         if (b.enabled) {
           var ps = section('Подписка INNSIDER Ultima');
           if (b.pro) {
+            // кабинет Ultima — «закрытый рабочий стол»: тёмная тема, если человек сам не выбрал светлую
+            var chosen = null; try { chosen = localStorage.getItem('theme'); } catch (e) {}
+            if (!chosen) document.documentElement.setAttribute('data-theme', 'dark');
+            document.body.classList.add('ultima');
             ps.appendChild(el('p', null, 'Действует до ' + dateRu(b.paid_until) + (b.autorenew ? ', затем продлится автоматически.' : '.')));
             if (b.autorenew) ps.appendChild(smallBtn('Отключить автопродление', function () {
               if (confirm('Отключить автопродление? Подписка доработает до ' + dateRu(b.paid_until) + '.')) api('POST', '/api/billing/autorenew', { on: false }).then(render);

@@ -553,8 +553,8 @@ input[type=date]:focus,textarea:focus{outline:none;border-color:var(--ink)}
 @media print{.seal{color:#111}}
 .cmp-links{border-top:1px solid var(--ink);border-bottom:1px solid var(--line);padding:12px 0;margin:0 0 18px}.cmp-links ul{margin:6px 0 8px;padding-left:18px;display:grid;gap:4px}
 
-/* телефон: спокойные карточки проверки свёрнуты до заголовка (org.js → foldCards), в печати — всё раскрыто */
-@media screen and (max-width:640px){
+/* свёрнутые карточки проверки (org.js → foldCards): на телефоне — все спокойные, на компьютере — тяжёлая фактура; в печати всё раскрыто */
+@media screen{
   .dcard.fold>h2{cursor:pointer;display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:0!important}
   .dcard.fold>h2::after{content:'−';font:300 22px/1 var(--font-ui);flex:none}
   .dcard.fold.shut>h2::after{content:'+'}
@@ -575,3 +575,14 @@ input[type=date]:focus,textarea:focus{outline:none;border-color:var(--ink)}
 #tc-remind{margin:0 0 8px}
 #tc-remind .btn{margin-top:4px}
 @media (max-width:560px){.tc-items li{padding-left:0;text-indent:0}.tc-k{display:block;width:auto}}
+
+/* директива «анти-Rusprofile»: цифры одной высоты и ширины (ИНН, капитал, отчётность не «пляшут»), крупный поиск,
+   разбор — крупным текстом, статус без «кричащего» значка: тонкая бордовая черта вместо рамки */
+.dcard,.calc,.result,.idx,.tc-list,#org-inn,#hero-inn,.split-form input,.macro b,.fns-table,.bs-val{font-variant-numeric:lining-nums tabular-nums}
+.split-form input,#org-inn{font:400 26px/1.25 var(--font-display);padding:14px 2px;letter-spacing:.01em}
+.split-form input::placeholder,#org-inn::placeholder{font-family:var(--font-display)}
+#org-ai p,#org-ai li{font-size:17px;line-height:1.65}
+#org-ai>h2{font-size:30px!important}
+.badge{border-radius:0}
+.badge.bad{color:var(--ink);border:0;border-left:2px solid var(--crit-line);padding:4px 0 4px 10px}
+.item .calc-link{display:inline-block;margin:0 18px 0 0}

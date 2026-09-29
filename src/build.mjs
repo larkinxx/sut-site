@@ -169,6 +169,9 @@ const ICON_CHECK = icon('checkCircle');
 const cardUrl = (c) => url(`/n/${c.id}/`);
 const audNames = (c) => c.affects.map((a) => AUDIENCES[a].toLowerCase()).join(', ');
 
+// новость → калькулятор в один клик (поле calc в карточке новости, src/lib/schema.mjs → CALCS)
+const CALC_SLUG = { mortgage: 'kredit', prepay: 'dosrochnoe-pogashenie', deposit: 'vklad', depositTax: 'nalog-na-vklady', selfemployed: 'samozanyatyj-ili-ip' };
+const CALC_LABEL = { mortgage: 'Пересчитать платёж', prepay: 'Посчитать досрочное погашение', deposit: 'Посчитать вклад', depositTax: 'Посчитать налог на вклады', selfemployed: 'Сравнить НПД и ИП' };
 function feedItem(c) {
   const ts = Date.parse(c.publishedAt);
   return `<details class="item${c.critical ? ' crit' : ''}" data-ts="${ts}" data-affects="${esc(c.affects.join(' '))}">
@@ -182,7 +185,7 @@ function feedItem(c) {
     <p class="gloss">${esc(c.gloss)}</p>
     <p class="tip"><b>Что делать:</b> ${esc(c.tip)}</p>
     <span class="isrc">${esc(c.source.name)} · ${esc(audNames(c))}${c.review && c.review.auto ? ' · подготовлено автоматически' : ''}</span>
-    <a class="full" href="${cardUrl(c)}">Полный разбор ${icon('arrowRight')}</a>
+    ${c.calc && CALC_SLUG[c.calc] ? `<a class="full calc-link" href="${url(`/kalkulyatory/${CALC_SLUG[c.calc]}/`)}">${esc(CALC_LABEL[c.calc])} ${icon('arrowRight')}</a>` : ''}<a class="full" href="${cardUrl(c)}">Полный разбор ${icon('arrowRight')}</a>
   </div>
 </details>`;
 }
