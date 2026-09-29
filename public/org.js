@@ -369,6 +369,28 @@
     addLink('Реестр залогов на reestr-zalogov.ru', 'https://www.reestr-zalogov.ru/search/index', 'заложено ли имущество компании — движимые залоги, бесплатно и без регистрации');
     addLink('Список нелегалов Банка России', 'https://www.cbr.ru/inside/warning-list/', 'компании и сайты с признаками нелегальной деятельности на финансовом рынке: финансовые пирамиды, «чёрные» кредиторы и брокеры');
     addLink('Справочник участников финансового рынка', 'https://www.cbr.ru/finorg/', 'есть ли у банка, МФО, брокера или страховщика лицензия или запись в реестре ЦБ');
+    if (response.zsk?.inn) {
+      var li = el('li');
+      li.style.margin = '6px 0';
+      var a = document.createElement('a');
+      a.href = response.zsk.url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer external';
+      a.className = 'cbr-zsk-link';
+      a.textContent = 'Платформа ЗСК ЦБ';
+      a.title = 'ИНН ' + response.zsk.inn + ' будет скопирован — вставьте его в форму на сайте ЦБ';
+      a.dataset.inn = response.zsk.inn;
+      a.addEventListener('click', function(e) {
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(response.zsk.inn).then(function() {
+            showToast?.('ИНН ' + response.zsk.inn + ' скопирован');
+          });
+        }
+      });
+      li.appendChild(a);
+      li.appendChild(document.createTextNode(' — проверить компанию на платформе «Знай своего клиента»'));
+      ul.appendChild(li);
+    }
     wrap.appendChild(ul);
     return wrap;
   }

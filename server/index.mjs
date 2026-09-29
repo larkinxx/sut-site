@@ -51,6 +51,7 @@ import vm from 'node:vm';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import cron from 'node-cron';
+import { buildZskUrl } from '../shared/zsk.mjs';
 import { FORBIDDEN } from '../src/lib/schema.mjs';
 import { openDb, createAccounts, smtpMailer } from './accounts.mjs';
 import { createBilling } from './billing.mjs';
@@ -790,7 +791,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
         const u = accounts && accounts.userOf(req);
         if (u) accounts.recordHistory(u, inn, s.data?.name?.short_with_opf || s.value);
         admin.count('checks');
-        return send(res, 200, { suggestion: s, advice: advise(s.data || {}, now()), signedIn: !!u, pro: !!(billing && billing.enabled && billing.isPro(u)), billing: !!(billing && billing.enabled) });
+        return send(res, 200, { suggestion: s, advice: advise(s.data || {}, now()), zsk: buildZskUrl(inn), signedIn: !!u, pro: !!(billing && billing.enabled && billing.isPro(u)), billing: !!(billing && billing.enabled) });
       }
 
       // /api/org/ai
