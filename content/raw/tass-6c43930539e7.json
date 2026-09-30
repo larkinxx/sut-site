@@ -1,0 +1,14 @@
+{
+  "id": "tass-6c43930539e7",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Рубль на Мосбирже в сентябре подорожал по отношению к юаню на 3,04%",
+  "url": "https://tass.ru/ekonomika/28167681",
+  "publishedAt": "2026-09-30T16:48:08.000Z",
+  "text": "За месяц курс юаня снизился до 12,372 рубля",
+  "fetchedAt": "2026-09-30T19:18:30.875Z",
+  "drafted": false
+}

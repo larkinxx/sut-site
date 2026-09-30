@@ -1,0 +1,14 @@
+{
+  "id": "tass-42a9e40a5b4c",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Назван размер МРОТ на 2027 год",
+  "url": "https://tass.ru/ekonomika/28168001",
+  "publishedAt": "2026-09-30T19:04:35.000Z",
+  "text": "Он составит 28 935 рублей",
+  "fetchedAt": "2026-09-30T19:18:29.038Z",
+  "drafted": true
+}
