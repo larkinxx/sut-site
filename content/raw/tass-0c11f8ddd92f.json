@@ -1,0 +1,14 @@
+{
+  "id": "tass-0c11f8ddd92f",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Рынок акций РФ перешел к росту в начале основной торговой сессии",
+  "url": "https://tass.ru/ekonomika/28164689",
+  "publishedAt": "2026-09-30T06:02:49.000Z",
+  "text": "Курс юаня растет на 5,5 копейки, до 12,523 рубля",
+  "fetchedAt": "2026-09-30T06:42:20.288Z",
+  "drafted": false
+}
