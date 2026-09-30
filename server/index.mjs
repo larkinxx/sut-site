@@ -36,6 +36,12 @@
 //   ACCOUNTS_DB       — путь к файлу базы SQLite, например /var/lib/sut/sut.db
 //   SITE_URL, PUBLIC_API_URL, COOKIE_DOMAIN — https://inn-sider.ru, https://api.inn-sider.ru, .inn-sider.ru
 //   YANDEX_CLIENT_ID, YANDEX_CLIENT_SECRET   — приложение на oauth.yandex.ru
+//   VK_CLIENT_ID      — приложение на id.vk.com (вход через VK ID)
+//   TELEGRAM_BOT_TOKEN, TELEGRAM_BOT_NAME    — бот для входа и уведомлений
+//   TELEGRAM_API_URL  — через что ходить к Telegram. Timeweb не пускает к api.telegram.org, поэтому по умолчанию
+//                       AI_UPSTREAM_URL + '/tg' (наш сервер на Render), а без него — напрямую
+// Пересылка к Telegram (на Render, где нет аккаунтов): POST /tg/bot<токен>/<метод> — только методы бота INNSIDER;
+//   TELEGRAM_RELAY_BOTS — необязательно: номера ботов через запятую (часть токена до двоеточия), кому разрешена пересылка
 //   SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, MAIL_FROM — почта для кодов входа и уведомлений
 //
 // Запуск: node server/index.mjs   (зависимостей нет, нужен Node.js 22.13+ — для встроенной SQLite)
@@ -44,6 +50,8 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import cron from 'node-cron';
+import { buildZskUrl } from '../shared/zsk.mjs';
 import { FORBIDDEN } from '../src/lib/schema.mjs';
 import { openDb, createAccounts, smtpMailer } from './accounts.mjs';
 import { createBilling } from './billing.mjs';
@@ -497,6 +505,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
     perUserDay: Number(env.LAWYER_PER_DAY || 30), count: (m) => admin.count(m), now
   });
   const ipHits = new Map();
+  const relayHits = new Map();
   let day = { key: '', count: 0 };
 
   function cors(req, res) {
@@ -596,6 +605,24 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
   const certs = db ? createCerts({ env, db, now }) : null;   // сертификаты проверки (server/certs.mjs)
   const companyPages = createCompanyPages({ env, fdb, getParty: (inn) => getParty(inn, { fallback: false }), cachedParty, getMore: dnCached, now });
 
+  // Пересылка к api.telegram.org для нашего сервера в России. Секретов не хранит: токен приходит в адресе и дальше не пишется
+  async function relayTelegram(req, res, url) {
+    const m = /^\/tg\/bot(\d+):([\w-]+)\/(getUpdates|sendMessage|answerCallbackQuery|editMessageText|getMe)$/.exec(url.pathname);
+    if (req.method !== 'POST' || !m) return send(res, 404, { ok: false, description: 'Не найдено' });
+    const allowed = (env.TELEGRAM_RELAY_BOTS || '').split(',').map((x) => x.trim()).filter(Boolean);
+    if (allowed.length && !allowed.includes(m[1])) return send(res, 403, { ok: false, description: 'Бот не разрешён' });
+    const ip = ipOf(req), t = now();
+    const hits = (relayHits.get(ip) || []).filter((x) => t - x < 60e3);
+    if (hits.length >= 120) return send(res, 429, { ok: false, description: 'Слишком много запросов' });
+    hits.push(t); relayHits.set(ip, hits);
+    if (relayHits.size > 1000) relayHits.clear();
+    const body = await readBody(req, 16384);
+    const r = await fetchImpl(`https://api.telegram.org/bot${m[1]}:${m[2]}/${m[3]}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(45000)
+    });
+    return send(res, r.status, await r.json().catch(() => ({ ok: false, description: 'Telegram ' + r.status })));
+  }
+
   handler.watchExtra = watchExtra;
   // строка недельной сводки о компании пользователя: место среди сверстников и ссылка на прогноз
   handler.companyLine = (inn) => {
@@ -614,6 +641,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
       if (req.method === 'GET' && (url.pathname === '/health' || url.pathname === '/')) {
         return send(res, 200, { ok: true, dadata: !!cfg.dadataToken, dadataToday: dadataDay.n, datanewtonToday: dn.used(), ai: aiProvider(cfg), accounts: !!accounts, datanewton: !!cfg.dnKey });
       }
+      if (!accounts && url.pathname.startsWith('/tg/')) return relayTelegram(req, res, url);
       // адрес API роботам не нужен: Google и Яндекс не станут вызывать его, открывая страницы
       if (req.method === 'GET' && url.pathname === '/robots.txt') {   // robots.txt самого сайта отдаёт Caddy из статики
         res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
@@ -695,6 +723,17 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
         const m = marketStats(fdb, { okved: body.okved, region: body.region });
         return send(res, 200, m ? { available: true, ...m } : { available: false });
       }
+
+      // финансы и налоги по открытым данным ФНС — тоже без DaData
+      if (url.pathname === '/api/org/fns') {
+        const body = await readBody(req);
+        const inn = String(body.inn || '').replace(/\s/g, '');
+        if (!innValid(inn)) return send(res, 400, { error: 'Проверьте ИНН: у организации 10 цифр, у ИП 12, и контрольные цифры должны сходиться.' });
+        let f = fnsCache.get(inn);
+        if (!f) { f = await fnsData(inn, fetchImpl, fnsPause, fdb, now); if (f.pb || f.bo) fnsCache.set(inn, f); }
+        return send(res, 200, { ...f, peers: orgPeers(fdb, inn), similar: similarCompanies(fdb, inn) });
+      }
+
       if (!cfg.dadataToken) return send(res, 503, { error: 'Проверка организаций не подключена.' });
 
       if (isBot(req)) return send(res, 403, { error: 'Проверка доступна в браузере.' });
@@ -750,12 +789,6 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
         return send(res, 200, { available: true, ...k });
       }
 
-      if (url.pathname === '/api/org/fns') {
-        let f = fnsCache.get(inn);
-        if (!f) { f = await fnsData(inn, fetchImpl, fnsPause, fdb, now); if (f.pb || f.bo) fnsCache.set(inn, f); }
-        return send(res, 200, { ...f, peers: orgPeers(fdb, inn), similar: similarCompanies(fdb, inn) });
-      }
-
       const s = await getParty(inn);
       if (!s) return send(res, 404, { error: 'По этому ИНН ничего не найдено.' });
 
@@ -763,7 +796,7 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
         const u = accounts && accounts.userOf(req);
         if (u) accounts.recordHistory(u, inn, s.data?.name?.short_with_opf || s.value);
         admin.count('checks');
-        return send(res, 200, { suggestion: s, advice: advise(s.data || {}, now()), signedIn: !!u, pro: !!(billing && billing.enabled && billing.isPro(u)), billing: !!(billing && billing.enabled) });
+        return send(res, 200, { suggestion: s, advice: advise(s.data || {}, now()), zsk: buildZskUrl(inn), signedIn: !!u, pro: !!(billing && billing.enabled && billing.isPro(u)), billing: !!(billing && billing.enabled) });
       }
 
       // /api/org/ai
@@ -802,6 +835,102 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
   };
 }
 
+/* ---------- Налоговый календарь: напоминания по email за 3 дня до сроков ---------- */
+const TZ = 'Europe/Moscow';
+const NOTIFY_DAYS_BEFORE = 3;
+const ALL_MONTHS = null;
+
+const TAX_DEADLINES = {
+  usn: [
+    { day: 25, months: [4, 7, 10], kind: 'notice',  title: 'Уведомление об исчисленных авансовых платежах по УСН' },
+    { day: 28, months: [3, 4, 7, 10], kind: 'payment', title: 'Уплата налога / авансового платежа по УСН (ЕНП)' },
+  ],
+  osn: [
+    { day: 25, months: ALL_MONTHS, kind: 'notice',  title: 'Уведомление об исчисленных налогах (НДФЛ, взносы)' },
+    { day: 28, months: ALL_MONTHS, kind: 'payment', title: 'Уплата ЕНП (НДС, НДФЛ, взносы, налог на прибыль)' },
+  ],
+  psn: [
+    { day: 25, months: ALL_MONTHS, kind: 'notice',  title: 'Уведомление по НДФЛ и взносам за работников' },
+    { day: 28, months: ALL_MONTHS, kind: 'payment', title: 'Уплата ЕНП (НДФЛ, взносы за работников)' },
+  ],
+};
+
+function mskToday() {
+  const [y, m, d] = new Intl.DateTimeFormat('en-CA', { timeZone: TZ })
+    .format(new Date()).split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d));
+}
+
+const addDays = (dt, n) => new Date(dt.getTime() + n * 86_400_000);
+const ymd = (dt) => dt.toISOString().slice(0, 10);
+
+function shiftToWorkday(dt) {
+  const wd = dt.getUTCDay();
+  return wd === 6 ? addDays(dt, 2) : wd === 0 ? addDays(dt, 1) : dt;
+}
+
+export function findDeadlinesOn(target) {
+  const key = ymd(target);
+  const periods = [0, -1].map((off) => {
+    const d = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + off, 1));
+    return { y: d.getUTCFullYear(), m: d.getUTCMonth() + 1 };
+  });
+  const found = [];
+  for (const [system, rules] of Object.entries(TAX_DEADLINES)) {
+    for (const rule of rules) {
+      for (const { y, m } of periods) {
+        if (rule.months && !rule.months.includes(m)) continue;
+        const due = shiftToWorkday(new Date(Date.UTC(y, m - 1, rule.day)));
+        if (ymd(due) === key) found.push({ system, ...rule, due });
+      }
+    }
+  }
+  return found;
+}
+
+function buildTaxMail(user, dl) {
+  const date = dl.due.toLocaleDateString('ru-RU', { timeZone: 'UTC' });
+  return {
+    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    to: user.email,
+    subject: `INNSIDER: ${dl.title} — до ${date}`,
+    text: `${user.name || 'Здравствуйте'}!\n\nЧерез ${NOTIFY_DAYS_BEFORE} дня наступает срок: ${dl.title}.\nКрайняя дата: ${date}.\n\nНастройки уведомлений — в профиле INNSIDER.`,
+  };
+}
+
+async function sendInBatches(mails, mailer, size = 20) {
+  let ok = 0, fail = 0;
+  for (let i = 0; i < mails.length; i += size) {
+    const res = await Promise.allSettled(mails.slice(i, i + size).map((m) => mailer(m)));
+    for (const r of res) r.status === 'fulfilled' ? ok++ : (fail++, console.error('[tax-cron] send failed:', r.reason?.message));
+  }
+  return { ok, fail };
+}
+
+let taxJobRunning = false;
+
+export async function runTaxReminderJob(accounts, mailer) {
+  if (!accounts || !mailer || taxJobRunning) return;
+  taxJobRunning = true;
+  try {
+    const deadlines = findDeadlinesOn(addDays(mskToday(), NOTIFY_DAYS_BEFORE));
+    for (const dl of deadlines) {
+      const users = accounts.listUsersByTaxSystem(dl.system);
+      if (!users.length) continue;
+      const { ok, fail } = await sendInBatches(users.map((u) => buildTaxMail(u, dl)), mailer);
+      console.log(`[tax-cron] ${dl.system}/${dl.kind} ${ymd(dl.due)}: sent=${ok} failed=${fail}`);
+    }
+  } catch (err) {
+    console.error('[tax-cron] job error:', err);
+  } finally {
+    taxJobRunning = false;
+  }
+}
+
+export function startTaxCron(accounts, mailer) {
+  return cron.schedule('0 9 * * *', () => runTaxReminderJob(accounts, mailer), { timezone: TZ });
+}
+
 // Запуск как программы (а не импорт из тестов)
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const cfg = config();
@@ -821,7 +950,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const bill = createBilling({ env, db, fetchImpl: globalThis.fetch, notify: (u, text) => accounts.notify(u, text, 'INNSIDER Ultima: подписка') });
     accounts.scheduleWatch((inn) => findParty(inn, cfg, globalThis.fetch),
       (inn, prev, uids) => app.watchExtra(inn, prev, bill.enabled && uids.some((id) => bill.isPro({ id }))));
+    accounts.scheduleTaxReminders();
     accounts.scheduleDigest((u) => bill.enabled && bill.isPro(u), { companyLine: (inn) => app.companyLine(inn) });
     bill.scheduleRenew();
+    if (process.env.TAX_CRON_ENABLED !== 'false') startTaxCron(accounts, mailer);
   }
 }

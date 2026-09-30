@@ -47,6 +47,16 @@ inn-sider.ru {
 			rewrite * /404.html
 			file_server
 		}
+		# сервер сайта не отвечает (перезапуск, сбой): без этого Caddy отдаёт пустой 502 без типа, и iPhone предлагает «скачать файл»
+		@unavailable expression {err.status_code} >= 500
+		handle @unavailable {
+			root * /var/www/fin-check.shop
+			rewrite * /503.html
+			header Cache-Control "no-store"
+			file_server {
+				status {err.status_code}
+			}
+		}
 	}
 }
 www.inn-sider.ru {

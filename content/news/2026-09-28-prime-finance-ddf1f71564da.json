@@ -1,0 +1,35 @@
+{
+  "id": "2026-09-28-prime-finance-ddf1f71564da",
+  "status": "draft",
+  "publishedAt": "2026-09-28T19:25:59.000Z",
+  "source": {
+    "name": "Прайм",
+    "url": "https://1prime.ru/20260928/telegram-873739923.html"
+  },
+  "title": "Мошенники в Telegram крадут аккаунты Apple ID под видом установки приложений",
+  "highlight": "крадут аккаунты Apple ID под видом установки приложений",
+  "summary": "В Telegram появились каналы, которые обещают помочь скачать удаленные из App Store приложения или несуществующий RuStore для iPhone. Пользователей просят выйти из своего Apple ID и войти в чужой аккаунт по чужим учетным данным. После этого мошенники блокируют устройство через функцию «Найти iPhone», удаляют все данные и лишают человека доступа к его телефону и аккаунту.",
+  "gloss": "Apple ID — это учетная запись для устройств Apple, потеря доступа к которой приводит к полной блокировке телефона.",
+  "tip": "Никогда не вводите чужие логины и пароли Apple ID на своем смартфоне и не верьте рекламе RuStore для iOS.",
+  "critical": true,
+  "affects": [
+    "all"
+  ],
+  "audiences": {},
+  "calc": null,
+  "confidence": "high",
+  "confidenceNote": "",
+  "topics": [
+    "discipline",
+    "habits",
+    "focus"
+  ],
+  "review": {
+    "by": null,
+    "at": null
+  },
+  "ai": {
+    "model": "gemini:gemini-3.6-flash",
+    "generatedAt": "2026-09-28T22:01:48.734Z"
+  }
+}

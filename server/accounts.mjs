@@ -1,10 +1,15 @@
-// Аккаунты INNSIDER: необязательный вход (Яндекс ID, код на почту), кабинет и слежение за компаниями.
-// Почта и Яндекс ID — персональные данные: по 152-ФЗ храним их только на сервере в России
+// Аккаунты INNSIDER: необязательный вход (Яндекс ID, VK ID, Telegram, код на почту), кабинет и слежение за компаниями.
+// Почта, Яндекс ID, VK ID и Telegram ID — персональные данные: по 152-ФЗ храним их только на сервере в России
 // (Timeweb), поэтому модуль включается переменной ACCOUNTS_DB и не работает на Render.
 //
 // Маршруты (все ответы JSON, кроме переходов входа):
 //   GET  /auth/yandex?return=/kabinet/&consent=1   — переход на oauth.yandex.ru
 //   GET  /auth/yandex/callback                      — возврат от Яндекса, ставит сессию и ведёт обратно на сайт
+//   GET  /auth/vk?return=/kabinet/&consent=1       — переход на id.vk.com (OAuth 2.1 с PKCE)
+//   GET  /auth/vk/callback                          — возврат от VK ID
+//   POST /auth/telegram/start {consent}             — вход через бота: ссылка t.me/<бот>?start=<код>
+//   GET  /auth/telegram/status?nonce=…              — сайт ждёт, пока человек подтвердит вход в боте
+//   GET  /auth/telegram/callback?...&consent=1      — возврат от виджета Telegram Login (старый способ)
 //   POST /auth/email/start   {email}                — отправить код на почту
 //   POST /auth/email/verify  {email, code, consent} — войти по коду
 //   POST /auth/logout
@@ -17,6 +22,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import tls from 'node:tls';
+import vm from 'node:vm';
 
 const DAY = 864e5;
 const SESSION_DAYS = 90;
@@ -24,6 +30,7 @@ const LIMITS = { history: 200, watch: 50, calcs: 50 };
 const sha = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');
 const token = () => crypto.randomBytes(32).toString('base64url');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const TG_LOGIN_TTL = 10 * 60e3;
 
 /* ---------- база ---------- */
 export function openDb(file) {
@@ -61,8 +68,31 @@ export function openDb(file) {
     );
     CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
   `);
+  // VK ID появился позже остальных способов входа: в старой базе добавляем столбец (UNIQUE — отдельным индексом)
+  if (!db.prepare('PRAGMA table_info(users)').all().some((c) => c.name === 'vk_id')) db.exec('ALTER TABLE users ADD COLUMN vk_id TEXT');
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS users_vk_id ON users(vk_id)');
+  // налоговый календарь: профиль (режим, сотрудники…) — JSON; напоминания на почту за 3 дня до срока
+  if (!db.prepare('PRAGMA table_info(users)').all().some((c) => c.name === 'tax')) db.exec('ALTER TABLE users ADD COLUMN tax TEXT');
   return db;
 }
+
+/* ---------- налоговый календарь: те же правила, что на странице /nalogi/kalendar/ (public/taxcal.js) ---------- */
+export const TaxCal = (() => {
+  const sb = { module: { exports: {} } };
+  vm.runInNewContext(fs.readFileSync(new URL('../public/taxcal.js', import.meta.url), 'utf8'), sb);
+  return sb.module.exports;
+})();
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+export function taxProfile(x) {
+  if (!x || typeof x !== 'object') return null;
+  const who = x.who === 'ip' ? 'ip' : x.who === 'ul' ? 'ul' : null;
+  const regime = ['usn6', 'usn15', 'osn', 'psn'].includes(x.regime) ? x.regime : null;
+  if (!who || !regime || (regime === 'psn' && who !== 'ip')) return null;
+  const p = { who, regime, staff: !!x.staff, nds: !!x.nds && regime !== 'osn' };
+  if (regime === 'psn' && DATE_RE.test(x.patentFrom || '') && DATE_RE.test(x.patentTo || '')) { p.patentFrom = x.patentFrom; p.patentTo = x.patentTo; }
+  return p;
+}
+const DAY_RU = (iso) => new Date(iso + 'T12:00:00Z').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', timeZone: 'UTC' });
 
 /* ---------- слепок компании для слежения: только то, что важно контрагенту ---------- */
 const STATUS_RU = { ACTIVE: 'действует', LIQUIDATING: 'ликвидируется', LIQUIDATED: 'ликвидирована', BANKRUPT: 'банкротство', REORGANIZING: 'реорганизация' };
@@ -101,6 +131,19 @@ export function diffSnapshots(a, b) {
   return out;
 }
 
+/* ---------- Telegram Login: проверка подписи виджета ---------- */
+export function telegramCheck(params, botToken, now = Date.now()) {
+  const { hash, ...rest } = params;
+  if (!hash || !botToken) return null;
+  const fields = ['id', 'first_name', 'last_name', 'username', 'photo_url', 'auth_date'];
+  const check = fields.filter((k) => rest[k] != null && rest[k] !== '').sort().map((k) => `${k}=${rest[k]}`).join('\n');
+  const secret = crypto.createHash('sha256').update(botToken).digest();
+  const hmac = crypto.createHmac('sha256', secret).update(check).digest('hex');
+  if (hmac.length !== hash.length || !crypto.timingSafeEqual(Buffer.from(hmac), Buffer.from(String(hash)))) return null;
+  if (now / 1000 - Number(rest.auth_date) > 86400) return null;   // подписи старше суток не принимаем
+  return { id: String(rest.id), name: [rest.first_name, rest.last_name].filter(Boolean).join(' ') || rest.username || '' };
+}
+
 /* ---------- почта: минимальный SMTP-клиент (неявный TLS, порт 465, AUTH LOGIN) ---------- */
 export function smtpMailer({ host, port = 465, user, pass, from }) {
   return function send({ to, subject, text }) {
@@ -136,17 +179,49 @@ export function smtpMailer({ host, port = 465, user, pass, from }) {
 }
 
 /* ---------- модуль аккаунтов ---------- */
+export const TAX_SYSTEMS = Object.freeze(['usn', 'osn', 'psn', 'none']);
+export const isValidTaxSystem = (v) => TAX_SYSTEMS.includes(v);
+
 export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.now(), watchLimit = () => LIMITS.watch }) {
   const cfg = {
     site: (env.SITE_URL || 'https://inn-sider.ru').replace(/\/$/, ''),
     api: (env.PUBLIC_API_URL || 'https://api.inn-sider.ru').replace(/\/$/, ''),
     cookieDomain: env.COOKIE_DOMAIN || '',              // .inn-sider.ru — чтобы сессия была общей для сайта и api
     yandexId: env.YANDEX_CLIENT_ID || '', yandexSecret: env.YANDEX_CLIENT_SECRET || '',
+    vkId: env.VK_CLIENT_ID || '',                       // приложение на id.vk.com; секрет не нужен — вход по PKCE
+    // Вход и уведомления через Telegram выключены (29.09.2026): Telegram — трансграничная передача ПДн (ОАЭ, через Render в США).
+    // Включаются только явно: TELEGRAM_ACCOUNTS=1 — и тогда нужно отдельное уведомление в Роскомнадзор (ч. 4 ст. 12 152-ФЗ)
+    ...(env.TELEGRAM_ACCOUNTS === '1' ? { tgToken: env.TELEGRAM_BOT_TOKEN || '', tgBot: env.TELEGRAM_BOT_NAME || '' } : { tgToken: '', tgBot: '' }),
+    // Timeweb не пускает сервер к api.telegram.org — ходим через наш сервер на Render (маршрут /tg/ в index.mjs)
+    tgApi: (env.TELEGRAM_API_URL || (env.AI_UPSTREAM_URL ? env.AI_UPSTREAM_URL.replace(/\/$/, '') + '/tg' : 'https://api.telegram.org')).replace(/\/$/, ''),
     mailOn: !!mailer
   };
   const host = new URL(cfg.site).host;   // адрес сайта для текстов писем и сообщений бота
   const q = (sql) => db.prepare(sql);
   const secure = cfg.site.startsWith('https');
+
+  function ensureTaxSystemColumn() {
+    const cols = q('PRAGMA table_info(users)').all();
+    if (!cols.some((c) => c.name === 'tax_system')) {
+      db.exec(`ALTER TABLE users ADD COLUMN tax_system TEXT NOT NULL DEFAULT 'none'
+               CHECK (tax_system IN ('usn','osn','psn','none'))`);
+    }
+  }
+  ensureTaxSystemColumn();
+
+  function updateTaxSystem(userId, taxSystem) {
+    if (!isValidTaxSystem(taxSystem)) {
+      throw Object.assign(new Error('INVALID_TAX_SYSTEM'), { status: 400 });
+    }
+    const { changes } = q('UPDATE users SET tax_system = ? WHERE id = ?').run(taxSystem, userId);
+    if (!changes) throw Object.assign(new Error('USER_NOT_FOUND'), { status: 404 });
+    return q('SELECT id, email, name, inn, tax_system FROM users WHERE id = ?').get(userId);
+  }
+
+  function listUsersByTaxSystem(taxSystem) {
+    return q(`SELECT id, email, name FROM users
+              WHERE tax_system = ? AND email IS NOT NULL AND email <> ''`).all(taxSystem);
+  }
 
   function cookie(name, value, maxAgeSec) {
     return [`${name}=${value}`, 'Path=/', 'HttpOnly', 'SameSite=Lax', secure ? 'Secure' : '', cfg.cookieDomain ? `Domain=${cfg.cookieDomain}` : '', `Max-Age=${maxAgeSec}`].filter(Boolean).join('; ');
@@ -168,7 +243,9 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
   }
   // Находим пользователя по id способа входа, иначе по подтверждённой почте; иначе создаём (с отметкой согласия).
   // Если человек уже вошёл (current) — привязываем новый способ входа к его аккаунту, а не создаём второй.
-  function findOrCreate({ field, id, email, name }, current = null) {
+  // linkByEmail = false — почта от этого способа не повод входить в чужой аккаунт с той же почтой (её просто не сохраняем, если занята).
+  function findOrCreate({ field, id, email, name, linkByEmail = true }, current = null) {
+    if (email && !linkByEmail && q('SELECT id FROM users WHERE email = ?').get(email)) email = null;
     if (current) {
       const other = q(`SELECT id FROM users WHERE ${field} = ?`).get(id);
       if (other && other.id !== current.id) throw new Error('уже привязан');
@@ -189,23 +266,86 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
   }
   const publicUser = (u) => ({
     name: u.name || (u.email ? u.email.split('@')[0] : 'Пользователь'), email: u.email || null,
-    via: [u.yandex_id && 'yandex', u.email && 'email'].filter(Boolean),
-    company_inn: u.company_inn || null, notify: channelOf(u), can_email: !!u.email
+    via: [u.yandex_id && 'yandex', u.vk_id && 'vk', u.telegram_id && 'telegram', u.email && 'email'].filter(Boolean),
+    company_inn: u.company_inn || null, tax: u.tax ? JSON.parse(u.tax) : null, notify: channelOf(u), can_telegram: !!(u.telegram_id && cfg.tgToken), can_email: !!u.email
   });
   function channelOf(u) {
+    const tg = !!(u.telegram_id && cfg.tgToken);   // без Telegram-входа уведомления идут на почту
     if (u.notify === 'none') return 'none';
+    if (u.notify === 'telegram' && tg) return 'telegram';
     if (u.notify === 'email' && u.email) return 'email';
-    return u.email ? 'email' : 'none';
+    return tg ? 'telegram' : u.email ? 'email' : 'none';
   }
 
   function redirect(res, to, setCookies = []) { res.writeHead(302, { Location: to, 'Set-Cookie': setCookies, 'Cache-Control': 'no-store' }); res.end(); }
   const back = (ret, err) => cfg.site + (err ? '/vhod/?oshibka=' + encodeURIComponent(err) : safeReturn(ret));
 
+  /* ----- Telegram: вызовы бота и вход через бота ----- */
+  async function tgCall(method, body, timeoutMs = 15000) {
+    const r = await fetchImpl(`${cfg.tgApi}/bot${cfg.tgToken}/${method}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(timeoutMs)
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!j.ok) throw new Error(`Telegram ${method}: ${j.description || r.status}`);
+    return j.result;
+  }
+  // Ожидающие входы живут в памяти 10 минут: код из ссылки → кто нажал «Запустить» и подтвердил ли вход кнопкой.
+  // Подтверждение кнопкой — чтобы по чужой ссылке нельзя было незаметно войти в аккаунт человека.
+  const tgLogins = new Map();
+  let tgOffset = 0, tgPolling = false;
+  const tgName = (f) => [f.first_name, f.last_name].filter(Boolean).join(' ') || f.username || '';
+  function tgPrune() { for (const [k, v] of tgLogins) if (now() - v.created > TG_LOGIN_TTL) tgLogins.delete(k); }
+  async function tgUpdate(up) {
+    const msg = up.message;
+    if (msg && msg.chat?.type === 'private' && typeof msg.text === 'string') {
+      const m = /^\/start(?:\s+([\w-]{10,64}))?/.exec(msg.text);
+      const L = m && m[1] && tgLogins.get(m[1]);
+      if (!L || L.state === 'ok') {
+        return tgCall('sendMessage', { chat_id: msg.chat.id, text: m && m[1]
+          ? `Ссылка для входа устарела. Нажмите «Войти через Telegram» на сайте ${host} ещё раз.`
+          : `Это бот сайта ${host}: через него входят в кабинет и получают уведомления об изменениях у компаний.` });
+      }
+      L.from = String(msg.from.id);
+      return tgCall('sendMessage', {
+        chat_id: msg.chat.id,
+        text: `Вход на сайт ${host}.\n\nНажмите кнопку, если это вы сейчас входите на сайт. Если вы ничего не нажимали на сайте — просто закройте это сообщение.`,
+        reply_markup: { inline_keyboard: [[{ text: `Войти на ${host}`, callback_data: 'login:' + m[1] }]] }
+      });
+    }
+    const cb = up.callback_query;
+    if (cb && String(cb.data || '').startsWith('login:')) {
+      const L = tgLogins.get(cb.data.slice(6));
+      const ok = !!(L && L.from === String(cb.from.id) && L.state !== 'ok');
+      if (ok) { L.state = 'ok'; L.tg = { id: String(cb.from.id), name: tgName(cb.from) }; }
+      await tgCall('answerCallbackQuery', { callback_query_id: cb.id, text: ok ? 'Готово' : 'Ссылка устарела, начните вход на сайте заново' }).catch(() => {});
+      if (ok && cb.message) await tgCall('editMessageText', { chat_id: cb.message.chat.id, message_id: cb.message.message_id, text: 'Вход подтверждён. Вернитесь на сайт — страница обновится сама.' }).catch(() => {});
+    }
+  }
+  // Сообщения боту забираем, только пока кто-то входит: Render на бесплатном тарифе не будим зря
+  async function tgPoll() {
+    if (tgPolling || !cfg.tgToken) return;
+    tgPolling = true;
+    try {
+      for (;;) {
+        tgPrune();
+        if (!tgLogins.size) break;
+        const t0 = now();
+        try {
+          const ups = await tgCall('getUpdates', { offset: tgOffset, timeout: 25, allowed_updates: ['message', 'callback_query'] }, 45000);
+          for (const up of ups) { tgOffset = up.update_id + 1; await tgUpdate(up).catch((e) => console.error('бот', e.message)); }
+          if (!ups.length && now() - t0 < 1000) await sleep(1000);
+        } catch (e) { console.error('бот', e.message); await sleep(3000); }
+      }
+    } finally { tgPolling = false; }
+  }
+
   /* ----- уведомления ----- */
-  // subject — тема письма; в письмах — подпись дома
+  // subject — тема письма (в Telegram не нужна); в письмах — подпись дома
   async function notify(u, text, subject = 'INNSIDER: изменения у компаний, за которыми вы следите') {
     const ch = channelOf(u);
-    if (ch === 'email' && mailer) {
+    if (ch === 'telegram' && cfg.tgToken) {
+      await tgCall('sendMessage', { chat_id: u.telegram_id, text, link_preview_options: { is_disabled: true } });
+    } else if (ch === 'email' && mailer) {
       await mailer({ to: u.email, subject, text: `${text}\n\n—\nINNSIDER · ${host}\nНастроить уведомления: ${cfg.site}/kabinet/` });
     }
   }
@@ -313,6 +453,39 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
     return setInterval(() => tick().catch((e) => console.error('сводка', e.message)), 10 * 60e3);
   }
 
+  // Налоговый календарь: письмо за 3 дня до срока — всем, кто сохранил режим, указал почту и не отключил уведомления
+  async function runTaxReminders(ahead = 3) {
+    const msk = new Date(now() + 3 * 3600e3);
+    const day = new Date(Date.UTC(msk.getUTCFullYear(), msk.getUTCMonth(), msk.getUTCDate() + ahead));
+    const next = new Date(day.getTime() + 864e5);
+    let sent = 0;
+    if (!mailer) return { sent };
+    for (const u of q("SELECT * FROM users WHERE tax IS NOT NULL AND email IS NOT NULL AND notify <> 'none'").all()) {
+      let items;
+      try { items = TaxCal.deadlines(JSON.parse(u.tax), day, next); } catch { continue; }
+      if (!items.length) continue;
+      const when = DAY_RU(TaxCal.iso(day));
+      const text = [`Через ${ahead} дня, ${when}, — сроки по вашему налоговому режиму:`, '', ...items.map((e) => '— ' + e.title), '',
+        'Уплата — единым налоговым платежом на ЕНС. Календарь целиком: ' + cfg.site + '/nalogi/kalendar/',
+        'Сроки общие по Налоговому кодексу; сверяйте их с nalog.gov.ru и своим бухгалтером.'].join('\n');
+      try { await mailer({ to: u.email, subject: `INNSIDER: налоговые сроки ${when}`, text: `${text}\n\n—\nINNSIDER · ${host}\nОтключить напоминания: ${cfg.site}/nalogi/kalendar/` }); sent++; }
+      catch (e) { console.error('календарь', u.id, e.message); }
+    }
+    return { sent };
+  }
+  // каждый день после 09:00 по Москве, один раз в сутки
+  function scheduleTaxReminders() {
+    const tick = async () => {
+      const msk = new Date(now() + 3 * 3600e3), today = msk.toISOString().slice(0, 10);
+      const last = q("SELECT value FROM meta WHERE key = 'tax_day'").get();
+      if (msk.getUTCHours() >= 9 && (!last || last.value !== today)) {
+        q("INSERT INTO meta (key, value) VALUES ('tax_day', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(today);
+        console.log(new Date().toISOString(), 'календарь:', JSON.stringify(await runTaxReminders()));
+      }
+    };
+    return setInterval(() => tick().catch((e) => console.error('календарь', e.message)), 10 * 60e3);
+  }
+
   function recordHistory(u, inn, name) {
     q('INSERT INTO history (user_id, inn, name, at) VALUES (?, ?, ?, ?) ON CONFLICT(user_id, inn) DO UPDATE SET name = excluded.name, at = excluded.at').run(u.id, inn, name || null, now());
     q('DELETE FROM history WHERE user_id = ? AND inn NOT IN (SELECT inn FROM history WHERE user_id = ? ORDER BY at DESC LIMIT ?)').run(u.id, u.id, LIMITS.history);
@@ -362,6 +535,95 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
       catch { return redirect(res, fail('Яндекс', 'Этот Яндекс ID уже привязан к другому аккаунту'), [clear]), true; }
       log('Яндекс — успешно, пользователь #' + u.id);
       redirect(res, back(ret), [clear, startSession(u.id)]);
+      return true;
+    }
+
+    // ---- вход через VK ID (OAuth 2.1): код подтверждается проверочной строкой PKCE, она ждёт в cookie sut_vk ----
+    if (m === 'GET' && p === '/auth/vk') {
+      if (!cfg.vkId) return redirect(res, fail('VK', 'Вход через VK ID пока не подключён', 'нет VK_CLIENT_ID')), true;
+      if (url.searchParams.get('consent') !== '1') return redirect(res, fail('VK', 'Нужно согласие на обработку данных')), true;
+      const state = token(), verifier = token();
+      const ret = safeReturn(url.searchParams.get('return'));
+      const to = 'https://id.vk.com/authorize?' + new URLSearchParams({
+        response_type: 'code', client_id: cfg.vkId, redirect_uri: cfg.api + '/auth/vk/callback', state, scope: 'vkid.personal_info email',
+        code_challenge: crypto.createHash('sha256').update(verifier).digest('base64url'), code_challenge_method: 'S256'
+      });
+      redirect(res, to, [cookie('sut_vk', `${state}.${verifier}.${Buffer.from(ret).toString('base64url')}`, 600)]);
+      return true;
+    }
+    if (m === 'GET' && p === '/auth/vk/callback') {
+      const [state, verifier, retB64] = String(cookies(req).sut_vk || '').split('.');
+      const ret = retB64 ? Buffer.from(retB64, 'base64url').toString() : null;
+      const clear = cookie('sut_vk', '', 0);
+      if (!state || !verifier || state !== url.searchParams.get('state')) return redirect(res, fail('VK', 'Вход не удался, попробуйте ещё раз', 'state не совпал: истёк или другой браузер'), [clear]), true;
+      const code = url.searchParams.get('code'), deviceId = url.searchParams.get('device_id');
+      if (!code || !deviceId) return redirect(res, fail('VK', 'Вход отменён', url.searchParams.get('error') || 'нет code или device_id'), [clear]), true;
+      const form = { 'Content-Type': 'application/x-www-form-urlencoded' };
+      const tr = await fetchImpl('https://id.vk.com/oauth2/auth', {
+        method: 'POST', headers: form, signal: AbortSignal.timeout(15000),
+        body: new URLSearchParams({ grant_type: 'authorization_code', code, code_verifier: verifier, client_id: cfg.vkId, device_id: deviceId, redirect_uri: cfg.api + '/auth/vk/callback', state })
+      });
+      const tj = await tr.json().catch(() => ({}));
+      if (!tj.access_token) return redirect(res, fail('VK', 'VK ID не подтвердил вход', `HTTP ${tr.status} ${tj.error || ''}`.trim()), [clear]), true;
+      const ir = await fetchImpl('https://id.vk.com/oauth2/user_info', {
+        method: 'POST', headers: form, body: new URLSearchParams({ client_id: cfg.vkId, access_token: tj.access_token }), signal: AbortSignal.timeout(15000)
+      });
+      const info = (await ir.json().catch(() => ({}))).user || {};
+      if (!info.user_id) return redirect(res, fail('VK', 'VK ID не передал данные профиля', `HTTP ${ir.status}`), [clear]), true;
+      const email = info.email ? String(info.email).toLowerCase() : null;
+      const name = [info.first_name, info.last_name].filter(Boolean).join(' ');
+      let u;
+      try { u = findOrCreate({ field: 'vk_id', id: String(info.user_id), email, name, linkByEmail: false }, userOf(req)); }
+      catch { return redirect(res, fail('VK', 'Этот VK ID уже привязан к другому аккаунту'), [clear]), true; }
+      log('VK — успешно, пользователь #' + u.id);
+      redirect(res, back(ret), [clear, startSession(u.id)]);
+      return true;
+    }
+
+    // ---- вход через бота Telegram: не нужен ни номер телефона, ни сайт telegram.org ----
+    if (m === 'POST' && p === '/auth/telegram/start') {
+      const body = await readBody(req, 1024);
+      if (!cfg.tgToken || !cfg.tgBot) return send(res, 503, { error: 'Вход через Telegram пока не подключён.' }), true;
+      if (body.consent !== true) return send(res, 400, { error: 'Нужно согласие на обработку данных.' }), true;
+      tgPrune();
+      if (tgLogins.size > 2000) return send(res, 429, { error: 'Слишком много входов сразу. Попробуйте через минуту.' }), true;
+      const nonce = crypto.randomBytes(16).toString('base64url'), secret = token();
+      tgLogins.set(nonce, { created: now(), state: 'wait', browser: sha(secret) });
+      tgPoll();
+      res.setHeader('Set-Cookie', cookie('sut_tg', secret, TG_LOGIN_TTL / 1000));
+      return send(res, 200, { nonce, url: `https://t.me/${cfg.tgBot}?start=${nonce}` }), true;
+    }
+    if (m === 'GET' && p === '/auth/telegram/status') {
+      const nonce = String(url.searchParams.get('nonce') || '');
+      tgPrune();
+      const L = tgLogins.get(nonce);
+      if (!L) return send(res, 200, { state: 'expired' }), true;
+      // забрать вход может только тот браузер, который его начал
+      if (L.browser !== sha(cookies(req).sut_tg || '')) return send(res, 403, { error: 'Начните вход заново на этой странице.' }), true;
+      tgPoll();
+      if (L.state !== 'ok') return send(res, 200, { state: 'wait' }), true;
+      tgLogins.delete(nonce);
+      let u;
+      try { u = findOrCreate({ field: 'telegram_id', id: L.tg.id, email: null, name: L.tg.name }, userOf(req)); }
+      catch { return send(res, 409, { state: 'error', error: 'Этот Telegram уже привязан к другому аккаунту.' }), true; }
+      res.setHeader('Set-Cookie', [cookie('sut_tg', '', 0), startSession(u.id)]);
+      return send(res, 200, { state: 'ok', user: publicUser(u) }), true;
+    }
+
+    // ---- вход через Telegram (виджет в режиме перехода по ссылке) ----
+    if (m === 'GET' && p === '/auth/telegram/callback') {
+      const params = Object.fromEntries(url.searchParams);
+      if (params.consent !== '1') return redirect(res, fail('Telegram', 'Нужно согласие на обработку данных')), true;
+      const tg = telegramCheck(params, cfg.tgToken, now());
+      if (!tg) {
+        const why = !cfg.tgToken ? 'нет TELEGRAM_BOT_TOKEN' : !params.hash ? 'Telegram не передал подпись' : now() / 1000 - Number(params.auth_date) > 86400 ? 'подпись старше суток' : 'подпись не сошлась: токен на сервере не от этого бота или устарел после /revoke';
+        return redirect(res, fail('Telegram', 'Telegram не подтвердил вход', why)), true;
+      }
+      let u;
+      try { u = findOrCreate({ field: 'telegram_id', id: tg.id, email: null, name: tg.name }, userOf(req)); }
+      catch { return redirect(res, fail('Telegram', 'Этот Telegram уже привязан к другому аккаунту')), true; }
+      log('Telegram — успешно, пользователь #' + u.id);
+      redirect(res, back(params.return), [startSession(u.id)]);
       return true;
     }
 
@@ -418,7 +680,7 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
 
     // ---- кабинет: только для вошедших ----
     const u = userOf(req);
-    if (p === '/api/me' && m === 'GET') return send(res, 200, { user: u ? publicUser(u) : null, methods: { yandex: !!cfg.yandexId, email: cfg.mailOn } }), true;
+    if (p === '/api/me' && m === 'GET') return send(res, 200, { user: u ? publicUser(u) : null, methods: { yandex: !!cfg.yandexId, vk: !!cfg.vkId, telegram: cfg.tgBot || null, email: cfg.mailOn } }), true;
     if (!u) return send(res, 401, { error: 'Войдите, чтобы пользоваться кабинетом.' }), true;
 
     if (p === '/api/me' && m === 'PATCH') {
@@ -427,8 +689,13 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
         if (inn && !innValid(inn)) return send(res, 400, { error: 'Проверьте ИНН.' }), true;
         q('UPDATE users SET company_inn = ? WHERE id = ?').run(inn, u.id);
       }
+      if ('tax' in body) {
+        const t = body.tax === null ? null : taxProfile(body.tax);
+        if (body.tax !== null && !t) return send(res, 400, { error: 'Выберите форму бизнеса и налоговый режим.' }), true;
+        q('UPDATE users SET tax = ? WHERE id = ?').run(t ? JSON.stringify(t) : null, u.id);
+      }
       if ('notify' in body) {
-        if (!['auto', 'email', 'none'].includes(body.notify)) return send(res, 400, { error: 'Неизвестный способ уведомлений.' }), true;
+        if (!['auto', 'telegram', 'email', 'none'].includes(body.notify)) return send(res, 400, { error: 'Неизвестный способ уведомлений.' }), true;
         q('UPDATE users SET notify = ? WHERE id = ?').run(body.notify, u.id);
       }
       return send(res, 200, { user: publicUser(q('SELECT * FROM users WHERE id = ?').get(u.id)) }), true;
@@ -437,6 +704,15 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
       q('DELETE FROM users WHERE id = ?').run(u.id);          // сессии, история, слежение и расчёты удалятся каскадом
       res.setHeader('Set-Cookie', cookie('sut_s', '', 0));
       return send(res, 200, { ok: true }), true;
+    }
+
+    if (p === '/api/profile/tax-system' && m === 'PATCH') {
+      try {
+        const result = updateTaxSystem(u.id, body?.tax_system);
+        return send(res, 200, { user: publicUser(result) }), true;
+      } catch (e) {
+        return send(res, e.status || 500, { error: e.message, allowed: TAX_SYSTEMS }), true;
+      }
     }
 
     if (p === '/api/history') {
@@ -483,5 +759,5 @@ export function createAccounts({ env, db, fetchImpl, mailer, now = () => Date.no
     return true;
   }
 
-  return { handle, userOf, recordHistory, runWatch, scheduleWatch, runDigest, scheduleDigest, digestText, notify, cfg };
+  return { handle, userOf, recordHistory, runWatch, scheduleWatch, runDigest, scheduleDigest, digestText, notify, runTaxReminders, scheduleTaxReminders, updateTaxSystem, listUsersByTaxSystem, cfg };
 }

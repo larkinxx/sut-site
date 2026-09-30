@@ -23,5 +23,9 @@
     "telegram": "node scripts/telegram.mjs",
     "fns:import": "node scripts/fns-import.mjs",
     "lint": "for f in src/*.mjs src/lib/*.mjs scripts/*.mjs server/*.mjs public/*.js; do node --check \"$f\" || exit 1; done && for f in deploy/*.sh .claude/hooks/*.sh; do sh -n \"$f\" || exit 1; done && python3 -c \"import ast,sys; [ast.parse(open(f).read(), f) for f in sys.argv[1:]]\" scripts/*.py && echo 'Синтаксис в порядке'"
+  },
+  "dependencies": {
+    "node-cron": "^3.0.3",
+    "nodemailer": "^6.9.x"
   }
 }

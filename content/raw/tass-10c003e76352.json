@@ -1,0 +1,14 @@
+{
+  "id": "tass-10c003e76352",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В США в работе чат-бота на базе ИИ Claude произошел сбой",
+  "url": "https://tass.ru/ekonomika/28163271",
+  "publishedAt": "2026-09-29T14:58:17.000Z",
+  "text": "Более 19 тыс. пользователей также сообщили о неполадках в работе музыкальной платформы Spotify",
+  "fetchedAt": "2026-09-29T15:50:25.962Z",
+  "drafted": false
+}

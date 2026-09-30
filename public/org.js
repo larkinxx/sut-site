@@ -369,6 +369,26 @@
     addLink('Реестр залогов на reestr-zalogov.ru', 'https://www.reestr-zalogov.ru/search/index', 'заложено ли имущество компании — движимые залоги, бесплатно и без регистрации');
     addLink('Список нелегалов Банка России', 'https://www.cbr.ru/inside/warning-list/', 'компании и сайты с признаками нелегальной деятельности на финансовом рынке: финансовые пирамиды, «чёрные» кредиторы и брокеры');
     addLink('Справочник участников финансового рынка', 'https://www.cbr.ru/finorg/', 'есть ли у банка, МФО, брокера или страховщика лицензия или запись в реестре ЦБ');
+    // форма ЦБ не принимает ИНН в адресе (shared/zsk.mjs) — ведём на страницу проверки и копируем ИНН в буфер
+    var zskInn = d && d.inn && innValid(d.inn) ? d.inn : '';
+    if (zskInn) {
+      var li = el('li');
+      li.style.margin = '6px 0';
+      var a = document.createElement('a');
+      a.href = 'https://cbr.ru/counteraction_m_ter/platform_zsk/proverka-po-inn/';
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer external';
+      a.className = 'cbr-zsk-link';
+      a.textContent = 'Платформа ЗСК ЦБ';
+      a.title = 'ИНН ' + zskInn + ' будет скопирован — вставьте его в форму на сайте ЦБ';
+      a.dataset.inn = zskInn;
+      a.addEventListener('click', function () {
+        if (navigator.clipboard) navigator.clipboard.writeText(zskInn).catch(function () {});
+      });
+      li.appendChild(a);
+      li.appendChild(document.createTextNode(' — проверить компанию на платформе «Знай своего клиента»'));
+      ul.appendChild(li);
+    }
     wrap.appendChild(ul);
     return wrap;
   }
@@ -384,6 +404,34 @@
     if (before) before.parentNode.insertBefore(c, before); else parent.appendChild(c);
     return c;
   }
+  // Прогрессивное раскрытие: сразу видны шапка, индекс и разбор; тяжёлая фактура (отчётность, суды, реестры, люди) свёрнута
+  // до заголовка — на компьютере только она, на телефоне все спокойные карточки. Карточки с предупреждениями
+  // (то, что снижает индекс) всегда открыты.
+  // Карточки дописываются по мере ответа сервера, поэтому следим за изменениями. Решение человека (открыл/закрыл) не трогаем.
+  var PHONE = window.matchMedia ? window.matchMedia('(max-width: 640px)') : { matches: false };
+  var RISKY = '.bad, .bad-note, .badge.bad, [style*="crit-line"]';
+  var HEAVY = /насторожить банк|Финансы|Отчётност|Суды|Арбитраж|Исполнительн|Виды деятельности|Отметки в реестрах|Руководство|Численность|Контакты|Филиал|закупк|Больше данных/i;
+  function foldCards() {
+    Array.prototype.forEach.call(out.querySelectorAll('.dcard:not(.span):not(.loading)'), function (c) {
+      var h = c.firstElementChild;
+      if (!h || h.tagName !== 'H2') return;
+      if (!PHONE.matches && !HEAVY.test(h.textContent)) return;
+      var risky = !!c.querySelector(RISKY);
+      // заголовок карточки может быть заменён (например, «Финансы и налоги» перерисовывается после ответа ФНС),
+      // поэтому обработчики висят на самой карточке и берут текущий заголовок
+      h.setAttribute('role', 'button'); h.tabIndex = 0;
+      if (!c.classList.contains('fold')) {
+        c.classList.add('fold');
+        var flip = function () { var hh = c.firstElementChild; c.dataset.touched = '1'; c.classList.toggle('shut'); if (hh) hh.setAttribute('aria-expanded', String(!c.classList.contains('shut'))); };
+        c.addEventListener('click', function (e) { var hh = c.firstElementChild; if (hh && hh.tagName === 'H2' && hh.contains(e.target)) flip(); });
+        c.addEventListener('keydown', function (e) { var hh = c.firstElementChild; if (hh && e.target === hh && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); flip(); } });
+        c.classList.toggle('shut', !risky);
+      } else if (!c.dataset.touched) c.classList.toggle('shut', !risky);   // предупреждение пришло позже — раскрываем
+      h.setAttribute('aria-expanded', String(!c.classList.contains('shut')));
+    });
+  }
+  var foldTimer;
+  if (window.MutationObserver && out) new MutationObserver(function () { clearTimeout(foldTimer); foldTimer = setTimeout(foldCards, 100); }).observe(out, { childList: true, subtree: true });
   function plural(n, a, b, c) { var m = n % 10, h = n % 100; return m === 1 && h !== 11 ? a : m >= 2 && m <= 4 && (h < 12 || h > 14) ? b : c; }
   function yearsAgo(ms) { var y = Math.floor((Date.now() - ms) / (365.25 * 864e5)); return y + ' ' + plural(y, 'год', 'года', 'лет'); }
 
@@ -670,6 +718,41 @@
     if (p && p.managerOtherCompanies) sig.push(['info', 'Руководитель связан ещё с ' + p.managerOtherCompanies + ' организаци' + (p.managerOtherCompanies === 1 ? 'ей' : 'ями') + '.']);
     if (p && p.offenseYears && p.offenseYears.length) sig.push(['info', 'Штрафы за налоговые правонарушения в ' + p.offenseYears.slice().sort().join(', ') + ' годах.']);
     sig.forEach(function (x) { box.appendChild(tip(x[0], x[1])); });
+    bankBlock(box, p, last);
+  }
+  // Что может насторожить банк (115-ФЗ): только факты из открытых данных, без оценки «риск N%» — решение принимает банк.
+  // Признаки — из методических рекомендаций Банка России № 18-МР (налоги не больше 0,9% оборота, нет расходов на персонал)
+  function bankBlock(after, p, last) {
+    var d = (IDX && IDX.d) || {}, facts = [], warn = 0;
+    var add = function (bad, text) { facts.push([bad ? 'warn' : 'ok', text]); if (bad) warn++; };
+    if (p && p.taxesPaid && last && last.revenue > 0 && String(p.taxesPaid.year) === String(last.year)) {
+      var share = p.taxesPaid.total / last.revenue * 100, pct = share.toLocaleString('ru-RU', { maximumFractionDigits: 2 }) + '%';
+      add(share < 0.9, 'Налоги за ' + last.year + ' год — ' + money(p.taxesPaid.total) + ', это ' + pct + ' выручки' +
+        (share < 0.9 ? '. Банки обращают внимание, когда налоги не больше 0,9% оборота.' : '.'));
+    }
+    if (p && p.employees && p.employees.length && last && last.revenue > 1e7) {
+      var n = p.employees[0].n;
+      if (n <= 1) add(true, (n ? 'Один сотрудник' : 'Нет сотрудников') + ' при выручке ' + money(last.revenue) + ': банки смотрят, есть ли обычные расходы на персонал.');
+      else add(false, 'Сотрудников: ' + n + '.');
+    }
+    // короткий срок работы и большие обороты: зарегистрирована в том же году, за который уже выручка больше 50 млн ₽
+    var reg = d.state && d.state.registration_date ? new Date(d.state.registration_date) : null;
+    if (reg && last && last.revenue > 5e7 && reg.getFullYear() === Number(last.year))
+      add(true, 'Зарегистрирована ' + reg.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }) + ', и уже за ' + last.year + ' год выручка ' + money(last.revenue) + ': банки внимательнее к большим оборотам в первый год работы.');
+    if (p && p.massAddress) add(true, 'Адрес массовой регистрации.');
+    if (d.invalid) add(true, 'В ЕГРЮЛ есть отметка о недостоверности сведений.');
+    if (p && p.notReporting) add(true, 'Больше года не сдаёт налоговую отчётность.');
+    if (p && p.arrears) add(p.arrears.total > 0, p.arrears.total > 0 ? 'Налоговая задолженность ' + money(p.arrears.total) + '.' : 'Налоговой задолженности нет.');
+    if (!facts.length) return;
+    var c = el('section', 'dcard');
+    c.appendChild(el('h2', null, 'Что может насторожить банк'));
+    c.appendChild(el('p', 'note-sm', warn ? 'Факты из открытых данных. Блокировать ли счёт, решает банк по своим правилам (115-ФЗ); это не оценка риска.' : 'По открытым данным признаков, на которые обычно смотрят банки, не видно. Решение всё равно принимает банк.'));
+    facts.forEach(function (x) { c.appendChild(tip(x[0], x[1])); });
+    var more = el('p', 'note-sm');
+    more.appendChild(document.createTextNode('Группу риска компании (зелёная, жёлтая, красная) показывает сайт Банка России в разделе «Знай своего клиента». '));
+    var a = el('a', null, 'Как не попасть под блокировку'); a.href = '/nalogi/blokirovka-scheta/'; more.appendChild(a);
+    c.appendChild(more);
+    after.parentNode.insertBefore(c, after.nextSibling);
   }
   // Компания среди похожих: та же отрасль (две цифры ОКВЭД), регион и возраст — server/market.mjs
   // похожие компании той же отрасли и региона с близкими доходами — с кем ещё сравнить
@@ -922,6 +1005,8 @@
       if (c.capital != null) row(hr, 'Уставный капитал', money(c.capital));
       if (c.workers.length) row(hr, 'Сотрудников', c.workers[c.workers.length - 1].n + ' в ' + c.workers[c.workers.length - 1].year);
       if (c.msp) row(hr, 'Реестр МСП', c.msp.category);
+      if (c.msp && c.msp.contracts) row(hr, 'Госконтракты (реестр МСП)', String(c.msp.contracts));
+      if (c.msp && c.msp.licenses) row(hr, 'Лицензии (реестр МСП)', String(c.msp.licenses));
       if (c.regime) row(hr, 'Налоговый режим', c.regime.names.join(', '));
       if (c.taxOffice) row(hr, 'Налоговая', c.taxOffice);
       if (c.branches) row(hr, 'Филиалы и представительства', String(c.branches));
@@ -939,7 +1024,7 @@
     // отметки в реестрах
     if (c) {
       var fl = add('Отметки в реестрах');
-      if (!c.flags.length) fl.appendChild(tip('ok', 'Нет отметок о недостоверности сведений, дисквалификации, банкротстве, санкциях, блокировке счетов и долгах у приставов больше 300 тыс. ₽.'));
+      if (!c.flags.length) fl.appendChild(tip('ok', 'Нет отметок о недостоверности сведений, дисквалификации, банкротстве, санкциях, блокировке счетов, долгах у приставов больше 300 тыс. ₽ и в реестрах недобросовестных поставщиков.'));
       c.flags.forEach(function (f) { fl.appendChild(tip('warn', f.text + (f.key === 'fssp_debt' && c.fsspDebt ? ': ' + money(c.fsspDebt) : '') + '.')); });
       c.bankruptcy.filter(function (b) { return b.active; }).forEach(function (b) { fl.appendChild(tip('warn', 'Дело о банкротстве' + (b.case ? ' № ' + b.case : '') + (b.start ? ' с ' + dateShort(b.start) : '') + '.')); });
       fl.appendChild(el('p', 'note-sm', 'По данным ЕГРЮЛ, ФНС, ФССП, Федресурса, ЦБ и Росфинмониторинга через сервис DataNewton.'));
@@ -1221,10 +1306,13 @@
 
   form.addEventListener('submit', function (ev) {
     ev.preventDefault();
+    // в поле вставили реквизиты целиком — берём из них ИНН или ОГРН (window.innPick — в app.js)
+    var picked = window.innPick && window.innPick(input.value);
+    if (picked) input.value = picked.inn || picked.ogrn;
     var inn = input.value.replace(/\s/g, '');
     out.textContent = '';
-    // в поле название, а не ИНН — ищем по названию и показываем список
-    if (sug && api && /[^\d]/.test(inn)) {
+    // в поле название или ОГРН, а не ИНН — ищем через подсказки и показываем список
+    if (sug && api && (/[^\d]/.test(inn) || (window.ogrnOk && window.ogrnOk(inn)))) {
       var q = input.value.trim();
       if (q.length < 3) { msg.textContent = 'Введите ИНН или хотя бы 3 буквы названия.'; return; }
       msg.textContent = 'Ищем по названию…';
