@@ -1,0 +1,14 @@
+{
+  "id": "tass-7a95abe4ea17",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Google представила флагманскую ИИ-модель Gemini 4 Argon",
+  "url": "https://tass.ru/ekonomika/28168317",
+  "publishedAt": "2026-09-30T21:26:54.000Z",
+  "text": "Как пишет газета The New York Times, при помощи новой ИИ-модели Google рассчитывает наверстать отставание от конкурентов, включая OpenAI и Anthropic",
+  "fetchedAt": "2026-09-30T23:47:55.529Z",
+  "drafted": false
+}

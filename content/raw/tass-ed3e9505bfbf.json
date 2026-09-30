@@ -1,0 +1,14 @@
+{
+  "id": "tass-ed3e9505bfbf",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "ТАСС: цена газа в Европе выросла более чем на треть",
+  "url": "https://tass.ru/ekonomika/28168273",
+  "publishedAt": "2026-09-30T21:08:20.000Z",
+  "text": "Стоимость увеличилась до $600 за 1 тыс. куб. м",
+  "fetchedAt": "2026-09-30T23:47:56.771Z",
+  "drafted": false
+}
