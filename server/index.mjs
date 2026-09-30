@@ -723,6 +723,17 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
         const m = marketStats(fdb, { okved: body.okved, region: body.region });
         return send(res, 200, m ? { available: true, ...m } : { available: false });
       }
+
+      // финансы и налоги по открытым данным ФНС — тоже без DaData
+      if (url.pathname === '/api/org/fns') {
+        const body = await readBody(req);
+        const inn = String(body.inn || '').replace(/\s/g, '');
+        if (!innValid(inn)) return send(res, 400, { error: 'Проверьте ИНН: у организации 10 цифр, у ИП 12, и контрольные цифры должны сходиться.' });
+        let f = fnsCache.get(inn);
+        if (!f) { f = await fnsData(inn, fetchImpl, fnsPause, fdb, now); if (f.pb || f.bo) fnsCache.set(inn, f); }
+        return send(res, 200, { ...f, peers: orgPeers(fdb, inn), similar: similarCompanies(fdb, inn) });
+      }
+
       if (!cfg.dadataToken) return send(res, 503, { error: 'Проверка организаций не подключена.' });
 
       if (isBot(req)) return send(res, 403, { error: 'Проверка доступна в браузере.' });
@@ -776,12 +787,6 @@ export function createApp({ env = process.env, fetchImpl = globalThis.fetch, now
           if (k.courts || k.arbitration || k.fssp) dn.set('courts:' + inn, k);
         }
         return send(res, 200, { available: true, ...k });
-      }
-
-      if (url.pathname === '/api/org/fns') {
-        let f = fnsCache.get(inn);
-        if (!f) { f = await fnsData(inn, fetchImpl, fnsPause, fdb, now); if (f.pb || f.bo) fnsCache.set(inn, f); }
-        return send(res, 200, { ...f, peers: orgPeers(fdb, inn), similar: similarCompanies(fdb, inn) });
       }
 
       const s = await getParty(inn);
