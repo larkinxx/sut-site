@@ -27,9 +27,9 @@
       if (j.user && !params.get('privyazat')) { location.replace(ret); return; }
       if (j.user) { $('h1').textContent = 'Подключить способ входа'; $('#login-email').remove(); j.methods.email = false; }
       var m = j.methods || {};
-      var ya = $('#login-yandex'), tg = $('#login-telegram'), form = $('#login-email');
-      ya.hidden = !m.yandex; tg.hidden = !m.telegram; form.hidden = !m.email;
-      if (!m.yandex && !m.telegram && !m.email) msgEl.textContent = 'Вход временно недоступен.';
+      var ya = $('#login-yandex'), form = $('#login-email');
+      ya.hidden = !m.yandex; form.hidden = !m.email;
+      if (!m.yandex && !m.email) msgEl.textContent = 'Вход временно недоступен.';
 
       function sync() {
         var ok = consent.checked;
@@ -38,33 +38,6 @@
       }
       consent.addEventListener('change', sync); sync();
       ya.addEventListener('click', function (e) { if (!consent.checked) { e.preventDefault(); msgEl.textContent = 'Отметьте согласие на обработку данных.'; } });
-
-      // Вход через бота: открываем Telegram по ссылке t.me/<бот>?start=<код>, человек подтверждает вход кнопкой в боте,
-      // а эта страница раз в 2 секунды спрашивает сервер, готово ли
-      var polling = null;
-      tg.addEventListener('click', function () {
-        if (!consent.checked) { msgEl.textContent = 'Отметьте согласие на обработку данных.'; return; }
-        var win = window.open('', '_blank');      // открываем окно сразу по нажатию, иначе браузер его заблокирует
-        tg.disabled = true;
-        api('POST', '/auth/telegram/start', { consent: true }).then(function (r) {
-          tg.disabled = false;
-          if (!r.url) { if (win) win.close(); msgEl.textContent = r.error || 'Не получилось начать вход.'; return; }
-          if (win) { win.opener = null; win.location.href = r.url; }
-          msgEl.textContent = '';
-          msgEl.appendChild(document.createTextNode('В Telegram нажмите «Запустить», а затем «Войти на ' + location.host + '». Эта страница обновится сама. Telegram не открылся? '));
-          var a = el('a', null, 'Открыть бота'); a.href = r.url; a.target = '_blank'; a.rel = 'noopener';
-          msgEl.appendChild(a);
-          clearInterval(polling);
-          var started = Date.now();
-          polling = setInterval(function () {
-            if (Date.now() - started > 10 * 60e3) { clearInterval(polling); msgEl.textContent = 'Время на вход истекло. Нажмите «Войти через Telegram» ещё раз.'; return; }
-            api('GET', '/auth/telegram/status?nonce=' + encodeURIComponent(r.nonce)).then(function (s) {
-              if (s.state === 'ok') { clearInterval(polling); if (window.goal) window.goal('login'); setTimeout(function () { location.replace(ret); }, 300); }
-              else if (s.state === 'expired' || s.state === 'error' || s.status === 403) { clearInterval(polling); msgEl.textContent = s.error || 'Время на вход истекло. Нажмите «Войти через Telegram» ещё раз.'; }
-            }, function () {});
-          }, 2000);
-        }, function () { tg.disabled = false; if (win) win.close(); msgEl.textContent = 'Сервер входа не отвечает. Попробуйте позже.'; });
-      });
 
       var step = 'email', email = $('#email'), code = $('#code'), btn = $('#email-btn');
       form.addEventListener('submit', function (e) {
@@ -173,21 +146,16 @@
 
         // Уведомления
         sec = section('Уведомления об изменениях');
-        var opts = [['telegram', 'В Telegram'], ['email', 'На почту'], ['none', 'Не присылать']];
+        var opts = [['email', 'На почту'], ['none', 'Не присылать']];
         var fs = el('div', 'cab-notify');
         opts.forEach(function (o) {
           var lab = el('label'); var inp = el('input'); inp.type = 'radio'; inp.name = 'notify'; inp.value = o[0];
           inp.checked = u.notify === o[0];
-          if ((o[0] === 'telegram' && !u.can_telegram) || (o[0] === 'email' && !u.can_email)) inp.disabled = true;
+          if (o[0] === 'email' && !u.can_email) inp.disabled = true;
           inp.addEventListener('change', function () { api('PATCH', '/api/me', { notify: o[0] }); });
           lab.appendChild(inp); lab.appendChild(document.createTextNode(' ' + o[1])); fs.appendChild(lab);
         });
         sec.appendChild(fs);
-        if (!u.can_telegram && me.methods && me.methods.telegram) {
-          var tp = el('p', 'note-sm', 'Чтобы получать уведомления в Telegram, ');
-          tp.appendChild(link('подключите Telegram', '/vhod/?privyazat=1&return=/kabinet/'));
-          tp.appendChild(document.createTextNode(' к этому аккаунту.')); sec.appendChild(tp);
-        }
 
         // История
         sec = section('История проверок');
