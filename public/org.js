@@ -419,12 +419,14 @@
       if (!h || h.tagName !== 'H2') return;
       if (!PHONE.matches && !HEAVY.test(h.textContent)) return;
       var risky = !!c.querySelector(RISKY);
+      // заголовок карточки может быть заменён (например, «Финансы и налоги» перерисовывается после ответа ФНС),
+      // поэтому обработчики висят на самой карточке и берут текущий заголовок
+      h.setAttribute('role', 'button'); h.tabIndex = 0;
       if (!c.classList.contains('fold')) {
         c.classList.add('fold');
-        h.setAttribute('role', 'button'); h.tabIndex = 0;
-        var flip = function () { c.dataset.touched = '1'; c.classList.toggle('shut'); h.setAttribute('aria-expanded', String(!c.classList.contains('shut'))); };
-        h.addEventListener('click', flip);
-        h.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(); } });
+        var flip = function () { var hh = c.firstElementChild; c.dataset.touched = '1'; c.classList.toggle('shut'); if (hh) hh.setAttribute('aria-expanded', String(!c.classList.contains('shut'))); };
+        c.addEventListener('click', function (e) { var hh = c.firstElementChild; if (hh && hh.tagName === 'H2' && hh.contains(e.target)) flip(); });
+        c.addEventListener('keydown', function (e) { var hh = c.firstElementChild; if (hh && e.target === hh && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); flip(); } });
         c.classList.toggle('shut', !risky);
       } else if (!c.dataset.touched) c.classList.toggle('shut', !risky);   // предупреждение пришло позже — раскрываем
       h.setAttribute('aria-expanded', String(!c.classList.contains('shut')));
