@@ -1007,6 +1007,8 @@
       if (c.capital != null) row(hr, 'Уставный капитал', money(c.capital));
       if (c.workers.length) row(hr, 'Сотрудников', c.workers[c.workers.length - 1].n + ' в ' + c.workers[c.workers.length - 1].year);
       if (c.msp) row(hr, 'Реестр МСП', c.msp.category);
+      if (c.msp && c.msp.contracts) row(hr, 'Госконтракты (реестр МСП)', String(c.msp.contracts));
+      if (c.msp && c.msp.licenses) row(hr, 'Лицензии (реестр МСП)', String(c.msp.licenses));
       if (c.regime) row(hr, 'Налоговый режим', c.regime.names.join(', '));
       if (c.taxOffice) row(hr, 'Налоговая', c.taxOffice);
       if (c.branches) row(hr, 'Филиалы и представительства', String(c.branches));
@@ -1024,7 +1026,7 @@
     // отметки в реестрах
     if (c) {
       var fl = add('Отметки в реестрах');
-      if (!c.flags.length) fl.appendChild(tip('ok', 'Нет отметок о недостоверности сведений, дисквалификации, банкротстве, санкциях, блокировке счетов и долгах у приставов больше 300 тыс. ₽.'));
+      if (!c.flags.length) fl.appendChild(tip('ok', 'Нет отметок о недостоверности сведений, дисквалификации, банкротстве, санкциях, блокировке счетов, долгах у приставов больше 300 тыс. ₽ и в реестрах недобросовестных поставщиков.'));
       c.flags.forEach(function (f) { fl.appendChild(tip('warn', f.text + (f.key === 'fssp_debt' && c.fsspDebt ? ': ' + money(c.fsspDebt) : '') + '.')); });
       c.bankruptcy.filter(function (b) { return b.active; }).forEach(function (b) { fl.appendChild(tip('warn', 'Дело о банкротстве' + (b.case ? ' № ' + b.case : '') + (b.start ? ' с ' + dateShort(b.start) : '') + '.')); });
       fl.appendChild(el('p', 'note-sm', 'По данным ЕГРЮЛ, ФНС, ФССП, Федресурса, ЦБ и Росфинмониторинга через сервис DataNewton.'));
