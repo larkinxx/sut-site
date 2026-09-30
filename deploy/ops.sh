@@ -69,6 +69,8 @@ case "$ACTION" in
     out=$(runuser -u sut -- git -C "$REPO" pull --ff-only 2>&1); code=$?
     echo "$out" | tail -6
     if [ $code -ne 0 ]; then echo "Обновление не удалось (git pull, код $code)."; exit $code; fi
+    # установи новые зависимости если package.json изменился
+    runuser -u sut -- npm --prefix "$REPO" ci --omit=dev 2>&1 | tail -3
     systemctl restart sut-api || { echo "Сайт не перезапустился."; exit 1; }
     echo "Сайт перезапущен: $(systemctl is-active sut-api)."
     ;;
