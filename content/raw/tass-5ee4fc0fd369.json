@@ -1,0 +1,14 @@
+{
+  "id": "tass-5ee4fc0fd369",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Bloomberg сообщил о сокращении состояния богатейших россиян",
+  "url": "https://tass.ru/ekonomika/28168863",
+  "publishedAt": "2026-10-01T04:52:47.000Z",
+  "text": "С начала 2026 года оно совокупно сократилось на $23,6 млрд",
+  "fetchedAt": "2026-10-01T05:50:23.488Z",
+  "drafted": false
+}
