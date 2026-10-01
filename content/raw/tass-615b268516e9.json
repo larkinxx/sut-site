@@ -1,0 +1,15 @@
+{
+  "id": "tass-615b268516e9",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Цена нефти Brent на ICE ускорила рост более чем на 5%",
+  "url": "https://tass.ru/ekonomika/28173299",
+  "publishedAt": "2026-10-01T18:07:10.000Z",
+  "text": "К 20:59 мск она торгуется на уровне $103,05 за баррель",
+  "fetchedAt": "2026-10-01T18:53:45.610Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: биржевые сводки"
+}

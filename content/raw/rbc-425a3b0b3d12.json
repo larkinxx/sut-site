@@ -1,0 +1,15 @@
+{
+  "id": "rbc-425a3b0b3d12",
+  "sourceId": "rbc",
+  "sourceName": "РБК",
+  "kind": "Новости",
+  "official": false,
+  "category": "",
+  "title": "Пожар возле Исаакиевского собора",
+  "url": "https://www.rbc.ru/photoslider/6abea2569a79476c0f5f82bd",
+  "publishedAt": "2026-10-01T18:12:38.000Z",
+  "text": "Пожар возле Исаакиевского собора",
+  "fetchedAt": "2026-10-01T18:53:40.733Z",
+  "drafted": true,
+  "skipReason": "Новость о пожаре не имеет прямого отношения к экономике, финансам граждан или малого бизнеса."
+}

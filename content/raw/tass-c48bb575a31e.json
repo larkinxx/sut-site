@@ -1,0 +1,14 @@
+{
+  "id": "tass-c48bb575a31e",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Новак заявил о росте ВВП России за семь месяцев на 0,6%",
+  "url": "https://tass.ru/ekonomika/28173249",
+  "publishedAt": "2026-10-01T17:58:56.000Z",
+  "text": "В августе показатель увеличился на 0,8%, сообщил вице-премьер",
+  "fetchedAt": "2026-10-01T18:53:46.529Z",
+  "drafted": false
+}
