@@ -1,0 +1,15 @@
+{
+  "id": "tass-eb7c5b503225",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Аэропорт Пензы возобновил прием и выпуск самолетов",
+  "url": "https://tass.ru/ekonomika/28173735",
+  "publishedAt": "2026-10-01T21:14:08.000Z",
+  "text": "Об этом сообщили в Росавиации",
+  "fetchedAt": "2026-10-01T23:11:38.277Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}

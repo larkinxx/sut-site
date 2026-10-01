@@ -1,0 +1,15 @@
+{
+  "id": "tass-1c3d7890fbd2",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Аэропорт Сочи возобновил прием и выпуск самолетов",
+  "url": "https://tass.ru/ekonomika/28173813",
+  "publishedAt": "2026-10-01T22:49:48.000Z",
+  "text": "",
+  "fetchedAt": "2026-10-01T23:11:37.555Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
