@@ -340,19 +340,26 @@
       // ИП на УСН 6%: взносы обязательны, налог уменьшается на всю их сумму
       var contrib = ip.fixed + Math.min(ip.extraMax, Math.max(0, inc - ip.extraFrom) * ip.extraRate);
       var usn = Math.max(0, inc * ip.usnRate - contrib), ipTotal = contrib + usn;
-      var verdict = !npdOk
-        ? 'Доход больше ' + rub(n.limit) + ' в год: самозанятым оставаться нельзя, подходит только ИП.'
-        : npd < ipTotal
-          ? 'Самозанятость дешевле на ' + rub(ipTotal - npd) + ' в год. Но у самозанятого не идёт пенсионный стаж, а у ИП взносы его дают.'
-          : 'ИП на упрощёнке дешевле на ' + rub(npd - ipTotal) + ' в год, и взносы ИП идут в пенсионный стаж.';
+      // ИП на АУСН: 8% с дохода, взносов за себя нет; режим для дохода до лимита и не во всех регионах
+      var A = (FIN.burden || {}).ausn, ausnOk = !!A && inc <= FIN.regimes.ausnIncomeLimit, ausn = ausnOk ? inc * A.rateIncome : 0;
+      var opts = [['самозанятость', npd, npdOk], ['ИП на УСН ' + ip.usnRate * 100 + '%', ipTotal, true], ['ИП на АУСН' + (A ? ' ' + A.rateIncome * 100 + '%' : ''), ausn, ausnOk]]
+        .filter(function (o) { return o[2]; }).sort(function (x, y) { return x[1] - y[1]; });
+      var top = opts[0], next = opts[1];
+      var noStazh = top[0] !== 'ИП на УСН ' + ip.usnRate * 100 + '%';
+      var verdict = (npdOk ? '' : 'Доход больше ' + rub(n.limit) + ' в год: самозанятым оставаться нельзя. ') +
+        'Дешевле всего ' + top[0] + ': ' + rub(top[1]) + ' в год' + (next ? ', следом ' + next[0] + ' (на ' + rub(next[1] - top[1]) + ' больше)' : '') + '. ' +
+        (noStazh ? 'Но при ней пенсионный стаж не идёт, если не платить взносы добровольно, а у ИП на УСН взносы его дают.' : 'Взносы ИП идут в пенсионный стаж.');
       out.innerHTML =
         row('Доход за год', rub(inc)) +
-        '<div class="opt' + (npdOk && npd <= ipTotal ? ' best' : '') + (npdOk ? '' : ' off') + '"><h3>Самозанятый</h3>' +
+        '<div class="opt' + (top[0] === 'самозанятость' ? ' best' : '') + (npdOk ? '' : ' off') + '"><h3>Самозанятый</h3>' +
           row('Налог за год', npdOk ? rub(npd) : 'недоступно') + row('В среднем в месяц', npdOk ? rub(npd / 12) : '—') +
           row('Взносы', 'не обязательны') + '</div>' +
-        '<div class="opt' + (!npdOk || ipTotal < npd ? ' best' : '') + '"><h3>ИП на УСН ' + ip.usnRate * 100 + '%</h3>' +
+        '<div class="opt' + (top[0].indexOf('УСН') > 0 ? ' best' : '') + '"><h3>ИП на УСН ' + ip.usnRate * 100 + '%</h3>' +
           row('Страховые взносы', rub(contrib)) + row('Налог после вычета взносов', rub(usn)) +
           row('Итого за год', rub(ipTotal)) + row('В среднем в месяц', rub(ipTotal / 12)) + '</div>' +
+        (A ? '<div class="opt' + (top[0].indexOf('АУСН') === 0 ? ' best' : '') + (ausnOk ? '' : ' off') + '"><h3>ИП на АУСН ' + A.rateIncome * 100 + '%</h3>' +
+          row('Налог за год', ausnOk ? rub(ausn) : 'недоступно') + row('В среднем в месяц', ausnOk ? rub(ausn / 12) : '—') +
+          row('Взносы за себя', 'не платятся') + '</div>' : '') +
         '<p class="verdict">' + verdict + '</p>' +
         (inc > ip.ndsFrom ? '<p class="verdict warn">Доход больше ' + rub(ip.ndsFrom) + ' в год: на упрощёнке придётся платить ещё и НДС, он здесь не учтён.</p>' : '');
     };
