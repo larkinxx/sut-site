@@ -1,0 +1,34 @@
+{
+  "id": "2026-10-02-prime-finance-f15da81b4bef",
+  "status": "draft",
+  "publishedAt": "2026-10-02T09:23:34.000Z",
+  "source": {
+    "name": "Прайм",
+    "url": "https://1prime.ru/20261002/vtb-873897721.html"
+  },
+  "title": "Приложение ВТБ Мои Инвестиции снова доступно в App Store под именем Kafario",
+  "highlight": "Kafario",
+  "summary": "Приложение для инвесторов ВТБ вернулось в App Store под новым названием Kafario. В новой версии появились обзоры новостей с помощью искусственного интеллекта, технический анализ на графиках, голосовой поиск и переводы ценных бумаг через сервис быстрых переводов.",
+  "gloss": "Приложения попавших под санкции банков часто удаляют из App Store, поэтому их маскируют под другими названиями для скачивания.",
+  "tip": "Откройте App Store на iPhone, найдите приложение Kafario и установите его, если пользуетесь инвестициями ВТБ.",
+  "critical": false,
+  "affects": [
+    "all"
+  ],
+  "audiences": {},
+  "calc": null,
+  "confidence": "high",
+  "confidenceNote": "",
+  "topics": [
+    "credits",
+    "growth"
+  ],
+  "review": {
+    "by": null,
+    "at": null
+  },
+  "ai": {
+    "model": "gemini:gemini-3.6-flash",
+    "generatedAt": "2026-10-02T09:47:03.652Z"
+  }
+}

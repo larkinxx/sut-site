@@ -1,0 +1,15 @@
+{
+  "id": "tass-f7a86f4ceea1",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Аэропорт Нижнекамска возобновил прием и выпуск самолетов",
+  "url": "https://tass.ru/ekonomika/28175311",
+  "publishedAt": "2026-10-02T08:50:43.000Z",
+  "text": "Об этом сообщили в Росавиации",
+  "fetchedAt": "2026-10-02T09:44:22.597Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
