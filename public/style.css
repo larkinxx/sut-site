@@ -136,6 +136,7 @@ input[type=number],input[type=text],input[type=email],select{font:inherit;font-f
 /* сравнение двух вариантов: досрочное погашение, самозанятый или ИП */
 .result.cmp{grid-template-columns:1fr 1fr;gap:6px 14px}
 .result.cmp>div:not(.opt),.result.cmp>p{grid-column:1/-1}
+.result.cmp3{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
 .result .opt{display:grid;grid-template-columns:1fr;justify-content:stretch;gap:6px;align-content:start;border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;margin-top:8px}
 .result .opt.best{border-color:var(--accent);box-shadow:inset 0 3px 0 var(--accent)}
 .result .opt.off{opacity:.6}
