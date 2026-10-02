@@ -1,0 +1,15 @@
+{
+  "id": "tass-c63e3a6c3bde",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропорту Кирова приостановили прием и выпуск самолетов",
+  "url": "https://tass.ru/ekonomika/28173999",
+  "publishedAt": "2026-10-02T02:04:43.000Z",
+  "text": "",
+  "fetchedAt": "2026-10-02T02:15:59.633Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
