@@ -116,6 +116,14 @@
       ['osno', 'Общая система (ОСНО)', osno]
     ];
     var rows = defs.map(function (d) { return { id: d[0], name: d[1], ip: d[2]('ip'), ul: d[2]('ul') }; });
+    // ООО: чтобы деньги дошли до владельца, прибыль после налогов выводят дивидендами и платят с них НДФЛ
+    if (p.dividends) rows.forEach(function (r) {
+      var c = r.ul;
+      if (!c.ok || c.partial) return;
+      var dist = Math.max(0, inc - exp - F - c.total), div = prog(B.dividends, dist);
+      c.distributable = dist;
+      if (div > 0.5) { c.parts.push(['НДФЛ с дивидендов', div]); c.total += div; }
+    });
     var best = {};
     ['ip', 'ul'].forEach(function (f) {
       rows.forEach(function (r) {
@@ -161,7 +169,7 @@
     var sel = box.querySelector('[name=activity]');
     var r = compute(FIN, {
       income: read('income'), expenses: read('expenses'), staff: read('staff'), salary: read('salary'),
-      activity: sel ? sel.value : '', legal: Math.min(100, read('legal')) / 100, pvd: read('pvd')
+      activity: sel ? sel.value : '', legal: Math.min(100, read('legal')) / 100, pvd: read('pvd'), dividends: !!(box.querySelector('[name=div]') || {}).checked
     });
     if (!(r.income > 0)) { out.innerHTML = '<p class="verdict">Впишите доход за год.</p>'; return; }
     var html = r.rows.map(function (row) {
@@ -180,6 +188,7 @@
       lines.push(d > 0.5 ? 'ИП выходит дешевле ООО на ' + rub(d) + ' в год.' : d < -0.5 ? 'ООО выходит дешевле ИП на ' + rub(-d) + ' в год.' : 'ИП и ООО выходят одинаково.');
     }
     var notes = [];
+    if ((box.querySelector('[name=div]') || {}).checked) notes.push('Для ООО в итог входит НДФЛ с дивидендов: вся прибыль после налогов выплачена владельцу, ставка ' + pcs(FIN.burden.dividends[0][1]) + ' до ' + (FIN.burden.dividends[0][0] / 1e6).toLocaleString('ru-RU') + ' млн ₽ в год и ' + pcs(FIN.burden.dividends[1][1]) + ' сверх. Без вывода прибыли этого налога нет, но и деньги остаются в компании.');
     if (read('expenses') >= r.income) notes.push('Расходы не меньше дохода: прибыли нет. На режимах с налогом на прибыль налог нулевой или минимальный, на «доходах» он всё равно платится.');
     if (r.activity.note) notes.push(r.activity.note.charAt(0).toUpperCase() + r.activity.note.slice(1) + '.');
     out.innerHTML = html + '<p class="verdict"><b>Итог.</b> ' + esc(lines.join(' ')) + '</p>' + (notes.length ? '<p class="note-sm">' + esc(notes.join(' ')) + '</p>' : '');

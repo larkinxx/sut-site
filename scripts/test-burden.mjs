@@ -49,6 +49,14 @@ near(row(r, 'ausn8').ip.total, 480000 + FIN.burden.ausn.injuryYear, 'АУСН: �
 assert.equal(row(r, 'npd').ip.ok, false, 'самозанятым нельзя нанимать');
 assert.equal(compute(FIN, { ...base, staff: 6 }).rows.find((x) => x.id === 'ausn8').ip.ok, false, 'АУСН до 5 сотрудников');
 
+// ООО с дивидендами: на руки 6 000 000 − 1 500 000 − 360 000 = 4 140 000; НДФЛ 13% × 2,4 млн + 15% × 1,74 млн = 573 000
+r = compute(FIN, { ...base, dividends: true });
+near(row(r, 'usn6').ul.total, 360000 + 573000, 'УСН 6% ООО с дивидендами');
+near(row(r, 'usn6').ip.total, 360000, 'у ИП дивидендов нет');
+// убыток: распределять нечего, НДФЛ с дивидендов нет
+r = compute(FIN, { ...base, income: 1e6, expenses: 2e6, dividends: true });
+assert.ok(!row(r, 'usn15').ul.parts.some((x) => x[0] === 'НДФЛ с дивидендов'));
+
 // самозанятый: 1,2 млн, половина от компаний — как в калькуляторе «Самозанятый или ИП»: 600к × 4% + 600к × 6% − 10 000
 r = compute(FIN, { ...base, income: 1.2e6, expenses: 0, legal: 0.5 });
 near(row(r, 'npd').ip.total, 600000 * 0.04 + 600000 * 0.06 - 10000, 'НПД');
