@@ -1,0 +1,15 @@
+{
+  "id": "tass-8d9651fc327a",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропорту Сочи ввели ограничения",
+  "url": "https://tass.ru/ekonomika/28179321",
+  "publishedAt": "2026-10-03T20:19:44.000Z",
+  "text": "Они необходимы для обеспечения безопасности полетов",
+  "fetchedAt": "2026-10-03T21:13:16.111Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}

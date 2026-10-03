@@ -1,0 +1,15 @@
+{
+  "id": "rbc-b8e7efd9da97",
+  "sourceId": "rbc",
+  "sourceName": "РБК",
+  "kind": "Новости",
+  "official": false,
+  "category": "",
+  "title": "Иван Конев",
+  "url": "https://www.rbc.ru/photoslider/6ac156209a7947481179095d",
+  "publishedAt": "2026-10-03T19:28:48.000Z",
+  "text": "Иван Конев",
+  "fetchedAt": "2026-10-03T21:13:12.472Z",
+  "drafted": true,
+  "skipReason": "Новость не содержит смысловой или практической информации для граждан и бизнеса."
+}
