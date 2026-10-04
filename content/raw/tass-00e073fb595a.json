@@ -1,0 +1,15 @@
+{
+  "id": "tass-00e073fb595a",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Временные ограничения отменены в аэропортах Внуково и Домодедово",
+  "url": "https://tass.ru/ekonomika/28180933",
+  "publishedAt": "2026-10-04T21:12:41.000Z",
+  "text": "",
+  "fetchedAt": "2026-10-04T21:23:03.203Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
