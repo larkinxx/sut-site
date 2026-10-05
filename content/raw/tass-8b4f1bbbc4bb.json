@@ -1,0 +1,14 @@
+{
+  "id": "tass-8b4f1bbbc4bb",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В ХМАО впервые запустили выделенный маршрут для БПЛА",
+  "url": "https://tass.ru/ekonomika/28183881",
+  "publishedAt": "2026-10-05T15:09:12.000Z",
+  "text": "Протяженность специального маршрута \"U1\" составляет 440 км",
+  "fetchedAt": "2026-10-05T15:59:30.173Z",
+  "drafted": false
+}
