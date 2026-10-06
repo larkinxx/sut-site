@@ -1,0 +1,15 @@
+{
+  "id": "rbc-fa0d41f454bc",
+  "sourceId": "rbc",
+  "sourceName": "РБК",
+  "kind": "Новости",
+  "official": false,
+  "category": "",
+  "title": "Троица",
+  "url": "https://www.rbc.ru/photoslider/6ac52a09ea440e36f74ed4a7",
+  "publishedAt": "2026-10-06T17:08:52.000Z",
+  "text": "Троица",
+  "fetchedAt": "2026-10-06T17:10:51.137Z",
+  "drafted": true,
+  "skipReason": "Новость не содержит экономической информации и практического значения для граждан."
+}
