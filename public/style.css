@@ -191,7 +191,7 @@ footer .fine{border-top:1px solid var(--line);padding-top:16px;margin:0;font:400
 footer .fine a{color:var(--accent)}
 
 @media (max-width:420px){.btn .t{display:none}}
-@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 
 .btn:hover{background:transparent;color:var(--ink)}
 
@@ -416,7 +416,7 @@ footer.wrap{padding-bottom:56px}
 footer .fine{text-align:center;margin:0 auto;padding-top:28px;font-size:12px;letter-spacing:.02em}
 
 /* ---------- первый экран: две половины ---------- */
-.split{position:relative;left:50%;transform:translateX(-50%);width:min(1200px,calc(100vw - 32px));display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--ink);margin:-24px 0 72px;animation:rise .9s cubic-bezier(.2,.7,.2,1) both}
+.split{position:relative;left:50%;transform:translateX(-50%);width:min(1200px,calc(100vw - 32px));display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--ink);margin:-24px 0 72px;animation:rise .9s cubic-bezier(.2,.7,.2,1) backwards}
 .split-half{padding:clamp(36px,6vw,80px) clamp(24px,5vw,64px);display:grid;align-content:center;gap:18px;min-height:clamp(320px,42vw,500px)}
 .split-dark{background:var(--ink);color:var(--bg)}
 .split-dark .label,.split-dark .split-t{color:color-mix(in srgb,var(--bg) 70%,transparent)}
