@@ -1,0 +1,14 @@
+{
+  "id": "tass-f405bdbce132",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Инфляция в РФ с 29 сентября по 5 октября составила 0,96%",
+  "url": "https://tass.ru/ekonomika/28191473",
+  "publishedAt": "2026-10-07T16:00:46.000Z",
+  "text": "С начала октября потребительские цены в РФ выросли на 0,9%",
+  "fetchedAt": "2026-10-07T16:27:33.500Z",
+  "drafted": false
+}
