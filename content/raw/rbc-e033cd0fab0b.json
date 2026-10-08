@@ -1,0 +1,15 @@
+{
+  "id": "rbc-e033cd0fab0b",
+  "sourceId": "rbc",
+  "sourceName": "РБК",
+  "kind": "Новости",
+  "official": false,
+  "category": "",
+  "title": "Голубые зоны",
+  "url": "https://www.rbc.ru/photoslider/6ac7bfd147641e26f2446447",
+  "publishedAt": "2026-10-08T16:11:17.000Z",
+  "text": "Голубые зоны",
+  "fetchedAt": "2026-10-08T16:27:38.162Z",
+  "drafted": true,
+  "skipReason": "Новость не содержит экономической информации, новостных фактов или практического значения для граждан и малого бизнеса."
+}

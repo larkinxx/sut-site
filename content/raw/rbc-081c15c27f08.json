@@ -1,0 +1,15 @@
+{
+  "id": "rbc-081c15c27f08",
+  "sourceId": "rbc",
+  "sourceName": "РБК",
+  "kind": "Новости",
+  "official": false,
+  "category": "",
+  "title": "Монеты с кенгуру",
+  "url": "https://www.rbc.ru/photoslider/6ac7ad15896c00ae255d9a5e",
+  "publishedAt": "2026-10-08T14:51:02.000Z",
+  "text": "Монеты с кенгуру",
+  "fetchedAt": "2026-10-08T16:27:38.557Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: памятные монеты"
+}
