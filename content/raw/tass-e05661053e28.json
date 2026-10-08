@@ -1,0 +1,15 @@
+{
+  "id": "tass-e05661053e28",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Bloomberg: Apple представит в октябре первый MacBook с сенсорным экраном",
+  "url": "https://tass.ru/ekonomika/28196157",
+  "publishedAt": "2026-10-08T20:49:40.000Z",
+  "text": "На презентации в том числе продемонстрируют новую версию планшета iPad mini с OLED экраном, ноутбук MacBook Pro с диагональю экрана 14 дюймов и компьютер iMac с чипом M6",
+  "fetchedAt": "2026-10-08T22:03:55.391Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: зарубежная новость без связи с Россией"
+}
