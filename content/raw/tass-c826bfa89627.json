@@ -1,0 +1,15 @@
+{
+  "id": "tass-c826bfa89627",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Аэропорт Ульяновска приостановил прием и выпуск самолетов",
+  "url": "https://tass.ru/ekonomika/28192203",
+  "publishedAt": "2026-10-08T01:44:25.000Z",
+  "text": "",
+  "fetchedAt": "2026-10-08T01:54:57.013Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}

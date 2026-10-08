@@ -1,0 +1,15 @@
+{
+  "id": "tass-0fa817d73fdf",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Аэропорты Казани и Нижнекамска приостановили прием и выпуск самолетов",
+  "url": "https://tass.ru/ekonomika/28192207",
+  "publishedAt": "2026-10-08T01:46:47.000Z",
+  "text": "",
+  "fetchedAt": "2026-10-08T01:54:56.864Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
