@@ -1,0 +1,14 @@
+{
+  "id": "tass-3dbd58c994f6",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В России годовая инфляция в сентябре составила 6,35%",
+  "url": "https://tass.ru/ekonomika/28199523",
+  "publishedAt": "2026-10-09T16:00:30.000Z",
+  "text": "В месячном выражении потребительские цены выросли на 0,35%",
+  "fetchedAt": "2026-10-09T16:11:26.460Z",
+  "drafted": false
+}

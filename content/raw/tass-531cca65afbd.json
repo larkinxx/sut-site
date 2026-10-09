@@ -1,0 +1,14 @@
+{
+  "id": "tass-531cca65afbd",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Positive Technologies предупредила о новой уязвимости в Telegram Desktop",
+  "url": "https://tass.ru/ekonomika/28199415",
+  "publishedAt": "2026-10-09T15:30:04.000Z",
+  "text": "Недостаток безопасности может позволить злоумышленникам получить файлы с устройства жертвы, отметил руководитель отдела экспертизы MaxPatrol VM Positive Technologies Егор Подмоков",
+  "fetchedAt": "2026-10-09T16:11:27.689Z",
+  "drafted": false
+}
