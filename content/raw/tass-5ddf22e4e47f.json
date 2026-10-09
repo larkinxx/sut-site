@@ -1,0 +1,14 @@
+{
+  "id": "tass-5ddf22e4e47f",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Акции \"Яндекса\" на Мосбирже ускорили снижение до 3,8%",
+  "url": "https://tass.ru/ekonomika/28197387",
+  "publishedAt": "2026-10-09T08:07:11.000Z",
+  "text": "По данным на 10:25 мск, они торговались на уровне 3 554 рубля за бумагу",
+  "fetchedAt": "2026-10-09T09:01:55.642Z",
+  "drafted": false
+}

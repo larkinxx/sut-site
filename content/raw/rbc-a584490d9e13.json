@@ -1,0 +1,15 @@
+{
+  "id": "rbc-a584490d9e13",
+  "sourceId": "rbc",
+  "sourceName": "РБК",
+  "kind": "Новости",
+  "official": false,
+  "category": "",
+  "title": "Мадрид",
+  "url": "https://www.rbc.ru/photoslider/6ac8aa069a7947ed2175b1ff",
+  "publishedAt": "2026-10-09T08:51:23.000Z",
+  "text": "Мадрид",
+  "fetchedAt": "2026-10-09T09:01:50.178Z",
+  "drafted": true,
+  "skipReason": "Новость не содержит экономической или практической информации для граждан и малого бизнеса."
+}
