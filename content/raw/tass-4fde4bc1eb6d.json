@@ -1,0 +1,15 @@
+{
+  "id": "tass-4fde4bc1eb6d",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропорту Саранска ввели ограничения",
+  "url": "https://tass.ru/ekonomika/28202247",
+  "publishedAt": "2026-10-10T18:57:56.000Z",
+  "text": "Они необходимы для обеспечения безопасности полетов",
+  "fetchedAt": "2026-10-10T22:30:50.082Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
