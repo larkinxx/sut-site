@@ -1,0 +1,15 @@
+{
+  "id": "tass-baffc8e6e5f8",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропортах Калуги, Тамбова, Ярославля сняли ограничения",
+  "url": "https://tass.ru/ekonomika/28200979",
+  "publishedAt": "2026-10-10T06:31:14.000Z",
+  "text": "Об этом заявили в Росавиации",
+  "fetchedAt": "2026-10-10T07:05:14.507Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
