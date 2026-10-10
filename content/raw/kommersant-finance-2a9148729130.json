@@ -1,0 +1,15 @@
+{
+  "id": "kommersant-finance-2a9148729130",
+  "sourceId": "kommersant-finance",
+  "sourceName": "Коммерсантъ",
+  "kind": "Финансы",
+  "official": false,
+  "category": "Индустрии",
+  "title": "Индекс Мосбиржи поднялся выше 2400 пунктов после разговора Путина и Трампа",
+  "url": "https://www.kommersant.ru/doc/9023355",
+  "publishedAt": "2026-10-09T21:29:08.000Z",
+  "text": "Великая шахматная тоска\nМир 03:39",
+  "fetchedAt": "2026-10-10T00:49:35.053Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: биржевые сводки"
+}
