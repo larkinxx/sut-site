@@ -1,0 +1,15 @@
+{
+  "id": "rbc-8c9d984114be",
+  "sourceId": "rbc",
+  "sourceName": "РБК",
+  "kind": "Новости",
+  "official": false,
+  "category": "",
+  "title": "Северное сияние",
+  "url": "https://www.rbc.ru/photoslider/6aca77fb9a7947a2eff3816d",
+  "publishedAt": "2026-10-10T17:45:26.000Z",
+  "text": "Северное сияние",
+  "fetchedAt": "2026-10-10T18:34:16.690Z",
+  "drafted": true,
+  "skipReason": "Новость не имеет практического значения для экономики, граждан или малого бизнеса."
+}
