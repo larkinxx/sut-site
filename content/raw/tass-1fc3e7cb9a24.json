@@ -1,0 +1,15 @@
+{
+  "id": "tass-1fc3e7cb9a24",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Аэропорт Саратова возобновил прием и выпуск самолетов",
+  "url": "https://tass.ru/ekonomika/28202549",
+  "publishedAt": "2026-10-11T00:32:25.000Z",
+  "text": "Временные ограничения сняли",
+  "fetchedAt": "2026-10-11T01:51:59.350Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}

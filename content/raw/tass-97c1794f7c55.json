@@ -1,0 +1,15 @@
+{
+  "id": "tass-97c1794f7c55",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Аэропорт Самары возобновил прием и выпуск самолетов",
+  "url": "https://tass.ru/ekonomika/28202565",
+  "publishedAt": "2026-10-11T00:58:28.000Z",
+  "text": "Временные ограничения сняли",
+  "fetchedAt": "2026-10-11T01:51:58.994Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
