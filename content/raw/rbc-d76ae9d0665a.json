@@ -1,0 +1,15 @@
+{
+  "id": "rbc-d76ae9d0665a",
+  "sourceId": "rbc",
+  "sourceName": "РБК",
+  "kind": "Новости",
+  "official": false,
+  "category": "",
+  "title": "Корсика",
+  "url": "https://www.rbc.ru/photoslider/6acb36169a7947da85489be5",
+  "publishedAt": "2026-10-11T07:11:58.000Z",
+  "text": "Корсика",
+  "fetchedAt": "2026-10-11T08:48:28.139Z",
+  "drafted": true,
+  "skipReason": "Материал не содержит экономической или практически значимой информации для граждан и бизнеса (фотоподборка)."
+}
