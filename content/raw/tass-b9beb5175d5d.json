@@ -1,0 +1,15 @@
+{
+  "id": "tass-b9beb5175d5d",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Рынок акций РФ растет в начале торгов",
+  "url": "https://tass.ru/ekonomika/28204547",
+  "publishedAt": "2026-10-12T06:02:03.000Z",
+  "text": "Курс юаня снизился на 11 копеек - до 12,571 рубля",
+  "fetchedAt": "2026-10-12T07:20:27.610Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: биржевые сводки"
+}
