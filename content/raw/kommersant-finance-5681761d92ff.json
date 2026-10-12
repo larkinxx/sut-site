@@ -1,0 +1,15 @@
+{
+  "id": "kommersant-finance-5681761d92ff",
+  "sourceId": "kommersant-finance",
+  "sourceName": "Коммерсантъ",
+  "kind": "Финансы",
+  "official": false,
+  "category": "Индустрии",
+  "title": "Brent превысила $106 за баррель впервые с конца сентября",
+  "url": "https://www.kommersant.ru/doc/9024686",
+  "publishedAt": "2026-10-12T11:15:40.000Z",
+  "text": "Провайдерам предложили виртуальные отношения\nМедиа и Телеком 20:52",
+  "fetchedAt": "2026-10-12T17:53:53.421Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: биржевые сводки"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "tass-aa798e19e714",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Для россиян приостановили онлайн-запись на британские визы",
+  "url": "https://tass.ru/ekonomika/28206821",
+  "publishedAt": "2026-10-12T15:31:11.000Z",
+  "text": "Это произошло из-за временного отключения онлайн-сервисов визового оператора VFS Global",
+  "fetchedAt": "2026-10-12T17:53:33.579Z",
+  "drafted": false
+}
