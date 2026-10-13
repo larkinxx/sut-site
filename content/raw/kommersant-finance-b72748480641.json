@@ -1,0 +1,15 @@
+{
+  "id": "kommersant-finance-b72748480641",
+  "sourceId": "kommersant-finance",
+  "sourceName": "Коммерсантъ",
+  "kind": "Финансы",
+  "official": false,
+  "category": "Индустрии",
+  "title": "Индекс Мосбиржи вырос на 3%",
+  "url": "https://www.kommersant.ru/doc/9025043",
+  "publishedAt": "2026-10-12T18:41:36.000Z",
+  "text": "Трамп: Путин заинтересован в сделке по Украине больше Зеленского\nМир 03:05",
+  "fetchedAt": "2026-10-13T00:38:22.605Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: биржевые сводки"
+}
