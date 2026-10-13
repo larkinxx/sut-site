@@ -1,0 +1,14 @@
+{
+  "id": "tass-9d74e1440df0",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Инфляция в Германии достигла самого высокого уровня с конца 2023 года",
+  "url": "https://tass.ru/ekonomika/28208389",
+  "publishedAt": "2026-10-13T07:06:50.000Z",
+  "text": "Она ускорилась до 3,3% в годовом выражении",
+  "fetchedAt": "2026-10-13T07:42:32.687Z",
+  "drafted": false
+}

@@ -1,0 +1,15 @@
+{
+  "id": "tass-2b402ca7b005",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропорту Тамбова сняли ограничения",
+  "url": "https://tass.ru/ekonomika/28208569",
+  "publishedAt": "2026-10-13T07:38:00.000Z",
+  "text": "",
+  "fetchedAt": "2026-10-13T07:42:31.967Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
