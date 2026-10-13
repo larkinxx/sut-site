@@ -1,0 +1,15 @@
+{
+  "id": "tass-d7b9a2947288",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Аэропорт Волгограда приостановил прием и выпуск воздушных судов",
+  "url": "https://tass.ru/ekonomika/28211167",
+  "publishedAt": "2026-10-13T21:04:54.000Z",
+  "text": "",
+  "fetchedAt": "2026-10-13T21:14:12.001Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
