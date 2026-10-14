@@ -1,0 +1,15 @@
+{
+  "id": "tass-0b2c7d742160",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Индексы Мосбиржи и РТС на открытии основной торговой сессии растут на 0,72%",
+  "url": "https://tass.ru/ekonomika/28212067",
+  "publishedAt": "2026-10-14T06:01:29.000Z",
+  "text": "",
+  "fetchedAt": "2026-10-14T06:07:53.628Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: биржевые сводки"
+}
