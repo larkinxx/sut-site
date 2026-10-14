@@ -1,0 +1,14 @@
+{
+  "id": "tass-aef9970fa37d",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "СФ утвердил отчет об исполнении федерального бюджета за 2025 год",
+  "url": "https://tass.ru/ekonomika/28213689",
+  "publishedAt": "2026-10-14T11:26:57.000Z",
+  "text": "Кассовое исполнение составило 98,9%",
+  "fetchedAt": "2026-10-14T11:50:02.700Z",
+  "drafted": false
+}
