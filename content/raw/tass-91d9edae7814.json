@@ -1,0 +1,14 @@
+{
+  "id": "tass-91d9edae7814",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В Астане открылась транспортная выставка с участием России",
+  "url": "https://tass.ru/ekonomika/28214797",
+  "publishedAt": "2026-10-14T16:27:35.000Z",
+  "text": "Экспозицию от РФ представляют 20 компаний, включая РЖД, Транзит и Fesco",
+  "fetchedAt": "2026-10-14T17:09:12.093Z",
+  "drafted": false
+}
