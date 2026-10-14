@@ -1,0 +1,15 @@
+{
+  "id": "tass-bb8cb3ddccc1",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Reuters: ФРГ ведет переговоры о покупке 50% акций производителя танков KNDS",
+  "url": "https://tass.ru/ekonomika/28215217",
+  "publishedAt": "2026-10-14T19:38:34.000Z",
+  "text": "Как пишет газета Handelsblatt, окончательное решение могут принять в ближайшие недели",
+  "fetchedAt": "2026-10-14T20:42:30.172Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: зарубежная новость без связи с Россией"
+}
