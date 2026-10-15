@@ -1,0 +1,15 @@
+{
+  "id": "tass-1fb2f24915a0",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропорту Ижевска ввели ограничения",
+  "url": "https://tass.ru/ekonomika/28217379",
+  "publishedAt": "2026-10-15T09:47:02.000Z",
+  "text": "Они необходимы для безопасности полетов",
+  "fetchedAt": "2026-10-15T09:53:31.074Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}

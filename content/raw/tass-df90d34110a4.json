@@ -1,0 +1,15 @@
+{
+  "id": "tass-df90d34110a4",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропорту Самары ввели ограничения",
+  "url": "https://tass.ru/ekonomika/28217111",
+  "publishedAt": "2026-10-15T09:07:00.000Z",
+  "text": "Они необходимы для безопасности полетов",
+  "fetchedAt": "2026-10-15T09:53:34.383Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
