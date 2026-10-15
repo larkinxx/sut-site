@@ -1,0 +1,14 @@
+{
+  "id": "tass-c44efd5db41d",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Стоимость биткойна опустилась ниже $80 тыс. впервые с 18 сентября",
+  "url": "https://tass.ru/ekonomika/28218751",
+  "publishedAt": "2026-10-15T14:24:14.000Z",
+  "text": "По состоянию на 16:54 мск он снижался на 3,41%",
+  "fetchedAt": "2026-10-15T15:00:50.667Z",
+  "drafted": false
+}
