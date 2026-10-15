@@ -1,0 +1,14 @@
+{
+  "id": "tass-cea7c8a72b8a",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Индекс Nikkei падает на 4,52% вслед за снижением котировок в США",
+  "url": "https://tass.ru/ekonomika/28215739",
+  "publishedAt": "2026-10-15T02:19:05.000Z",
+  "text": "Показатель снизился до 64 681,50 пункта на открытии торгов",
+  "fetchedAt": "2026-10-15T04:36:16.148Z",
+  "drafted": false
+}

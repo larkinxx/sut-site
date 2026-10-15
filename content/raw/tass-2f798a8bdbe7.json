@@ -1,0 +1,14 @@
+{
+  "id": "tass-2f798a8bdbe7",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Аэропорт Калуги временно не принимает и не отправляет самолеты",
+  "url": "https://tass.ru/ekonomika/28215755",
+  "publishedAt": "2026-10-15T02:31:21.000Z",
+  "text": "Меры необходимы для обеспечения безопасности полетов",
+  "fetchedAt": "2026-10-15T04:36:15.965Z",
+  "drafted": false
+}
