@@ -1,0 +1,15 @@
+{
+  "id": "kommersant-finance-fa48b08b99cc",
+  "sourceId": "kommersant-finance",
+  "sourceName": "Коммерсантъ",
+  "kind": "Финансы",
+  "official": false,
+  "category": "Индустрии",
+  "title": "Reuters: Лагард может покинуть ЕЦБ в ноябре",
+  "url": "https://www.kommersant.ru/doc/9027563",
+  "publishedAt": "2026-10-15T16:41:49.000Z",
+  "text": "Черногория вслед за ЕС перестанет предоставлять защиту военнообязанным украинцам\nМир 21:57",
+  "fetchedAt": "2026-10-15T19:07:07.962Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: зарубежная новость без связи с Россией"
+}

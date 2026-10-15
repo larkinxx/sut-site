@@ -1,0 +1,14 @@
+{
+  "id": "tass-7b4d33e3e4b2",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Российский рынок акций закрылся снижением основных индексов",
+  "url": "https://tass.ru/ekonomika/28219251",
+  "publishedAt": "2026-10-15T16:55:42.000Z",
+  "text": "Индекс Мосбиржи опустился до 2 386,81 пункта",
+  "fetchedAt": "2026-10-15T19:06:55.240Z",
+  "drafted": false
+}
