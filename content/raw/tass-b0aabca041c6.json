@@ -1,0 +1,15 @@
+{
+  "id": "tass-b0aabca041c6",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Цена Brent на бирже ICE превысила $109 за баррель впервые с 15 сентября",
+  "url": "https://tass.ru/ekonomika/28223711",
+  "publishedAt": "2026-10-16T16:25:02.000Z",
+  "text": "По данным на 19:34 мск, стоимость Brent росла на 3,18%",
+  "fetchedAt": "2026-10-16T17:23:29.269Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: биржевые сводки"
+}

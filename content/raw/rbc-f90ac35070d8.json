@@ -1,0 +1,15 @@
+{
+  "id": "rbc-f90ac35070d8",
+  "sourceId": "rbc",
+  "sourceName": "РБК",
+  "kind": "Новости",
+  "official": false,
+  "category": "",
+  "title": "Марс",
+  "url": "https://www.rbc.ru/photoslider/6ad258ae9a79471a0149b83d",
+  "publishedAt": "2026-10-16T17:05:13.000Z",
+  "text": "Марс",
+  "fetchedAt": "2026-10-16T17:23:25.189Z",
+  "drafted": true,
+  "skipReason": "Новость не имеет практического значения для граждан или малого бизнеса, текст содержит только название планеты."
+}
