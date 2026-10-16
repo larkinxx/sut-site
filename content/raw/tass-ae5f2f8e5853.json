@@ -1,0 +1,15 @@
+{
+  "id": "tass-ae5f2f8e5853",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Bloomberg: Apple перенесла сроки поставок IPhone Duo на 2027 год",
+  "url": "https://tass.ru/ekonomika/28224141",
+  "publishedAt": "2026-10-16T19:16:31.000Z",
+  "text": "Причиной стал ажиотаж после открытия предзаказов на сайте компании 16 октября",
+  "fetchedAt": "2026-10-16T21:06:12.218Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: зарубежная новость без связи с Россией"
+}

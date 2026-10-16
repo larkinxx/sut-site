@@ -1,0 +1,15 @@
+{
+  "id": "tass-a7f36b70a704",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Цена Brent достигала $110 впервые с 20 мая",
+  "url": "https://tass.ru/ekonomika/28224139",
+  "publishedAt": "2026-10-16T19:40:08.000Z",
+  "text": "К 22:00 мск стоимость замедлила рост до $109,61 за баррель",
+  "fetchedAt": "2026-10-16T21:06:11.005Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: биржевые сводки"
+}
