@@ -1,0 +1,14 @@
+{
+  "id": "tass-23ad4b5ab4ef",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Российский рынок акций растет в начале основной сессии",
+  "url": "https://tass.ru/ekonomika/28220633",
+  "publishedAt": "2026-10-16T06:01:53.000Z",
+  "text": "Индексы Мосбиржи и РТС на открытии основной торговой сессии росли на 0,54%",
+  "fetchedAt": "2026-10-16T07:08:03.784Z",
+  "drafted": false
+}

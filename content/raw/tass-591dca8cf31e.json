@@ -1,0 +1,15 @@
+{
+  "id": "tass-591dca8cf31e",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропорту Пулково сняли ограничения",
+  "url": "https://tass.ru/ekonomika/28220645",
+  "publishedAt": "2026-10-16T06:07:37.000Z",
+  "text": "Об этом заявили в Росавиации",
+  "fetchedAt": "2026-10-16T07:08:03.602Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
