@@ -1,0 +1,15 @@
+{
+  "id": "rbc-204e02dc582c",
+  "sourceId": "rbc",
+  "sourceName": "РБК",
+  "kind": "Новости",
+  "official": false,
+  "category": "",
+  "title": "Мэрия Марселя",
+  "url": "https://www.rbc.ru/photoslider/6ad383f09a7947331213315d",
+  "publishedAt": "2026-10-17T14:23:37.000Z",
+  "text": "Мэрия Марселя",
+  "fetchedAt": "2026-10-17T17:09:16.771Z",
+  "drafted": true,
+  "skipReason": "Новость содержит только заголовок 'Мэрия Марселя' и не имеет отношения к экономике, финансам, гражданам или малому бизнесу."
+}
