@@ -1,0 +1,15 @@
+{
+  "id": "kommersant-finance-54bb935c00f3",
+  "sourceId": "kommersant-finance",
+  "sourceName": "Коммерсантъ",
+  "kind": "Финансы",
+  "official": false,
+  "category": "Индустрии",
+  "title": "Криптобиржа Bitget запретила операции из России, Казахстана и Белоруссии",
+  "url": "https://www.kommersant.ru/doc/9041054",
+  "publishedAt": "2026-10-17T08:24:29.000Z",
+  "text": "Лучшие автомобильные фото недели\nАвтопилот 12:15",
+  "fetchedAt": "2026-10-17T09:19:49.328Z",
+  "drafted": true,
+  "skipReason": "Новость касается отдельной компании (криптобиржи Bitget), а в тексте заметки отсутствуют подробности и практические детали."
+}
