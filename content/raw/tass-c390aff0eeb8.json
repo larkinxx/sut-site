@@ -1,0 +1,15 @@
+{
+  "id": "tass-c390aff0eeb8",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропорту Шереметьево сняли ограничения",
+  "url": "https://tass.ru/ekonomika/28224605",
+  "publishedAt": "2026-10-17T03:57:05.000Z",
+  "text": "Авиакомпании корректируют расписание",
+  "fetchedAt": "2026-10-17T04:23:31.349Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}

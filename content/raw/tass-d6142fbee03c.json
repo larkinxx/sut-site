@@ -1,0 +1,15 @@
+{
+  "id": "tass-d6142fbee03c",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В пяти аэропортах сняли ограничения",
+  "url": "https://tass.ru/ekonomika/28224603",
+  "publishedAt": "2026-10-17T03:56:48.000Z",
+  "text": "Это Внуково, Геленджик, Домодедово, Жуковский и Сочи",
+  "fetchedAt": "2026-10-17T04:23:31.471Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
