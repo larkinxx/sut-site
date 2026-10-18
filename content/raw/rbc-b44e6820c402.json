@@ -1,0 +1,15 @@
+{
+  "id": "rbc-b44e6820c402",
+  "sourceId": "rbc",
+  "sourceName": "РБК",
+  "kind": "Новости",
+  "official": false,
+  "category": "",
+  "title": "Погромы во Франции",
+  "url": "https://www.rbc.ru/photoslider/6ad4ece90b0f04b88a7c8e7c",
+  "publishedAt": "2026-10-18T16:20:23.000Z",
+  "text": "Погромы во Франции",
+  "fetchedAt": "2026-10-18T18:04:49.404Z",
+  "drafted": true,
+  "skipReason": "Новость не содержит практической пользы и экономической информации для личных финансов граждан или малого бизнеса."
+}
