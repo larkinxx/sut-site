@@ -1,0 +1,15 @@
+{
+  "id": "tass-e6248ffdc9a4",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Цена Brent впервые с 20 мая превысила $110 за баррель",
+  "url": "https://tass.ru/ekonomika/28230943",
+  "publishedAt": "2026-10-19T18:13:15.000Z",
+  "text": "Стоимость фьючерса росла на 0,76%, следует из данных торгов на бирже ICE",
+  "fetchedAt": "2026-10-19T21:02:31.993Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: биржевые сводки"
+}

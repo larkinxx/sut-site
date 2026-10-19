@@ -1,0 +1,15 @@
+{
+  "id": "kommersant-finance-802a58952df5",
+  "sourceId": "kommersant-finance",
+  "sourceName": "Коммерсантъ",
+  "kind": "Финансы",
+  "official": false,
+  "category": "Индустрии",
+  "title": "Банк России установил курс доллара ниже 83 руб. впервые за два месяца",
+  "url": "https://www.kommersant.ru/doc/9042314",
+  "publishedAt": "2026-10-19T15:43:32.000Z",
+  "text": "Трамп анонсировал освобождение задержанного в России американца\nМир 23:59",
+  "fetchedAt": "2026-10-19T21:02:40.178Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: биржевые сводки"
+}
