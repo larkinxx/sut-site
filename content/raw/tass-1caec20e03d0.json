@@ -1,0 +1,14 @@
+{
+  "id": "tass-1caec20e03d0",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Зеленский заявил о сохраняющихся ограничениях на работу Starlink/Starshield",
+  "url": "https://tass.ru/ekonomika/28230363",
+  "publishedAt": "2026-10-19T14:19:08.000Z",
+  "text": "По его словам, на разных участках фронта оборудование перестает функционировать на скорости 130-161 км в час",
+  "fetchedAt": "2026-10-19T15:35:29.132Z",
+  "drafted": false
+}
