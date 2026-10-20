@@ -1,0 +1,15 @@
+{
+  "id": "kommersant-finance-fd946e16f628",
+  "sourceId": "kommersant-finance",
+  "sourceName": "Коммерсантъ",
+  "kind": "Финансы",
+  "official": false,
+  "category": "Индустрии",
+  "title": "Brent превысила $111 за баррель впервые за пять месяцев",
+  "url": "https://www.kommersant.ru/doc/9042682",
+  "publishedAt": "2026-10-20T07:59:29.000Z",
+  "text": "ЕАЭС предупредил о подорожании газа для Армении на 69% в случае выхода из союза\nМир 14:31",
+  "fetchedAt": "2026-10-20T11:34:09.046Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: биржевые сводки"
+}

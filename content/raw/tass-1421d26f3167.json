@@ -1,0 +1,14 @@
+{
+  "id": "tass-1421d26f3167",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Samsung разрешил доступ к 5G на своих смартфонах в сети Т2",
+  "url": "https://tass.ru/ekonomika/28233267",
+  "publishedAt": "2026-10-20T10:37:51.000Z",
+  "text": "Российская сеть 5G от оператора будет доступна пока только на Samsung Galaxy A27 - модели лета 2026 года из \"среднего\" класса",
+  "fetchedAt": "2026-10-20T11:33:49.298Z",
+  "drafted": false
+}

@@ -1,0 +1,15 @@
+{
+  "id": "kommersant-finance-9d20c0a46a3a",
+  "sourceId": "kommersant-finance",
+  "sourceName": "Коммерсантъ",
+  "kind": "Финансы",
+  "official": false,
+  "category": "Индустрии",
+  "title": "Индекс Мосбиржи обновил максимум за четыре месяца",
+  "url": "https://www.kommersant.ru/doc/9042656",
+  "publishedAt": "2026-10-20T07:41:45.000Z",
+  "text": "ЕАЭС предупредил о подорожании газа для Армении на 69% в случае выхода из союза\nМир 14:31",
+  "fetchedAt": "2026-10-20T11:34:09.537Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: биржевые сводки"
+}
