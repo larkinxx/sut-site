@@ -1,0 +1,15 @@
+{
+  "id": "tass-dccf7cde0bb0",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "FT: выручка SpaceX выросла на 161% в III квартале",
+  "url": "https://tass.ru/ekonomika/28235127",
+  "publishedAt": "2026-10-20T22:34:26.000Z",
+  "text": "Она составила $14,6 млрд",
+  "fetchedAt": "2026-10-20T23:51:59.157Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: зарубежная новость без связи с Россией"
+}
