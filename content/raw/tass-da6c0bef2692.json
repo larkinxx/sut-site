@@ -1,0 +1,14 @@
+{
+  "id": "tass-da6c0bef2692",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Госдолг Бельгии впервые превысил 110% ВВП",
+  "url": "https://tass.ru/ekonomika/28238759",
+  "publishedAt": "2026-10-21T14:25:13.000Z",
+  "text": "Это вывело королевство на четвертое место по показателю в ЕС, сообщило статистическое агентство Eurostat",
+  "fetchedAt": "2026-10-21T15:13:47.916Z",
+  "drafted": false
+}
