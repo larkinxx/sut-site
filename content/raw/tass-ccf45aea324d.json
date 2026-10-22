@@ -1,0 +1,15 @@
+{
+  "id": "tass-ccf45aea324d",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Bloomberg: в США выросли продажи PlayStation 5 в преддверии выхода GTA VI",
+  "url": "https://tass.ru/ekonomika/28243195",
+  "publishedAt": "2026-10-22T14:34:14.000Z",
+  "text": "Показатель увеличился на 22%, отметило агентство",
+  "fetchedAt": "2026-10-22T15:15:53.406Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: зарубежная новость без связи с Россией"
+}
