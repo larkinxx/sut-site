@@ -1,0 +1,15 @@
+{
+  "id": "tass-a4b5bf6a6bd6",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропортах Бугульмы и Нижнекамска ввели временные ограничения",
+  "url": "https://tass.ru/ekonomika/28244319",
+  "publishedAt": "2026-10-22T22:33:19.000Z",
+  "text": "Они касаются приема и выпуска самолетов",
+  "fetchedAt": "2026-10-22T23:22:31.134Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
