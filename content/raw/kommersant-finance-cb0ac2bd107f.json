@@ -1,0 +1,15 @@
+{
+  "id": "kommersant-finance-cb0ac2bd107f",
+  "sourceId": "kommersant-finance",
+  "sourceName": "Коммерсантъ",
+  "kind": "Финансы",
+  "official": false,
+  "category": "Индустрии",
+  "title": "Суд в Москве отклонил жалобу Euroclear на взыскание €200 млрд по иску ЦБ",
+  "url": "https://www.kommersant.ru/doc/9044706",
+  "publishedAt": "2026-10-22T09:35:18.000Z",
+  "text": "«Пример крайне плохого управления»\nРадио «Ъ FM» 13:04",
+  "fetchedAt": "2026-10-22T10:10:23.910Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: зарубежная новость без связи с Россией"
+}
