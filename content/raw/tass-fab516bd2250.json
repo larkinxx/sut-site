@@ -1,0 +1,15 @@
+{
+  "id": "tass-fab516bd2250",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Аэропорт Саранска возобновил прием и выпуск самолетов",
+  "url": "https://tass.ru/ekonomika/28244715",
+  "publishedAt": "2026-10-23T04:09:56.000Z",
+  "text": "Временные ограничения сняли",
+  "fetchedAt": "2026-10-23T04:46:53.861Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
