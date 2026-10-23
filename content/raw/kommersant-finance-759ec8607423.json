@@ -1,0 +1,15 @@
+{
+  "id": "kommersant-finance-759ec8607423",
+  "sourceId": "kommersant-finance",
+  "sourceName": "Коммерсантъ",
+  "kind": "Финансы",
+  "official": false,
+  "category": "Индустрии",
+  "title": "ЦБ установил курс доллара ниже 81 руб. впервые с августа",
+  "url": "https://www.kommersant.ru/doc/9059389",
+  "publishedAt": "2026-10-23T18:33:00.000Z",
+  "text": "Мосбиржа нашла нарушения в корпоративном управлении «Самолета»\nФинансы 22:08",
+  "fetchedAt": "2026-10-23T19:12:14.952Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: биржевые сводки"
+}

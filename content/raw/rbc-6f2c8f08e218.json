@@ -1,0 +1,15 @@
+{
+  "id": "rbc-6f2c8f08e218",
+  "sourceId": "rbc",
+  "sourceName": "РБК",
+  "kind": "Новости",
+  "official": false,
+  "category": "",
+  "title": "Удостоверение",
+  "url": "https://www.rbc.ru/photoslider/6adbaabe9a79476662f78b2a",
+  "publishedAt": "2026-10-23T18:45:02.000Z",
+  "text": "Удостоверение",
+  "fetchedAt": "2026-10-23T19:11:52.459Z",
+  "drafted": true,
+  "skipReason": "Новость не содержит полезной информации, текст состоит только из одного слова без контекста и деталей."
+}

@@ -1,0 +1,14 @@
+{
+  "id": "tass-7f0bdbfe5910",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Российский рынок акций закрылся ростом основных индексов",
+  "url": "https://tass.ru/ekonomika/28248129",
+  "publishedAt": "2026-10-23T17:11:22.000Z",
+  "text": "Индекс Мосбиржи вырос до 2 464,67 пункта, РТС - до 964,05 пункта",
+  "fetchedAt": "2026-10-23T19:12:02.831Z",
+  "drafted": false
+}
