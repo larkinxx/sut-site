@@ -1,0 +1,15 @@
+{
+  "id": "kommersant-finance-a2eadcd97e2d",
+  "sourceId": "kommersant-finance",
+  "sourceName": "Коммерсантъ",
+  "kind": "Финансы",
+  "official": false,
+  "category": "Индустрии",
+  "title": "Brent превысила $115 за баррель впервые с начала мая",
+  "url": "https://www.kommersant.ru/doc/9059097",
+  "publishedAt": "2026-10-23T12:49:23.000Z",
+  "text": "ФК «Зенит» привлекли к тяжбе о возврате денег за билеты на концерт Канье Уэста\nПроисшествия 17:56",
+  "fetchedAt": "2026-10-23T15:03:27.440Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: биржевые сводки"
+}

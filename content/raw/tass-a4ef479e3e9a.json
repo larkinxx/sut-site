@@ -1,0 +1,15 @@
+{
+  "id": "tass-a4ef479e3e9a",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Цена Brent превысила $116 впервые с 29 апреля",
+  "url": "https://tass.ru/ekonomika/28247475",
+  "publishedAt": "2026-10-23T13:48:21.000Z",
+  "text": "По данным на 16:47 мск, стоимость нефти росла на 2,7%",
+  "fetchedAt": "2026-10-23T15:03:05.430Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: биржевые сводки"
+}
