@@ -1,0 +1,15 @@
+{
+  "id": "tass-b3922e4946e5",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропорту Уфы ввели временные ограничения",
+  "url": "https://tass.ru/ekonomika/28248953",
+  "publishedAt": "2026-10-24T04:13:52.000Z",
+  "text": "Прием и выпуск самолетов приостановили",
+  "fetchedAt": "2026-10-24T05:51:12.391Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}

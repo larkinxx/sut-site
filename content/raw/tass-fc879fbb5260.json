@@ -1,0 +1,15 @@
+{
+  "id": "tass-fc879fbb5260",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропорту Чебоксар ввели временные ограничения",
+  "url": "https://tass.ru/ekonomika/28248839",
+  "publishedAt": "2026-10-24T02:18:52.000Z",
+  "text": "Прием и выпуск самолетов приостановили",
+  "fetchedAt": "2026-10-24T05:51:13.026Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
