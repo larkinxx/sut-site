@@ -1,0 +1,15 @@
+{
+  "id": "tass-dde4c5ed8f8d",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропорту Самары отменили 12 рейсов из-за ограничений",
+  "url": "https://tass.ru/ekonomika/28249313",
+  "publishedAt": "2026-10-24T08:26:16.000Z",
+  "text": "Еще 28 задерживаются",
+  "fetchedAt": "2026-10-24T10:56:51.119Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}

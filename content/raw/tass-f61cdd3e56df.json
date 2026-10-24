@@ -1,0 +1,15 @@
+{
+  "id": "tass-f61cdd3e56df",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропорту Екатеринбурга сняли ограничения",
+  "url": "https://tass.ru/ekonomika/28249505",
+  "publishedAt": "2026-10-24T10:29:36.000Z",
+  "text": "Об этом заявили в Росавиации",
+  "fetchedAt": "2026-10-24T10:56:50.011Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
