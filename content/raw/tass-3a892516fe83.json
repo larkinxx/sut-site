@@ -1,0 +1,15 @@
+{
+  "id": "tass-3a892516fe83",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Bloomberg: Frasers Group получила контроль над Hugo Boss",
+  "url": "https://tass.ru/ekonomika/28249925",
+  "publishedAt": "2026-10-24T14:23:22.000Z",
+  "text": "Британский конгломерат довел свою долю до 50,08%",
+  "fetchedAt": "2026-10-24T14:31:17.526Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: зарубежная новость без связи с Россией"
+}

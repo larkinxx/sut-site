@@ -1,0 +1,15 @@
+{
+  "id": "rbc-9f941f680c1b",
+  "sourceId": "rbc",
+  "sourceName": "РБК",
+  "kind": "Новости",
+  "official": false,
+  "category": "",
+  "title": "Обломки ракет в Орле",
+  "url": "https://www.rbc.ru/photoslider/6adc9dc13137bb8105aac50d",
+  "publishedAt": "2026-10-24T12:01:23.000Z",
+  "text": "Обломки ракет в Орле",
+  "fetchedAt": "2026-10-24T14:31:14.685Z",
+  "drafted": true,
+  "skipReason": "Новость не содержит экономической или финансовой информации, касающейся личных финансов граждан или работы бизнеса."
+}
