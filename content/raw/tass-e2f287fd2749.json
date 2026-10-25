@@ -1,0 +1,15 @@
+{
+  "id": "tass-e2f287fd2749",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропорту Калуги ввели ограничения",
+  "url": "https://tass.ru/ekonomika/28251263",
+  "publishedAt": "2026-10-25T10:53:58.000Z",
+  "text": "Об этом сообщила Росавиация",
+  "fetchedAt": "2026-10-25T11:24:56.287Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
