@@ -1,0 +1,15 @@
+{
+  "id": "rbc-abc0ca95f4ab",
+  "sourceId": "rbc",
+  "sourceName": "РБК",
+  "kind": "Новости",
+  "official": false,
+  "category": "",
+  "title": "Парад овец",
+  "url": "https://www.rbc.ru/photoslider/6ade35201211d48caedd39ea",
+  "publishedAt": "2026-10-25T17:00:58.000Z",
+  "text": "Парад овец",
+  "fetchedAt": "2026-10-25T19:36:02.518Z",
+  "drafted": true,
+  "skipReason": "Новость не имеет практической ценности для личных финансов граждан или малого бизнеса."
+}
