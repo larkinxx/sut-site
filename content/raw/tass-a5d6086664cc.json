@@ -1,0 +1,15 @@
+{
+  "id": "tass-a5d6086664cc",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропортах Казани и Чебоксар сняли ограничения",
+  "url": "https://tass.ru/ekonomika/28250669",
+  "publishedAt": "2026-10-25T03:43:50.000Z",
+  "text": "Аэропорты не принимали и не отправляли рейсы",
+  "fetchedAt": "2026-10-25T06:08:20.304Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}

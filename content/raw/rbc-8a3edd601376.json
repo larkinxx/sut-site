@@ -1,0 +1,15 @@
+{
+  "id": "rbc-8a3edd601376",
+  "sourceId": "rbc",
+  "sourceName": "РБК",
+  "kind": "Новости",
+  "official": false,
+  "category": "",
+  "title": "Ким Чен Ын в Китае",
+  "url": "https://www.rbc.ru/photoslider/6add8e1e7dd022ca9cac8e03",
+  "publishedAt": "2026-10-25T05:07:31.000Z",
+  "text": "Ким Чен Ын в Китае",
+  "fetchedAt": "2026-10-25T06:08:16.252Z",
+  "drafted": true,
+  "skipReason": "Новость носит протокольный характер и не имеет практического значения для граждан или малого бизнеса."
+}
