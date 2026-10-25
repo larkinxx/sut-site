@@ -1,0 +1,15 @@
+{
+  "id": "rbc-5caf72bd002f",
+  "sourceId": "rbc",
+  "sourceName": "РБК",
+  "kind": "Новости",
+  "official": false,
+  "category": "",
+  "title": "Белгород последствия",
+  "url": "https://www.rbc.ru/photoslider/6add440fb4ea335ad8b7867d",
+  "publishedAt": "2026-10-24T23:51:37.000Z",
+  "text": "Белгород последствия",
+  "fetchedAt": "2026-10-25T01:11:24.241Z",
+  "drafted": true,
+  "skipReason": "Новость содержит только заголовок и ссылку без содержательного текста и практической информации для граждан."
+}
