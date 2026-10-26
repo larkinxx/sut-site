@@ -1,0 +1,15 @@
+{
+  "id": "kommersant-finance-41acc6f3c05f",
+  "sourceId": "kommersant-finance",
+  "sourceName": "Коммерсантъ",
+  "kind": "Финансы",
+  "official": false,
+  "category": "Индустрии",
+  "title": "Brent опустилась ниже $110 за баррель после резкого роста неделю назад",
+  "url": "https://www.kommersant.ru/doc/9060397",
+  "publishedAt": "2026-10-26T06:04:35.000Z",
+  "text": "При атаке БПЛА в Воронежской области погибли два человека и 17 пострадали\nПроисшествия 09:10",
+  "fetchedAt": "2026-10-26T06:11:36.858Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: биржевые сводки"
+}

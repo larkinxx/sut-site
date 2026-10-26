@@ -1,0 +1,15 @@
+{
+  "id": "tass-e43f0e7c0059",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Индексы Мосбиржи и РТС на открытии торгов выросли на 0,15%",
+  "url": "https://tass.ru/ekonomika/28252795",
+  "publishedAt": "2026-10-26T06:04:46.000Z",
+  "text": "",
+  "fetchedAt": "2026-10-26T06:11:30.497Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: биржевые сводки"
+}
