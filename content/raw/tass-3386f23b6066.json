@@ -1,0 +1,15 @@
+{
+  "id": "tass-3386f23b6066",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Bloomberg: Microsoft предложила уволиться более чем 60 тыс. сотрудников",
+  "url": "https://tass.ru/ekonomika/28255521",
+  "publishedAt": "2026-10-26T17:36:56.000Z",
+  "text": "Программа добровольного увольнения охватывает около 27% штата",
+  "fetchedAt": "2026-10-26T19:17:50.587Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: зарубежная новость без связи с Россией"
+}
