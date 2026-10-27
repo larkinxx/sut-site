@@ -1,0 +1,15 @@
+{
+  "id": "rbc-d34f5676aa88",
+  "sourceId": "rbc",
+  "sourceName": "РБК",
+  "kind": "Новости",
+  "official": false,
+  "category": "",
+  "title": "ЕГЭ",
+  "url": "https://www.rbc.ru/photoslider/6ae0d0489a794784ef952aad",
+  "publishedAt": "2026-10-27T16:26:16.000Z",
+  "text": "ЕГЭ",
+  "fetchedAt": "2026-10-27T16:36:57.686Z",
+  "drafted": true,
+  "skipReason": "Текст новости содержит только слово 'ЕГЭ' и не несет никакой содержательной информации для граждан или бизнеса."
+}

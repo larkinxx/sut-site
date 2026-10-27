@@ -1,0 +1,15 @@
+{
+  "id": "rbc-1b1240c2ce34",
+  "sourceId": "rbc",
+  "sourceName": "РБК",
+  "kind": "Новости",
+  "official": false,
+  "category": "",
+  "title": "ОГЭ",
+  "url": "https://www.rbc.ru/photoslider/6ae0cfe09a79472cbf3b8439",
+  "publishedAt": "2026-10-27T16:23:39.000Z",
+  "text": "ОГЭ",
+  "fetchedAt": "2026-10-27T16:36:58.060Z",
+  "drafted": true,
+  "skipReason": "Новость содержит только заголовок 'ОГЭ' без текста и конкретных фактов."
+}
