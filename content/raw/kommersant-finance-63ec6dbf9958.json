@@ -1,0 +1,15 @@
+{
+  "id": "kommersant-finance-63ec6dbf9958",
+  "sourceId": "kommersant-finance",
+  "sourceName": "Коммерсантъ",
+  "kind": "Финансы",
+  "official": false,
+  "category": "Индустрии",
+  "title": "Индекс Мосбиржи превысил 2500 пунктов впервые с 17 июня",
+  "url": "https://www.kommersant.ru/doc/9061316",
+  "publishedAt": "2026-10-27T05:36:14.000Z",
+  "text": "«В этом сезоне многое было предсказуемо»\nРадио «Ъ FM» 13:25",
+  "fetchedAt": "2026-10-27T10:32:14.762Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: биржевые сводки"
+}

@@ -1,0 +1,15 @@
+{
+  "id": "rbc-556c87726465",
+  "sourceId": "rbc",
+  "sourceName": "РБК",
+  "kind": "Новости",
+  "official": false,
+  "category": "",
+  "title": "Золотой мяч",
+  "url": "https://www.rbc.ru/photoslider/6ae0780d5054e98104ea58ab",
+  "publishedAt": "2026-10-27T10:12:47.000Z",
+  "text": "Золотой мяч",
+  "fetchedAt": "2026-10-27T10:32:00.451Z",
+  "drafted": true,
+  "skipReason": "Новость касается сферы спорта и не имеет практического значения для личных финансов, граждан или малого бизнеса."
+}
