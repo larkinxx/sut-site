@@ -1,0 +1,15 @@
+{
+  "id": "tass-65de3f4d36c5",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Аэропорт Калуги возобновил прием и выпуск самолетов",
+  "url": "https://tass.ru/ekonomika/28256295",
+  "publishedAt": "2026-10-27T03:27:00.000Z",
+  "text": "Временные ограничения сняли",
+  "fetchedAt": "2026-10-27T05:01:26.998Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
