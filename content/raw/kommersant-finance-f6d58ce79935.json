@@ -1,0 +1,15 @@
+{
+  "id": "kommersant-finance-f6d58ce79935",
+  "sourceId": "kommersant-finance",
+  "sourceName": "Коммерсантъ",
+  "kind": "Финансы",
+  "official": false,
+  "category": "Индустрии",
+  "title": "Акции «Займера» выросли более чем на 4,5% после рекомендации по дивидендам",
+  "url": "https://www.kommersant.ru/doc/9062492",
+  "publishedAt": "2026-10-28T07:05:09.000Z",
+  "text": "«Расти за счет новых пользователей становится все сложнее»\nКоммерсантъ. Технологии 11:26",
+  "fetchedAt": "2026-10-28T08:28:07.779Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: дивиденды компаний"
+}

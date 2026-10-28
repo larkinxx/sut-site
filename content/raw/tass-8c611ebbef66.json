@@ -1,0 +1,14 @@
+{
+  "id": "tass-8c611ebbef66",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "BI.ZONE: продукция Apple утратила статус сложной мишени для мошенников",
+  "url": "https://tass.ru/ekonomika/28260885",
+  "publishedAt": "2026-10-28T07:16:17.000Z",
+  "text": "Количество предложений вредоносного ПО для macOS выросло более чем на треть по сравнению с 2023-2024 годами",
+  "fetchedAt": "2026-10-28T08:27:40.235Z",
+  "drafted": false
+}
