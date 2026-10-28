@@ -1,0 +1,15 @@
+{
+  "id": "kommersant-finance-188d39280551",
+  "sourceId": "kommersant-finance",
+  "sourceName": "Коммерсантъ",
+  "kind": "Финансы",
+  "official": false,
+  "category": "Индустрии",
+  "title": "Bloomberg: союзники США на 60% сократили покупку американских облигаций",
+  "url": "https://www.kommersant.ru/doc/9062894",
+  "publishedAt": "2026-10-28T12:57:43.000Z",
+  "text": "Команда «Формулы-1» Cadillac продлила контракт с Серхио Пересом\nСпорт 18:58",
+  "fetchedAt": "2026-10-28T16:00:32.982Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: зарубежная новость без связи с Россией"
+}

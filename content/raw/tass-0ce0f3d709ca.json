@@ -1,0 +1,14 @@
+{
+  "id": "tass-0ce0f3d709ca",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "ЦБ повысил курс доллара на 29 октября до 80,87 рубля",
+  "url": "https://tass.ru/ekonomika/28263333",
+  "publishedAt": "2026-10-28T14:43:36.000Z",
+  "text": "Это на 33,57 копейки выше предыдущего показателя",
+  "fetchedAt": "2026-10-28T15:59:59.602Z",
+  "drafted": false
+}
