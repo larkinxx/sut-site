@@ -1,0 +1,14 @@
+{
+  "id": "tass-e8dd362a523f",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Мишустин сообщил, сколько человек занято в IT-секторе в РФ",
+  "url": "https://tass.ru/ekonomika/28267579",
+  "publishedAt": "2026-10-29T13:28:42.000Z",
+  "text": "Это более 1,7 млн работников, отметил премьер-министр",
+  "fetchedAt": "2026-10-29T14:16:36.533Z",
+  "drafted": false
+}

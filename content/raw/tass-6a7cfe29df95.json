@@ -1,0 +1,14 @@
+{
+  "id": "tass-6a7cfe29df95",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "ЕЦБ сохранил три основные процентные ставки",
+  "url": "https://tass.ru/ekonomika/28267545",
+  "publishedAt": "2026-10-29T13:20:16.000Z",
+  "text": "Они составляют 2,65%, 2,5% и 2,9% соответственно",
+  "fetchedAt": "2026-10-29T14:16:36.892Z",
+  "drafted": false
+}
