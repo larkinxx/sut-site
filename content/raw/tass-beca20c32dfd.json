@@ -1,0 +1,14 @@
+{
+  "id": "tass-beca20c32dfd",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "ГД рассмотрит в I чтении проект бюджета на 2027-2029 годы",
+  "url": "https://tass.ru/ekonomika/28264287",
+  "publishedAt": "2026-10-28T21:02:33.000Z",
+  "text": "Планируется, что в 2027 году расходы составят 48,7 трлн рублей",
+  "fetchedAt": "2026-10-29T00:54:19.964Z",
+  "drafted": false
+}
