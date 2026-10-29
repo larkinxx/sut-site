@@ -1,0 +1,15 @@
+{
+  "id": "kommersant-finance-7a46ca9326a1",
+  "sourceId": "kommersant-finance",
+  "sourceName": "Коммерсантъ",
+  "kind": "Финансы",
+  "official": false,
+  "category": "Индустрии",
+  "title": "Truth Social продала Bloomberg быстрый доступ к постам Трампа",
+  "url": "https://www.kommersant.ru/doc/9063996",
+  "publishedAt": "2026-10-29T14:46:05.000Z",
+  "text": "WSJ: военное руководство США представило Трампу варианты нападения на Иран\nМир 22:58",
+  "fetchedAt": "2026-10-29T20:16:40.429Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: зарубежная новость без связи с Россией"
+}
