@@ -1,0 +1,15 @@
+{
+  "id": "kommersant-economics-23d990c709d8",
+  "sourceId": "kommersant-economics",
+  "sourceName": "Коммерсантъ",
+  "kind": "Экономика",
+  "official": false,
+  "category": "Экономики",
+  "title": "Бюджет России в 2026 году получил 722 млрд рублей дивидендов",
+  "url": "https://www.kommersant.ru/doc/9063258",
+  "publishedAt": "2026-10-29T02:22:39.000Z",
+  "text": "Арендаторы пересчитали бюджет\nПотребление 10:00",
+  "fetchedAt": "2026-10-29T07:03:17.656Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: дивиденды компаний"
+}
