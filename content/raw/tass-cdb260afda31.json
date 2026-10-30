@@ -1,0 +1,14 @@
+{
+  "id": "tass-cdb260afda31",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Российский рынок акций закрылся ростом основных индексов",
+  "url": "https://tass.ru/ekonomika/28273047",
+  "publishedAt": "2026-10-30T17:37:37.000Z",
+  "text": "Индекс Мосбиржи увеличился на 0,83%",
+  "fetchedAt": "2026-10-30T19:20:36.978Z",
+  "drafted": false
+}

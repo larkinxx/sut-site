@@ -1,0 +1,15 @@
+{
+  "id": "kommersant-finance-2a74ef500abf",
+  "sourceId": "kommersant-finance",
+  "sourceName": "Коммерсантъ",
+  "kind": "Финансы",
+  "official": false,
+  "category": "Индустрии",
+  "title": "ВТБ допустил отказ от распределения 50% прибыли на дивиденды",
+  "url": "https://www.kommersant.ru/doc/9077667",
+  "publishedAt": "2026-10-30T14:07:57.000Z",
+  "text": "Reuters: Пакистан смотрит с «оптимизмом» на урегулирование конфликта США и Ирана\nМир 22:01",
+  "fetchedAt": "2026-10-30T19:20:53.726Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: дивиденды компаний"
+}
