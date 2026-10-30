@@ -1,0 +1,15 @@
+{
+  "id": "tass-d9dc295d736a",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Bloomberg назвал Anthropic крупнейшим заказчиком SpaceX",
+  "url": "https://tass.ru/ekonomika/28269065",
+  "publishedAt": "2026-10-29T20:58:35.000Z",
+  "text": "В III квартале 2026 года на заказы ИИ-компании пришлось около 34,5% выручки",
+  "fetchedAt": "2026-10-30T00:58:09.005Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: зарубежная новость без связи с Россией"
+}

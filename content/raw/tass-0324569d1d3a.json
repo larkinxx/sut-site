@@ -1,0 +1,14 @@
+{
+  "id": "tass-0324569d1d3a",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Биткойн и Ethereum резко снижаются",
+  "url": "https://tass.ru/ekonomika/28269111",
+  "publishedAt": "2026-10-29T21:04:22.000Z",
+  "text": "К 23:47 мск биткойн упал до $78,341 тыс., Ethereum опускался до $2,233 тыс.",
+  "fetchedAt": "2026-10-30T00:58:08.180Z",
+  "drafted": false
+}
