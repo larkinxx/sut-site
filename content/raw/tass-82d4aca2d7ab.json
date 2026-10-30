@@ -1,0 +1,15 @@
+{
+  "id": "tass-82d4aca2d7ab",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропорту Саранска ввели временные ограничения",
+  "url": "https://tass.ru/ekonomika/28273527",
+  "publishedAt": "2026-10-30T21:16:19.000Z",
+  "text": "Прием и выпуск самолетов приостановили",
+  "fetchedAt": "2026-10-30T23:45:00.960Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
