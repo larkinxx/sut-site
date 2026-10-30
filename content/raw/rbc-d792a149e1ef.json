@@ -1,0 +1,15 @@
+{
+  "id": "rbc-d792a149e1ef",
+  "sourceId": "rbc",
+  "sourceName": "РБК",
+  "kind": "Новости",
+  "official": false,
+  "category": "",
+  "title": "Сброшенные взрывчатые устройства",
+  "url": "https://www.rbc.ru/photoslider/6ae440fd4e86453db55056fb",
+  "publishedAt": "2026-10-30T07:02:47.000Z",
+  "text": "Сброшенные взрывчатые устройства",
+  "fetchedAt": "2026-10-30T07:04:55.947Z",
+  "drafted": true,
+  "skipReason": "Новость не относится к сфере экономики, личных финансов или регулирования бизнеса."
+}

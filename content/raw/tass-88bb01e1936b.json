@@ -1,0 +1,14 @@
+{
+  "id": "tass-88bb01e1936b",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В Росатоме рассказали о планах создания цифровых двойников атомных станций",
+  "url": "https://tass.ru/ekonomika/28269983",
+  "publishedAt": "2026-10-30T06:23:37.000Z",
+  "text": "Их планируется разработать к 2027 году",
+  "fetchedAt": "2026-10-30T07:05:01.552Z",
+  "drafted": false
+}
