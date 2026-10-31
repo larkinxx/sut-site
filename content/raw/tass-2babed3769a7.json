@@ -1,0 +1,14 @@
+{
+  "id": "tass-2babed3769a7",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропорту Калининграда задерживаются 16 рейсов",
+  "url": "https://tass.ru/ekonomika/28274359",
+  "publishedAt": "2026-10-31T09:24:55.000Z",
+  "text": "Задержки на вылет составляют от менее получаса до семи часов",
+  "fetchedAt": "2026-10-31T12:25:09.812Z",
+  "drafted": false
+}
