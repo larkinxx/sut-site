@@ -1,0 +1,15 @@
+{
+  "id": "tass-7984fc81cfbb",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Аэропорты Самары и Ульяновска возобновили прием и выпуск самолетов",
+  "url": "https://tass.ru/ekonomika/28273879",
+  "publishedAt": "2026-10-31T04:02:08.000Z",
+  "text": "Временные ограничения сняли",
+  "fetchedAt": "2026-10-31T05:37:52.699Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}

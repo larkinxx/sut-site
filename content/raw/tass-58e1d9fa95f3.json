@@ -1,0 +1,15 @@
+{
+  "id": "tass-58e1d9fa95f3",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Bloomberg: Apple вновь стала самой дорогой компанией в мире",
+  "url": "https://tass.ru/ekonomika/28273779",
+  "publishedAt": "2026-10-31T02:47:41.000Z",
+  "text": "Рыночная капитализация компании составила $5,03 трлн, сообщило агентство",
+  "fetchedAt": "2026-10-31T05:37:54.304Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: зарубежная новость без связи с Россией"
+}
