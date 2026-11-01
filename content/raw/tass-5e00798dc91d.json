@@ -1,0 +1,15 @@
+{
+  "id": "tass-5e00798dc91d",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропорту Жуковский сняли ограничения",
+  "url": "https://tass.ru/ekonomika/28276717",
+  "publishedAt": "2026-11-01T21:22:04.000Z",
+  "text": "Аэропорт не принимал и не отправлял рейсы",
+  "fetchedAt": "2026-11-01T23:34:29.878Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}

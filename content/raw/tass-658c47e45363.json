@@ -1,0 +1,15 @@
+{
+  "id": "tass-658c47e45363",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропортах Пензы и Тамбова ввели ограничения",
+  "url": "https://tass.ru/ekonomika/28276671",
+  "publishedAt": "2026-11-01T20:46:17.000Z",
+  "text": "Об этом сообщила Росавиация",
+  "fetchedAt": "2026-11-01T23:34:30.246Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}

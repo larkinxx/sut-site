@@ -1,0 +1,15 @@
+{
+  "id": "tass-c4089d54db17",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропорту Пскова сняли ограничения",
+  "url": "https://tass.ru/ekonomika/28276651",
+  "publishedAt": "2026-11-01T20:10:35.000Z",
+  "text": "Об этом сообщила Росавиация",
+  "fetchedAt": "2026-11-01T23:34:30.369Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
