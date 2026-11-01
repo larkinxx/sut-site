@@ -1,0 +1,15 @@
+{
+  "id": "tass-fa8881245931",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропорту Калуги сняли ограничения",
+  "url": "https://tass.ru/ekonomika/28275689",
+  "publishedAt": "2026-11-01T04:36:47.000Z",
+  "text": "Аэропорт не принимал и не отправлял рейсы",
+  "fetchedAt": "2026-11-01T07:30:25.925Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
