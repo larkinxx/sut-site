@@ -1,0 +1,15 @@
+{
+  "id": "tass-3b472c689ec0",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Аэропорт Чебоксар приостановил прием и выпуск воздушных судов",
+  "url": "https://tass.ru/ekonomika/28275537",
+  "publishedAt": "2026-11-01T01:02:25.000Z",
+  "text": "",
+  "fetchedAt": "2026-11-01T01:08:20.315Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}

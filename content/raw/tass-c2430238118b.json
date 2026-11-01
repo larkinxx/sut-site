@@ -1,0 +1,15 @@
+{
+  "id": "tass-c2430238118b",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Временные ограничения введены в аэропортах Нижнего Новгорода, Самары, Ульяновска",
+  "url": "https://tass.ru/ekonomika/28275525",
+  "publishedAt": "2026-11-01T00:55:32.000Z",
+  "text": "",
+  "fetchedAt": "2026-11-01T01:08:20.435Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
