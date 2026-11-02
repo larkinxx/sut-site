@@ -1,0 +1,14 @@
+{
+  "id": "tass-b1b3cfda2f35",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Стратегические запасы нефти США упали до минимума с октября 1982 года",
+  "url": "https://tass.ru/ekonomika/28279527",
+  "publishedAt": "2026-11-02T14:43:49.000Z",
+  "text": "Показатель составил 282,2 млн баррелей",
+  "fetchedAt": "2026-11-02T15:47:33.637Z",
+  "drafted": false
+}

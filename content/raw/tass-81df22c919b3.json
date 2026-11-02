@@ -1,0 +1,14 @@
+{
+  "id": "tass-81df22c919b3",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "BelkaCar восстановил доступ к сервису",
+  "url": "https://tass.ru/ekonomika/28279563",
+  "publishedAt": "2026-11-02T14:53:53.000Z",
+  "text": "Компания сделает перерасчет для зависших аренд после восстановления работы сервиса",
+  "fetchedAt": "2026-11-02T15:47:33.497Z",
+  "drafted": false
+}
