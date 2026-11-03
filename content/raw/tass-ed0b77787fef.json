@@ -1,0 +1,14 @@
+{
+  "id": "tass-ed0b77787fef",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "На Урале подразделение \"Альфа-строя\" признали банкротом",
+  "url": "https://tass.ru/ekonomika/28283199",
+  "publishedAt": "2026-11-03T13:57:01.000Z",
+  "text": "Притязания кредиторов превысили 2 млрд рублей",
+  "fetchedAt": "2026-11-03T15:06:09.720Z",
+  "drafted": false
+}

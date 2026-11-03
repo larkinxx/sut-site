@@ -1,0 +1,15 @@
+{
+  "id": "tass-34c4cc366574",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Цена Brent на бирже ICE опускалась ниже $101 за баррель впервые с 8 октября",
+  "url": "https://tass.ru/ekonomika/28283313",
+  "publishedAt": "2026-11-03T13:50:48.000Z",
+  "text": "Она снижалась на 3,72%, до $100,8",
+  "fetchedAt": "2026-11-03T15:06:09.843Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: биржевые сводки"
+}
