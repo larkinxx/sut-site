@@ -1,0 +1,15 @@
+{
+  "id": "tass-0c9ce722cd0d",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Рынок акций России растет в начале торгов",
+  "url": "https://tass.ru/ekonomika/28280917",
+  "publishedAt": "2026-11-03T06:01:49.000Z",
+  "text": "Индексы Мосбиржи и РТС увеличились на 0,5%",
+  "fetchedAt": "2026-11-03T06:45:17.256Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: биржевые сводки"
+}
