@@ -1,0 +1,15 @@
+{
+  "id": "rbc-bd5feddb85c3",
+  "sourceId": "rbc",
+  "sourceName": "РБК",
+  "kind": "Новости",
+  "official": false,
+  "category": "",
+  "title": "Выборы в США",
+  "url": "https://www.rbc.ru/photoslider/6aeadff69a7947e3bfe29ea7",
+  "publishedAt": "2026-11-04T07:51:00.000Z",
+  "text": "Выборы в США",
+  "fetchedAt": "2026-11-04T09:09:03.612Z",
+  "drafted": true,
+  "skipReason": "Новость о зарубежной политике не содержит практической информации для граждан или малого бизнеса в России."
+}
