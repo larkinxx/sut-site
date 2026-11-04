@@ -1,0 +1,15 @@
+{
+  "id": "kommersant-finance-deaa43c7c1d5",
+  "sourceId": "kommersant-finance",
+  "sourceName": "Коммерсантъ",
+  "kind": "Финансы",
+  "official": false,
+  "category": "Индустрии",
+  "title": "Акции Tesla и SpaceX упали после поражения республиканцев на выборах",
+  "url": "https://www.kommersant.ru/doc/9080324",
+  "publishedAt": "2026-11-04T12:51:11.000Z",
+  "text": "Нефть Brent подешевела более чем на $4 за баррель в течение дня\nИндустрии 20:02",
+  "fetchedAt": "2026-11-04T17:14:14.279Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: зарубежная новость без связи с Россией"
+}

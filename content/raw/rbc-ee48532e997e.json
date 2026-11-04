@@ -1,0 +1,15 @@
+{
+  "id": "rbc-ee48532e997e",
+  "sourceId": "rbc",
+  "sourceName": "РБК",
+  "kind": "Новости",
+  "official": false,
+  "category": "",
+  "title": "Магазин Гарри Поттера",
+  "url": "https://www.rbc.ru/photoslider/6aeb64f97d37fe181e8f949c",
+  "publishedAt": "2026-11-04T17:07:28.000Z",
+  "text": "Магазин Гарри Поттера",
+  "fetchedAt": "2026-11-04T17:14:01.183Z",
+  "drafted": true,
+  "skipReason": "Новость не содержит информации о финансах, экономике или законах и не имеет практической пользы для граждан или бизнеса."
+}

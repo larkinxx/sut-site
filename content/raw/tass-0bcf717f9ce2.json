@@ -1,0 +1,15 @@
+{
+  "id": "tass-0bcf717f9ce2",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Цена Brent на ICE опустилась ниже $99 впервые с 6 октября",
+  "url": "https://tass.ru/ekonomika/28286603",
+  "publishedAt": "2026-11-04T15:57:22.000Z",
+  "text": "По данным на 18:54 мск, стоимость Brent снижалась на 3,56%",
+  "fetchedAt": "2026-11-04T17:14:06.866Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: биржевые сводки"
+}
