@@ -1,0 +1,14 @@
+{
+  "id": "tass-0080b49060b3",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Стоимость золота превысила $4 100 за унцию впервые с 22 октября",
+  "url": "https://tass.ru/ekonomika/28287181",
+  "publishedAt": "2026-11-05T00:58:01.000Z",
+  "text": "К 04:00 мск цена фьючерса замедлила рост",
+  "fetchedAt": "2026-11-05T03:28:54.822Z",
+  "drafted": false
+}
