@@ -1,0 +1,14 @@
+{
+  "id": "tass-098c79b8ac1d",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Котировки Nasdaq упали более чем на 5%",
+  "url": "https://tass.ru/ekonomika/28290429",
+  "publishedAt": "2026-11-05T19:25:45.000Z",
+  "text": "Стоимость ценных бумаг технологического гиганта Nvidia упала на 8,76%",
+  "fetchedAt": "2026-11-05T20:39:23.752Z",
+  "drafted": false
+}

@@ -1,0 +1,15 @@
+{
+  "id": "kommersant-finance-ae39ca74cf85",
+  "sourceId": "kommersant-finance",
+  "sourceName": "Коммерсантъ",
+  "kind": "Финансы",
+  "official": false,
+  "category": "Индустрии",
+  "title": "Echos: ЦБ РФ требует изъять документы Euroclear из-за подозрений в сговоре с ЕС",
+  "url": "https://www.kommersant.ru/doc/9081078",
+  "publishedAt": "2026-11-05T14:18:12.000Z",
+  "text": "Pink Floyd анонсировала переиздание альбома Animals в честь 50-летия пластинки\nКультура 23:05",
+  "fetchedAt": "2026-11-05T20:39:47.459Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: зарубежная новость без связи с Россией"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "tass-9eb79e178b11",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Business Insider: акции Tesla и SpaceX упали на 15% после победы демократов",
+  "url": "https://tass.ru/ekonomika/28290497",
+  "publishedAt": "2026-11-05T20:36:13.000Z",
+  "text": "Инвесторы опасаются усиления контроля над бизнесом Илона Маска со стороны Конгресса",
+  "fetchedAt": "2026-11-05T20:39:23.603Z",
+  "drafted": false
+}
