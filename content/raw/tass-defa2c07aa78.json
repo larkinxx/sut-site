@@ -1,0 +1,14 @@
+{
+  "id": "tass-defa2c07aa78",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Главный индекс Франкфуртской биржи DAX достиг рекордной отметки",
+  "url": "https://tass.ru/ekonomika/28288471",
+  "publishedAt": "2026-11-05T11:19:07.000Z",
+  "text": "Показатель вырос на фоне итогов промежуточных выборов в Конгресс США",
+  "fetchedAt": "2026-11-05T12:18:20.290Z",
+  "drafted": false
+}

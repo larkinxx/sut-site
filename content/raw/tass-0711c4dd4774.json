@@ -1,0 +1,15 @@
+{
+  "id": "tass-0711c4dd4774",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "The 50: в Перу вручили награды лучшим ресторанам мира",
+  "url": "https://tass.ru/ekonomika/28288945",
+  "publishedAt": "2026-11-05T11:45:57.000Z",
+  "text": "Первое место по версии The World’s 50 Best Restaurants Academy занял Asador Etxebarri из испанского города Ачондо",
+  "fetchedAt": "2026-11-05T12:18:18.808Z",
+  "drafted": true,
+  "skipReason": "Новость о ресторанной премии не содержит практической информации о личных финансах, налогах или бизнесе."
+}

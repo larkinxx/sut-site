@@ -1,0 +1,14 @@
+{
+  "id": "tass-b25680257ec6",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Binance отозвала все связанные с SignalPlus API-ключи",
+  "url": "https://tass.ru/ekonomika/28288849",
+  "publishedAt": "2026-11-05T11:19:45.000Z",
+  "text": "В Binance подчеркнули, что собственные системы биржи не затронуты, а средства пользователей находятся в безопасности",
+  "fetchedAt": "2026-11-05T12:18:20.142Z",
+  "drafted": false
+}
