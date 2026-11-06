@@ -1,0 +1,14 @@
+{
+  "id": "tass-8a9326f2bc06",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "ФАС завела 76 дел на рынке топлива",
+  "url": "https://tass.ru/ekonomika/28293221",
+  "publishedAt": "2026-11-06T15:25:26.000Z",
+  "text": "Служба выдала 109 предупреждений, из которых 75 уже исполнены",
+  "fetchedAt": "2026-11-06T17:28:56.408Z",
+  "drafted": false
+}

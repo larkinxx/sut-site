@@ -1,0 +1,15 @@
+{
+  "id": "tass-db0686e2a17b",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Совет директоров \"Роснефти\" рекомендовал промежуточные дивиденды в 9,44 рубля на акцию",
+  "url": "https://tass.ru/ekonomika/28293409",
+  "publishedAt": "2026-11-06T17:13:35.000Z",
+  "text": "",
+  "fetchedAt": "2026-11-06T17:28:54.790Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: дивиденды компаний"
+}
