@@ -1,0 +1,15 @@
+{
+  "id": "tass-124cd1144415",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропорту Астрахани сняли ограничения",
+  "url": "https://tass.ru/ekonomika/28293679",
+  "publishedAt": "2026-11-06T20:02:28.000Z",
+  "text": "Об этом сообщила Росавиация",
+  "fetchedAt": "2026-11-06T23:06:28.940Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
