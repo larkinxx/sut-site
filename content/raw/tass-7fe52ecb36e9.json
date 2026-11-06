@@ -1,0 +1,15 @@
+{
+  "id": "tass-7fe52ecb36e9",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Аэропорт Владикавказа приостановил прием и выпуск самолетов",
+  "url": "https://tass.ru/ekonomika/28291925",
+  "publishedAt": "2026-11-06T09:14:56.000Z",
+  "text": "",
+  "fetchedAt": "2026-11-06T09:21:45.653Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
