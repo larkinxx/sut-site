@@ -1,0 +1,15 @@
+{
+  "id": "tass-1b20e8b16c5f",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропортах Самары и Ульяновска ввели ограничения",
+  "url": "https://tass.ru/ekonomika/28294025",
+  "publishedAt": "2026-11-07T02:32:19.000Z",
+  "text": "",
+  "fetchedAt": "2026-11-07T02:47:09.555Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
