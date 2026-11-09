@@ -1,0 +1,15 @@
+{
+  "id": "tass-1848564d09dc",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропорту Саратова сняли ограничения",
+  "url": "https://tass.ru/ekonomika/28297429",
+  "publishedAt": "2026-11-09T05:59:18.000Z",
+  "text": "Об этом заявили в Росавиации",
+  "fetchedAt": "2026-11-09T06:23:08.527Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
