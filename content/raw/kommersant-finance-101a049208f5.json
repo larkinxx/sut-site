@@ -1,0 +1,15 @@
+{
+  "id": "kommersant-finance-101a049208f5",
+  "sourceId": "kommersant-finance",
+  "sourceName": "Коммерсантъ",
+  "kind": "Финансы",
+  "official": false,
+  "category": "Индустрии",
+  "title": "Акции Nvidia упали на 9%",
+  "url": "https://www.kommersant.ru/doc/9093069",
+  "publishedAt": "2026-11-09T15:29:11.000Z",
+  "text": "Недобросовестных хозяев животных смогут привлекать к ответственности в течение года\nЖизнь 20:22",
+  "fetchedAt": "2026-11-09T17:28:30.446Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: зарубежная новость без связи с Россией"
+}

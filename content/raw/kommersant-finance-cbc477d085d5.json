@@ -1,0 +1,15 @@
+{
+  "id": "kommersant-finance-cbc477d085d5",
+  "sourceId": "kommersant-finance",
+  "sourceName": "Коммерсантъ",
+  "kind": "Финансы",
+  "official": false,
+  "category": "Индустрии",
+  "title": "Цена Brent опустилась ниже $93 за баррель впервые с 1 сентября",
+  "url": "https://www.kommersant.ru/doc/9093075",
+  "publishedAt": "2026-11-09T15:48:30.000Z",
+  "text": "Недобросовестных хозяев животных смогут привлекать к ответственности в течение года\nЖизнь 20:22",
+  "fetchedAt": "2026-11-09T17:28:30.241Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: биржевые сводки"
+}
