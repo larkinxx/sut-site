@@ -1,0 +1,14 @@
+{
+  "id": "tass-b9ddb51988a1",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Средняя доля физлиц в торгах в будни выросла в октябре до 67,2%",
+  "url": "https://tass.ru/ekonomika/28303911",
+  "publishedAt": "2026-11-10T16:01:43.000Z",
+  "text": "В выходные торговые дни показатель снизился с 79,6 до 79,1%",
+  "fetchedAt": "2026-11-10T17:48:55.781Z",
+  "drafted": false
+}

@@ -1,0 +1,15 @@
+{
+  "id": "tass-b3c6ccddd940",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Минэнерго США повысило прогноз по цене барреля нефти Brent до $97,44",
+  "url": "https://tass.ru/ekonomika/28304055",
+  "publishedAt": "2026-11-10T17:05:15.000Z",
+  "text": "В октябре стоимость нефти увеличились третий месяц подряд",
+  "fetchedAt": "2026-11-10T17:48:54.415Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: биржевые сводки"
+}
