@@ -1,0 +1,15 @@
+{
+  "id": "tass-6be5ef0e23a4",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Bloomberg узнал о планах PepsiCo сократить около 1 тыс. сотрудников",
+  "url": "https://tass.ru/ekonomika/28300591",
+  "publishedAt": "2026-11-10T00:20:02.000Z",
+  "text": "По информации агентства, компания стремится упростить свою структуру",
+  "fetchedAt": "2026-11-10T01:30:03.742Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: зарубежная новость без связи с Россией"
+}
