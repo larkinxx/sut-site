@@ -1,0 +1,15 @@
+{
+  "id": "tass-b3c9a73732f3",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Цена Brent на ICE снижалась более чем на 2,5%",
+  "url": "https://tass.ru/ekonomika/28301889",
+  "publishedAt": "2026-11-10T08:55:17.000Z",
+  "text": "По данным на 11:34 мск, стоимость Brent снижалась до $90,16 за баррель",
+  "fetchedAt": "2026-11-10T09:46:37.927Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: биржевые сводки"
+}

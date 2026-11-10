@@ -1,0 +1,15 @@
+{
+  "id": "kommersant-finance-c109e20ef5e9",
+  "sourceId": "kommersant-finance",
+  "sourceName": "Коммерсантъ",
+  "kind": "Финансы",
+  "official": false,
+  "category": "Индустрии",
+  "title": "Brent опустилась ниже $90 за баррель впервые с конца августа",
+  "url": "https://www.kommersant.ru/doc/9093558",
+  "publishedAt": "2026-11-10T09:33:45.000Z",
+  "text": "ФСТЭК сертифицировала решение Kaspersky Container Security\nКоммерсантъ. Технологии 12:43",
+  "fetchedAt": "2026-11-10T09:46:47.377Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: биржевые сводки"
+}

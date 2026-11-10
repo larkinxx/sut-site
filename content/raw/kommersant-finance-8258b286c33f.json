@@ -1,0 +1,15 @@
+{
+  "id": "kommersant-finance-8258b286c33f",
+  "sourceId": "kommersant-finance",
+  "sourceName": "Коммерсантъ",
+  "kind": "Финансы",
+  "official": false,
+  "category": "Индустрии",
+  "title": "Anthropic отозвала разосланные банкам детали IPO почти на $70 млрд",
+  "url": "https://www.kommersant.ru/doc/9093370",
+  "publishedAt": "2026-11-10T06:37:57.000Z",
+  "text": "ФСТЭК сертифицировала решение Kaspersky Container Security\nКоммерсантъ. Технологии 12:43",
+  "fetchedAt": "2026-11-10T09:46:47.602Z",
+  "drafted": true,
+  "skipReason": "Новость касается корпоративных событий зарубежной компании и узкой технической сертификации IT-продукта, что не имеет практического значения для личных финансов граждан или малого бизнеса."
+}

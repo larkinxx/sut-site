@@ -1,0 +1,15 @@
+{
+  "id": "rbc-9ff360fbb0e3",
+  "sourceId": "rbc",
+  "sourceName": "РБК",
+  "kind": "Новости",
+  "official": false,
+  "category": "",
+  "title": "Переговоры Абу-Даби",
+  "url": "https://www.rbc.ru/photoslider/6af2d4a2e0ff693c1d148850",
+  "publishedAt": "2026-11-10T08:25:07.000Z",
+  "text": "Переговоры Абу-Даби",
+  "fetchedAt": "2026-11-10T09:46:33.879Z",
+  "drafted": true,
+  "skipReason": "Новость о протокольных переговорах не содержит практической информации для личных финансов граждан или малого бизнеса."
+}
