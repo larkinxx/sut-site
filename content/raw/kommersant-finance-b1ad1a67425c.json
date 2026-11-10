@@ -1,0 +1,15 @@
+{
+  "id": "kommersant-finance-b1ad1a67425c",
+  "sourceId": "kommersant-finance",
+  "sourceName": "Коммерсантъ",
+  "kind": "Финансы",
+  "official": false,
+  "category": "Индустрии",
+  "title": "Акции Nvidia упали на 6%",
+  "url": "https://www.kommersant.ru/doc/9094082",
+  "publishedAt": "2026-11-10T19:02:57.000Z",
+  "text": "Над Ленинградской областью сбиты 42 беспилотника\nПроисшествия 02:13",
+  "fetchedAt": "2026-11-10T23:18:06.621Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: зарубежная новость без связи с Россией"
+}
