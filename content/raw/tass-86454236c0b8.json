@@ -1,0 +1,15 @@
+{
+  "id": "tass-86454236c0b8",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропорту Екатеринбурга ввели ограничения",
+  "url": "https://tass.ru/ekonomika/28305143",
+  "publishedAt": "2026-11-11T05:20:38.000Z",
+  "text": "Об этом сообщила Росавиация",
+  "fetchedAt": "2026-11-11T06:13:20.574Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}

@@ -1,0 +1,15 @@
+{
+  "id": "tass-5a0e460e3b3d",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Индексы Мосбиржи и РТС на открытии основной сессии демонстрируют рост на 0,34%",
+  "url": "https://tass.ru/ekonomika/28305281",
+  "publishedAt": "2026-11-11T06:01:50.000Z",
+  "text": "",
+  "fetchedAt": "2026-11-11T06:13:19.796Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: биржевые сводки"
+}
