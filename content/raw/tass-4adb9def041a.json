@@ -1,0 +1,14 @@
+{
+  "id": "tass-4adb9def041a",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В России с отзывом SSL-сертификатов столкнулись более 1 тыс. организаций",
+  "url": "https://tass.ru/ekonomika/28307657",
+  "publishedAt": "2026-11-11T13:49:57.000Z",
+  "text": "Отозвано уже 11 тыс. сертификатов безопасности",
+  "fetchedAt": "2026-11-11T14:26:58.032Z",
+  "drafted": false
+}

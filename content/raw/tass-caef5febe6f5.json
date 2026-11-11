@@ -1,0 +1,14 @@
+{
+  "id": "tass-caef5febe6f5",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Максимальная ставка по вкладам в рублях в ноябре выросла до 13,31%",
+  "url": "https://tass.ru/ekonomika/28307567",
+  "publishedAt": "2026-11-11T13:32:05.000Z",
+  "text": "В третьей декаде октября ставка составляла 13,09% годовых",
+  "fetchedAt": "2026-11-11T14:26:58.870Z",
+  "drafted": false
+}
