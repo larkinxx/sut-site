@@ -1,0 +1,15 @@
+{
+  "id": "tass-633dbb02754c",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Акции Nvidia снижаются на 8,6% из-за возможной отставке гендиректора",
+  "url": "https://tass.ru/ekonomika/28309091",
+  "publishedAt": "2026-11-11T23:50:40.000Z",
+  "text": "Стоимость бумаг опускалась до $158,71",
+  "fetchedAt": "2026-11-12T02:57:35.173Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: кадровые назначения"
+}
