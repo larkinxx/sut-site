@@ -1,0 +1,14 @@
+{
+  "id": "tass-7f26a71b1410",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Главный индекс Франкфуртской биржи впервые преодолел отметку в 27 тыс. пунктов",
+  "url": "https://tass.ru/ekonomika/28311027",
+  "publishedAt": "2026-11-12T10:14:57.000Z",
+  "text": "DAX вырос на 1,3%, до 27 001 пункта",
+  "fetchedAt": "2026-11-12T11:03:45.336Z",
+  "drafted": false
+}
