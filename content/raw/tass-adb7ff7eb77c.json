@@ -1,0 +1,15 @@
+{
+  "id": "tass-adb7ff7eb77c",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропорту Волгограда ввели ограничения",
+  "url": "https://tass.ru/ekonomika/28313097",
+  "publishedAt": "2026-11-12T17:25:45.000Z",
+  "text": "Они необходимы для обеспечения безопасности полетов",
+  "fetchedAt": "2026-11-12T18:54:44.709Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}

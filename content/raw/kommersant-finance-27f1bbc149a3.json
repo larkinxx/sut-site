@@ -1,0 +1,15 @@
+{
+  "id": "kommersant-finance-27f1bbc149a3",
+  "sourceId": "kommersant-finance",
+  "sourceName": "Коммерсантъ",
+  "kind": "Финансы",
+  "official": false,
+  "category": "Индустрии",
+  "title": "Акции Nvidia обвалились на новостях о возможном увольнении Дженсена Хуанга",
+  "url": "https://www.kommersant.ru/doc/9095513",
+  "publishedAt": "2026-11-12T11:17:24.000Z",
+  "text": "Путин поручил разработать план развития систем накопления электроэнергии\nИндустрии 21:51",
+  "fetchedAt": "2026-11-12T18:55:00.736Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: зарубежная новость без связи с Россией"
+}
