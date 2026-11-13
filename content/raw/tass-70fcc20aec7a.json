@@ -1,0 +1,14 @@
+{
+  "id": "tass-70fcc20aec7a",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Росстат предварительно оценил рост ВВП РФ в III квартале на уровне 1%",
+  "url": "https://tass.ru/ekonomika/28316519",
+  "publishedAt": "2026-11-13T16:01:11.000Z",
+  "text": "Во II квартале показатель составил 1,3%",
+  "fetchedAt": "2026-11-13T16:20:14.789Z",
+  "drafted": false
+}

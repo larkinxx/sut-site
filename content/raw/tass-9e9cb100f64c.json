@@ -1,0 +1,14 @@
+{
+  "id": "tass-9e9cb100f64c",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Лихачев анонсировал пуск АЭС \"Аккую\"",
+  "url": "https://tass.ru/ekonomika/28316383",
+  "publishedAt": "2026-11-13T15:20:31.000Z",
+  "text": "Он намечен на январь-февраль 2027 года, рассказал гендиректор Росатома",
+  "fetchedAt": "2026-11-13T16:20:15.976Z",
+  "drafted": false
+}
