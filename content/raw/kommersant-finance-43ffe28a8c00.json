@@ -1,0 +1,15 @@
+{
+  "id": "kommersant-finance-43ffe28a8c00",
+  "sourceId": "kommersant-finance",
+  "sourceName": "Коммерсантъ",
+  "kind": "Финансы",
+  "official": false,
+  "category": "Индустрии",
+  "title": "Биткойн упал ниже $66 тыс.",
+  "url": "https://www.kommersant.ru/doc/9109700",
+  "publishedAt": "2026-11-14T16:00:34.000Z",
+  "text": "Все что вы хотели знать о жидкости, которой многие боялись\nHyperТекст 20:01",
+  "fetchedAt": "2026-11-14T17:05:46.359Z",
+  "drafted": true,
+  "skipReason": "Новость о колебании курса криптовалюты (биткойна) без практических последствий и алгоритма действий для граждан."
+}
