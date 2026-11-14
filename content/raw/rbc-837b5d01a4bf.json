@@ -1,0 +1,15 @@
+{
+  "id": "rbc-837b5d01a4bf",
+  "sourceId": "rbc",
+  "sourceName": "РБК",
+  "kind": "Новости",
+  "official": false,
+  "category": "",
+  "title": "Новая бабочка",
+  "url": "https://www.rbc.ru/photoslider/6af81e278cf1f15c6404b6b3",
+  "publishedAt": "2026-11-14T08:44:30.000Z",
+  "text": "Новая бабочка",
+  "fetchedAt": "2026-11-14T10:29:27.555Z",
+  "drafted": true,
+  "skipReason": "Новость не имеет отношения к экономике, личным финансам или бизнесу и не содержит практической пользы для читателей."
+}
