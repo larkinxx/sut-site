@@ -1,0 +1,15 @@
+{
+  "id": "rbc-ea9e7eff5c5f",
+  "sourceId": "rbc",
+  "sourceName": "РБК",
+  "kind": "Новости",
+  "official": false,
+  "category": "",
+  "title": "Хуанг новый",
+  "url": "https://www.rbc.ru/photoslider/6afb34efe7b95db27e4a3c41",
+  "publishedAt": "2026-11-16T16:56:28.000Z",
+  "text": "Хуанг новый",
+  "fetchedAt": "2026-11-16T20:27:47.241Z",
+  "drafted": true,
+  "skipReason": "Новость не содержит полезной финансово-экономической информации или практического значения для граждан и бизнеса."
+}

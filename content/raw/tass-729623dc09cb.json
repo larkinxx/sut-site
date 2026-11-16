@@ -1,0 +1,15 @@
+{
+  "id": "tass-729623dc09cb",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Downdetector: несколько крупнейших банков США столкнулись с перебоями в работе",
+  "url": "https://tass.ru/ekonomika/28323647",
+  "publishedAt": "2026-11-16T19:08:00.000Z",
+  "text": "Речь идет о J. P. Morgan, Bank of America, Wells Fargo, Chase Bank и US Bank",
+  "fetchedAt": "2026-11-16T20:27:50.975Z",
+  "drafted": true,
+  "skipReason": "Новость о сбоях в работе американских банков не содержит практической пользы или инструкций для российских граждан и малого бизнеса."
+}

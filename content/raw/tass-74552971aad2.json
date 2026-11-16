@@ -1,0 +1,15 @@
+{
+  "id": "tass-74552971aad2",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропорту Иванова ввели ограничения",
+  "url": "https://tass.ru/ekonomika/28323655",
+  "publishedAt": "2026-11-16T19:01:39.000Z",
+  "text": "Об этом заявили в Росавиации",
+  "fetchedAt": "2026-11-16T20:27:51.098Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
