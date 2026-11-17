@@ -1,0 +1,15 @@
+{
+  "id": "kommersant-finance-dafc70d199c9",
+  "sourceId": "kommersant-finance",
+  "sourceName": "Коммерсантъ",
+  "kind": "Финансы",
+  "official": false,
+  "category": "Индустрии",
+  "title": "Инвестфонд Сороса сократил долю в Nvidia до ухода Хуанга",
+  "url": "https://www.kommersant.ru/doc/9111838",
+  "publishedAt": "2026-11-17T13:58:27.000Z",
+  "text": "В Apple сообщили о масштабном сбое систем из-за внутреннего обновления\nМедиа и Телеком 01:07",
+  "fetchedAt": "2026-11-17T22:20:53.876Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: зарубежная новость без связи с Россией"
+}

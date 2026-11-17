@@ -1,0 +1,15 @@
+{
+  "id": "tass-ef051fce800c",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Bloomberg назвало причину сбоев в работе сервисов Apple",
+  "url": "https://tass.ru/ekonomika/28328123",
+  "publishedAt": "2026-11-17T20:50:44.000Z",
+  "text": "По данным агентства, ею стало внутреннее обновление",
+  "fetchedAt": "2026-11-17T22:20:46.898Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: зарубежная новость без связи с Россией"
+}

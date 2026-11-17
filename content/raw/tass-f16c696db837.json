@@ -1,0 +1,15 @@
+{
+  "id": "tass-f16c696db837",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В работе сервисов Apple произошел сбой",
+  "url": "https://tass.ru/ekonomika/28328049",
+  "publishedAt": "2026-11-17T19:38:24.000Z",
+  "text": "Большинство жалоб от пользователей были зафиксированы в США",
+  "fetchedAt": "2026-11-17T22:20:47.265Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: зарубежная новость без связи с Россией"
+}
