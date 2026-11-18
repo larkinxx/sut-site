@@ -1,0 +1,15 @@
+{
+  "id": "kommersant-finance-24b886c64cfe",
+  "sourceId": "kommersant-finance",
+  "sourceName": "Коммерсантъ",
+  "kind": "Финансы",
+  "official": false,
+  "category": "Индустрии",
+  "title": "Совет директоров Альфа-банка рекомендовал дивиденды",
+  "url": "https://www.kommersant.ru/doc/9112959",
+  "publishedAt": "2026-11-18T15:51:14.000Z",
+  "text": "MEE: Индонезия заинтересована в присоединении к Мекканскому пакту по обороне\nМир 00:49",
+  "fetchedAt": "2026-11-18T21:55:27.701Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: дивиденды компаний"
+}
