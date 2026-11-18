@@ -1,0 +1,14 @@
+{
+  "id": "tass-9afb60b69caf",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Путин заявил о низком уровне безработицы в РФ",
+  "url": "https://tass.ru/ekonomika/28328735",
+  "publishedAt": "2026-11-18T03:31:23.000Z",
+  "text": "Показатель составляет 2,3%, сообщил российский лидер",
+  "fetchedAt": "2026-11-18T04:17:46.142Z",
+  "drafted": false
+}

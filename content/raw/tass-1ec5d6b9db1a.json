@@ -1,0 +1,14 @@
+{
+  "id": "tass-1ec5d6b9db1a",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Путин: у России один из самых низких в мире уровень госдолга",
+  "url": "https://tass.ru/ekonomika/28328719",
+  "publishedAt": "2026-11-18T03:29:42.000Z",
+  "text": "Он находится в пределах 17%, отметил президент РФ",
+  "fetchedAt": "2026-11-18T04:17:46.756Z",
+  "drafted": false
+}
