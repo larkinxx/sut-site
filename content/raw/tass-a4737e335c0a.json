@@ -1,0 +1,15 @@
+{
+  "id": "tass-a4737e335c0a",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Аэропорт Калуги приостановил прием и выпуск самолетов",
+  "url": "https://tass.ru/ekonomika/28337427",
+  "publishedAt": "2026-11-19T18:44:13.000Z",
+  "text": "Об этом сообщила Росавиация",
+  "fetchedAt": "2026-11-19T21:30:23.931Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
