@@ -1,0 +1,15 @@
+{
+  "id": "tass-a59002cde9de",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропортах Бугульмы и Уфы ввели ограничения",
+  "url": "https://tass.ru/ekonomika/28332773",
+  "publishedAt": "2026-11-19T01:39:39.000Z",
+  "text": "Они необходимы для обеспечения безопасности полетов",
+  "fetchedAt": "2026-11-19T03:24:36.090Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
