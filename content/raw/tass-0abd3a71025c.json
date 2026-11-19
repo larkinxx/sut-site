@@ -1,0 +1,15 @@
+{
+  "id": "tass-0abd3a71025c",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Индекс Мосбиржи опускался более чем на 1,5%",
+  "url": "https://tass.ru/ekonomika/28335861",
+  "publishedAt": "2026-11-19T12:26:50.000Z",
+  "text": "РТС терял 1,54%",
+  "fetchedAt": "2026-11-19T13:02:00.703Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: биржевые сводки"
+}
