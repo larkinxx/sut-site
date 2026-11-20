@@ -1,0 +1,15 @@
+{
+  "id": "kommersant-finance-4aab49ae38c5",
+  "sourceId": "kommersant-finance",
+  "sourceName": "Коммерсантъ",
+  "kind": "Финансы",
+  "official": false,
+  "category": "Индустрии",
+  "title": "Индексы РТС и Мосбиржи упали на 3%",
+  "url": "https://www.kommersant.ru/doc/9126523",
+  "publishedAt": "2026-11-20T14:01:50.000Z",
+  "text": "NYT узнала о связях любовницы бывшего главы Nvidia Элис Хуанг с ВПК Китая\nМир 23:09",
+  "fetchedAt": "2026-11-20T20:14:38.507Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: биржевые сводки"
+}

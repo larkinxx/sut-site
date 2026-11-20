@@ -1,0 +1,15 @@
+{
+  "id": "tass-37b6f019e366",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропорту Махачкалы сняли ограничения",
+  "url": "https://tass.ru/ekonomika/28341147",
+  "publishedAt": "2026-11-20T18:06:23.000Z",
+  "text": "Прием и выпуск самолетов возобновили",
+  "fetchedAt": "2026-11-20T20:14:26.334Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
