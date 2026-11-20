@@ -1,0 +1,15 @@
+{
+  "id": "tass-a82db8bb7b7e",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Введены дополнительные ограничения на работу аэропорта Геленджика",
+  "url": "https://tass.ru/ekonomika/28338005",
+  "publishedAt": "2026-11-20T03:08:41.000Z",
+  "text": "",
+  "fetchedAt": "2026-11-20T03:12:01.638Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
