@@ -1,0 +1,15 @@
+{
+  "id": "tass-5a7de2252267",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропорту Краснодара ввели ограничения",
+  "url": "https://tass.ru/ekonomika/28342961",
+  "publishedAt": "2026-11-21T20:52:59.000Z",
+  "text": "Прием и выпуск самолетов приостановили",
+  "fetchedAt": "2026-11-21T23:13:33.587Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
