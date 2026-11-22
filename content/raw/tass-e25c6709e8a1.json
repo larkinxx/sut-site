@@ -1,0 +1,15 @@
+{
+  "id": "tass-e25c6709e8a1",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропортах Внуково и Калуги сняли ограничения",
+  "url": "https://tass.ru/ekonomika/28343065",
+  "publishedAt": "2026-11-21T23:22:34.000Z",
+  "text": "Аэропорты не принимали и не отправляли рейсы",
+  "fetchedAt": "2026-11-22T03:13:29.224Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
