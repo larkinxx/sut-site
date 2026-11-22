@@ -1,0 +1,15 @@
+{
+  "id": "tass-5dbd368e5c56",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропорту Краснодара сняли ограничения",
+  "url": "https://tass.ru/ekonomika/28343511",
+  "publishedAt": "2026-11-22T08:05:23.000Z",
+  "text": "Об этом сообщила Росавиация",
+  "fetchedAt": "2026-11-22T11:29:30.004Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
