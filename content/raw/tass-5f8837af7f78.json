@@ -1,0 +1,15 @@
+{
+  "id": "tass-5f8837af7f78",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропорту Перми сняли ограничения",
+  "url": "https://tass.ru/ekonomika/28345275",
+  "publishedAt": "2026-11-23T08:18:44.000Z",
+  "text": "Об этом заявили в Росавиации",
+  "fetchedAt": "2026-11-23T09:00:37.965Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}

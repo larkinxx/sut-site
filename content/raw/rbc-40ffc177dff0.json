@@ -1,0 +1,15 @@
+{
+  "id": "rbc-40ffc177dff0",
+  "sourceId": "rbc",
+  "sourceName": "РБК",
+  "kind": "Новости",
+  "official": false,
+  "category": "",
+  "title": "Индейки для Дня благодарения",
+  "url": "https://www.rbc.ru/photoslider/6b03f165d921cbbc50a416ad",
+  "publishedAt": "2026-11-23T07:55:54.000Z",
+  "text": "Индейки для Дня благодарения",
+  "fetchedAt": "2026-11-23T09:00:34.433Z",
+  "drafted": true,
+  "skipReason": "Новость не содержит экономической информации или практической пользы для граждан и малого бизнеса."
+}
