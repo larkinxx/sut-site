@@ -1,0 +1,15 @@
+{
+  "id": "tass-026008df8971",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Аэропорт Казани приостановил прием и выпуск самолетов",
+  "url": "https://tass.ru/ekonomika/28344283",
+  "publishedAt": "2026-11-23T00:44:41.000Z",
+  "text": "",
+  "fetchedAt": "2026-11-23T00:50:35.557Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}

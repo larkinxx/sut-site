@@ -1,0 +1,15 @@
+{
+  "id": "tass-443206d4cce4",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Аэропорты Пензы и Саратова ввели ограничения",
+  "url": "https://tass.ru/ekonomika/28344139",
+  "publishedAt": "2026-11-22T20:45:25.000Z",
+  "text": "Об этом сообщила Росавиация",
+  "fetchedAt": "2026-11-23T00:50:36.736Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
