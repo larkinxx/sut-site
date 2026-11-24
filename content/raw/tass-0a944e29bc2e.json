@@ -1,0 +1,14 @@
+{
+  "id": "tass-0a944e29bc2e",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Дефицит бюджета Херсонщины планируется на сумму более 1,4 млрд рублей",
+  "url": "https://tass.ru/ekonomika/28350831",
+  "publishedAt": "2026-11-24T16:49:27.000Z",
+  "text": "Расходная часть составляет более 58,5 млрд рублей",
+  "fetchedAt": "2026-11-24T17:41:11.851Z",
+  "drafted": false
+}

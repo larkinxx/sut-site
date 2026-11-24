@@ -1,0 +1,15 @@
+{
+  "id": "tass-a17b16fc2fb5",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропорту Волгограда сняли ограничения",
+  "url": "https://tass.ru/ekonomika/28350823",
+  "publishedAt": "2026-11-24T16:38:22.000Z",
+  "text": "Об этом сообщила Росавиация",
+  "fetchedAt": "2026-11-24T17:41:12.324Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}

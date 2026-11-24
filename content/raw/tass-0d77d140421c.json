@@ -1,0 +1,14 @@
+{
+  "id": "tass-0d77d140421c",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Российский рынок акций закрылся снижением основных индексов",
+  "url": "https://tass.ru/ekonomika/28350813",
+  "publishedAt": "2026-11-24T16:32:15.000Z",
+  "text": "Курс юаня вырос на 1 копейку, до 12,28 рубля",
+  "fetchedAt": "2026-11-24T17:41:12.641Z",
+  "drafted": false
+}
