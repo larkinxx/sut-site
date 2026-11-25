@@ -1,0 +1,15 @@
+{
+  "id": "tass-fcf9f08c9b59",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Трамп допустил, что США могут получить долю в Nvidia",
+  "url": "https://tass.ru/ekonomika/28351413",
+  "publishedAt": "2026-11-24T23:56:20.000Z",
+  "text": "Американский лидер заявил, что \"пока не поднимал эту тему\"",
+  "fetchedAt": "2026-11-25T02:24:50.591Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: зарубежная новость без связи с Россией"
+}

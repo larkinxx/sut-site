@@ -1,0 +1,15 @@
+{
+  "id": "tass-7c21ad56e3a8",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Аэропорт Уфы приостановил прием и выпуск самолетов",
+  "url": "https://tass.ru/ekonomika/28351531",
+  "publishedAt": "2026-11-25T01:21:21.000Z",
+  "text": "Действуют временные ограничения",
+  "fetchedAt": "2026-11-25T02:24:48.729Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
