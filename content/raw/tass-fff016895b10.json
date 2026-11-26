@@ -1,0 +1,14 @@
+{
+  "id": "tass-fff016895b10",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "ЦБ отметил рост кредита экономики РФ в октябре на 1,7%",
+  "url": "https://tass.ru/ekonomika/28358925",
+  "publishedAt": "2026-11-26T14:37:34.000Z",
+  "text": "Это выше показателя роста сентября на 1,1 п.п.",
+  "fetchedAt": "2026-11-26T15:12:17.743Z",
+  "drafted": false
+}

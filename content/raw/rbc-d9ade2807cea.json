@@ -1,0 +1,15 @@
+{
+  "id": "rbc-d9ade2807cea",
+  "sourceId": "rbc",
+  "sourceName": "РБК",
+  "kind": "Новости",
+  "official": false,
+  "category": "",
+  "title": "Сбербанк роботы",
+  "url": "https://www.rbc.ru/photoslider/6b0844c3c6174e722ba86a8a",
+  "publishedAt": "2026-11-26T14:47:18.000Z",
+  "text": "Сбербанк роботы",
+  "fetchedAt": "2026-11-26T15:12:13.594Z",
+  "drafted": true,
+  "skipReason": "Новость содержит только заголовок 'Сбербанк роботы' без какого-либо текста, фактов и практического значения для граждан."
+}
