@@ -1,0 +1,15 @@
+{
+  "id": "tass-f3406a798c9f",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Цена нефти Brent превысила $95 впервые с 16 ноября",
+  "url": "https://tass.ru/ekonomika/28356207",
+  "publishedAt": "2026-11-26T04:04:13.000Z",
+  "text": "К 06:46 мск она достигла $95,32 за баррель",
+  "fetchedAt": "2026-11-26T05:00:33.529Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: биржевые сводки"
+}

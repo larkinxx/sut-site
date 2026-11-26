@@ -1,0 +1,15 @@
+{
+  "id": "tass-43a6a4c80d93",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Nvidia уступила второе место Microsoft в списке самых дорогостоящих компаний",
+  "url": "https://tass.ru/ekonomika/28356279",
+  "publishedAt": "2026-11-26T04:54:27.000Z",
+  "text": "",
+  "fetchedAt": "2026-11-26T05:00:32.334Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: зарубежная новость без связи с Россией"
+}

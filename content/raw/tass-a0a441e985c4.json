@@ -1,0 +1,15 @@
+{
+  "id": "tass-a0a441e985c4",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Индекс Мосбиржи растет на открытии утренних торгов",
+  "url": "https://tass.ru/ekonomika/28356237",
+  "publishedAt": "2026-11-26T04:13:59.000Z",
+  "text": "К 07:10 мск он находился на отметке 2 361,15 пункта",
+  "fetchedAt": "2026-11-26T05:00:33.137Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: биржевые сводки"
+}
