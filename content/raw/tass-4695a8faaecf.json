@@ -1,0 +1,14 @@
+{
+  "id": "tass-4695a8faaecf",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В РФ скорректировали диапазоны потребления электроэнергии для населения",
+  "url": "https://tass.ru/ekonomika/28363835",
+  "publishedAt": "2026-11-27T18:38:19.000Z",
+  "text": "В них учтены тип жилья и способ его отопления",
+  "fetchedAt": "2026-11-27T18:57:04.065Z",
+  "drafted": false
+}
