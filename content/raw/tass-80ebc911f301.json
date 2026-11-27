@@ -1,0 +1,15 @@
+{
+  "id": "tass-80ebc911f301",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "Цена Brent на бирже ICE превышала $98 впервые с 9 ноября",
+  "url": "https://tass.ru/ekonomika/28361339",
+  "publishedAt": "2026-11-27T08:03:31.000Z",
+  "text": "К 11:04 мск стоимость Brent замедлила рост до $97,88 за баррель",
+  "fetchedAt": "2026-11-27T08:26:47.454Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: биржевые сводки"
+}

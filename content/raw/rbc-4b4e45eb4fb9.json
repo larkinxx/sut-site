@@ -1,0 +1,15 @@
+{
+  "id": "rbc-4b4e45eb4fb9",
+  "sourceId": "rbc",
+  "sourceName": "РБК",
+  "kind": "Новости",
+  "official": false,
+  "category": "",
+  "title": "Погода в США в День благодарения",
+  "url": "https://www.rbc.ru/photoslider/6b093a1bc73a0df694b4e3c6",
+  "publishedAt": "2026-11-27T08:11:05.000Z",
+  "text": "Погода в США в День благодарения",
+  "fetchedAt": "2026-11-27T08:26:41.982Z",
+  "drafted": true,
+  "skipReason": "Новость о погоде в США не имеет практической ценности для личных финансов граждан или малого бизнеса в России."
+}
