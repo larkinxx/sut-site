@@ -1,0 +1,15 @@
+{
+  "id": "tass-156626512b42",
+  "sourceId": "tass",
+  "sourceName": "ТАСС",
+  "kind": "Новости",
+  "official": false,
+  "category": "Экономика и бизнес",
+  "title": "В аэропорту Геленджика сняли ограничения",
+  "url": "https://tass.ru/ekonomika/28359947",
+  "publishedAt": "2026-11-26T20:02:23.000Z",
+  "text": "Прием и выпуск самолетов возобновили",
+  "fetchedAt": "2026-11-26T23:51:51.159Z",
+  "drafted": true,
+  "skipReason": "отсеяно до ИИ: ограничения в аэропортах"
+}
